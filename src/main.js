@@ -4,7 +4,7 @@ import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 
-const GLB = new URLSearchParams(location.search).get('m') || 'assets/office-v27c.glb', GLB_SIZE = 3877080;
+const GLB = new URLSearchParams(location.search).get('m') || 'assets/office-v28c.glb', GLB_SIZE = 3877080;
 const $ = (id) => document.getElementById(id);
 const status = $('status'), bar = $('bar'), fpsEl = $('fps');
 document.body.classList.add('js');
