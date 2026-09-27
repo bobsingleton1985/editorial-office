@@ -13,7 +13,7 @@ export function tint(warmth) {
 
 // desk lamps: centre of the green shade (Blender coords); the chair side of each desk is +y
 const DESK = { A: [-3.52, 1.766], B: [1.08, 2.67], C: [4.58, 2.666] };
-const DESK_I = 6.0, FLOOR_I = 22.0, TV_I = 0.6;
+const DESK_I = 5.0, FLOOR_I = 22.0, TV_I = 0.6;
 
 export function createLighting(sc, r) {
   r.shadowMap.enabled = true;
@@ -33,7 +33,11 @@ export function createLighting(sc, r) {
     sc.add(l, l.target); return l;
   };
   const lamps = {};
-  for (const [k, [x, y]] of Object.entries(DESK)) lamps[k] = spot(B(x, y + 0.06, 1.675), B(x, y + 0.14, 1.18), 1.0, 0.55, 0.03);
+  // banker lamps sit at the back-right corner of each desk: aim into the desk (−x, +y), cut the light off before the floor
+  for (const [k, [x, y]] of Object.entries(DESK)) {
+    const l = spot(B(x - 0.02, y + 0.05, 1.675), B(x - 0.45, y + 0.35, 1.18), 0.8, 0.9, 0.03);
+    l.distance = 1.5; lamps[k] = l;
+  }
   lamps.floor = spot(B(4.88, -5.62, 2.2), B(4.88, -5.62, 0), 1.15, 0.85, 0.05);
   const tv = new THREE.PointLight(0x9fb8ff, TV_I, 4, 2);   // blue-grey spill in front of the screen
   tv.position.copy(B(2.77, -0.87, 1.75)); sc.add(tv);
