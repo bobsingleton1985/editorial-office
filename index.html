@@ -10,7 +10,7 @@
   html,body { margin:0; height:100%; background:#1b1714; color:var(--ink); overflow:hidden;
     font:15px/1.4 Georgia, "Times New Roman", serif; -webkit-font-smoothing:antialiased; }
   #view, #view canvas { position:fixed; inset:0; width:100%; height:100%; display:block; touch-action:none; }
-  .panel { position:fixed; left:16px; top:16px; max-width:min(420px, calc(100% - 32px)); padding:12px 14px;
+  .panel { position:fixed; left:16px; top:16px; max-width:min(420px, calc(100% - 92px)); padding:12px 14px;
     background:var(--panel); border:1px solid var(--line); border-radius:10px; backdrop-filter:blur(6px); }
   h1 { margin:0; font-size:20px; letter-spacing:.06em; text-transform:uppercase; font-weight:normal; }
   .sub { color:var(--muted); font-size:13px; margin-top:2px; }
@@ -27,6 +27,21 @@
   button:disabled { opacity:.45; cursor:default; }
   #fps { pointer-events:none; font:12px -apple-system, "Segoe UI", Roboto, sans-serif; color:var(--muted);
     background:var(--panel); border-radius:999px; padding:6px 10px; }
+  #menu { position:fixed; top:16px; right:16px; width:44px; height:44px; padding:0; font-size:20px; line-height:1;
+    border-radius:10px; z-index:5; }
+  #settings { position:fixed; top:70px; right:16px; bottom:16px; width:min(330px, calc(100% - 32px)); overflow:auto; z-index:4;
+    padding:6px 14px 14px; background:rgba(20,15,12,.9); border:1px solid var(--line); border-radius:12px; backdrop-filter:blur(8px);
+    font:13px/1.35 -apple-system, "Segoe UI", Roboto, sans-serif; }
+  #settings[hidden] { display:none; }
+  #settings h2 { font:600 11px/1 -apple-system, "Segoe UI", Roboto, sans-serif; letter-spacing:.12em; text-transform:uppercase;
+    color:var(--muted); margin:16px 0 8px; }
+  #settings .row { display:grid; grid-template-columns:1fr auto; gap:4px 10px; align-items:center; margin:8px 0; }
+  #settings .row input[type=range], #settings .row select { grid-column:1 / -1; width:100%; accent-color:var(--accent); }
+  #settings .row input[type=checkbox] { width:18px; height:18px; accent-color:var(--accent); }
+  #settings output { color:var(--muted); font-variant-numeric:tabular-nums; }
+  #settings select { background:#2a221c; color:var(--ink); border:1px solid var(--line); border-radius:8px; padding:6px; }
+  #settings .btns { display:flex; gap:8px; flex-wrap:wrap; margin:12px 0 4px; }
+  #settings .btns button { font-size:13px; padding:7px 12px; }
   .hint { color:var(--muted); font:12px -apple-system, "Segoe UI", Roboto, sans-serif; margin-top:4px; }
 </style>
 </head>
@@ -45,6 +60,6 @@
   <span id="fps">…</span>
 </div>
 <noscript><div class="panel" style="top:auto;bottom:16px">Для офиса нужен JavaScript.</div></noscript>
-<script src="app.js?v=28" defer></script>
+<script src="app.js?v=29b" defer></script>
 </body>
 </html>

@@ -3,8 +3,10 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
+import { createLighting } from './lighting.js';
+import { loadSettings, buildPanel } from './settings.js';
 
-const GLB = new URLSearchParams(location.search).get('m') || 'assets/office-v28c.glb', GLB_SIZE = 3877080;
+const GLB = new URLSearchParams(location.search).get('m') || 'assets/office-v29c.glb', GLB_SIZE = 3880516;
 const $ = (id) => document.getElementById(id);
 const status = $('status'), bar = $('bar'), fpsEl = $('fps');
 document.body.classList.add('js');
@@ -21,9 +23,17 @@ const sc = new THREE.Scene();
 sc.background = new THREE.Color(0x1b1714);
 const pm = new THREE.PMREMGenerator(r);
 sc.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture;
-sc.environmentIntensity = 0.45;
-sc.add(new THREE.HemisphereLight(0xfff1e0, 0x3a3530, 1.1));
-const sun = new THREE.DirectionalLight(0xffffff, 2.1); sun.position.set(4, 10, 6); sc.add(sun);
+const L = createLighting(sc, r);                          // lamps with shadows, ambient, window light
+const S = loadSettings();
+let ttyTimer = null;
+function applyScene(s) {
+  clearInterval(ttyTimer); ttyTimer = s.autoTTY ? setInterval(() => incoming(), 45000) : null;
+  fpsEl.style.display = s.showFps ? '' : 'none';
+}
+window.__set = (p) => { Object.assign(S, p); L.apply(S); applyScene(S); };
+window.__cam = (pos, tgt, zoom = 1) => { cam.position.copy(B(...pos)); ctl.target.copy(B(...tgt)); cam.zoom = zoom; cam.updateProjectionMatrix(); ctl.update(); };
+L.apply(S);
+buildPanel(S, (s) => { L.apply(s); applyScene(s); });
 
 // ---------- main camera: orthographic, south-east (Blender coords -> three: x, z, -y)
 const B = (x, y, z) => new THREE.Vector3(x, z, -y);
@@ -74,6 +84,7 @@ let paperTarget = 0, lastX = null, returning = false, ttyBusy = false;
 
 function setup(g) {
   sc.add(g.scene);
+  L.attach(g.scene);
   mixer = new THREE.AnimationMixer(g.scene);
   for (const clip of g.animations) {
     if (clip.name.startsWith('CLOCK')) continue;                 // clock hands follow real time instead
@@ -95,7 +106,8 @@ function setup(g) {
   new THREE.TextureLoader().load('assets/tv_news.jpg', (t) => {
     t.flipY = false; t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; newsTex = t;
   });
-  setTimeout(incoming, 6000); setInterval(incoming, 45000);
+  if (S.autoTTY) setTimeout(incoming, 6000);
+  applyScene(S);
   $('tty').disabled = false;
 }
 
@@ -147,7 +159,7 @@ function step(dt, draw = true) {
     }
   }
   if (!draw) return;
-  ctl.update(); r.render(sc, cam);
+  L.update(dt); ctl.update(); r.render(sc, cam);
   fAcc += dt; fN++; if (fAcc >= 2) { fpsEl.textContent = `${Math.round(fN / fAcc)} кадров/с`; fAcc = 0; fN = 0; }
 }
 requestAnimationFrame(tick);
