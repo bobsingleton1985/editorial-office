@@ -2,8 +2,9 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 
-const GLB = 'assets/office-v27.glb', GLB_SIZE = 10621932;
+const GLB = new URLSearchParams(location.search).get('m') || 'assets/office-v27c.glb', GLB_SIZE = 3877080;
 const $ = (id) => document.getElementById(id);
 const status = $('status'), bar = $('bar'), fpsEl = $('fps');
 document.body.classList.add('js');
@@ -153,7 +154,7 @@ requestAnimationFrame(tick);
 
 fetchGLB(GLB).then(({ buffer, got }) => {
   status.textContent = 'Собираю сцену…';
-  new GLTFLoader().parse(buffer, '', (g) => {
+  new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).parse(buffer, '', (g) => {
     setup(g);
     const s = ((performance.now() - T0) / 1000).toFixed(1).replace('.', ',');
     status.textContent = `Офис загружен: ${mb(got)} МБ за ${s} с`;
