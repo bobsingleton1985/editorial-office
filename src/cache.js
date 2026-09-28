@@ -38,6 +38,7 @@ export function createStaticCache(r, scene, cam) {
   function render() {
     if (!on) { cam.layers.enableAll(); r.render(scene, cam); return; }
     const w = r.domElement.width, h = r.domElement.height;
+    if (!w || !h) return;                                             // hidden or minimised window: nothing to draw into
     if (!rt || rt.width !== w || rt.height !== h) { rt?.dispose(); rt = target(w, h); dirty = true; }
     if (dirty) { cam.layers.set(0); r.setRenderTarget(rt); r.render(scene, cam); r.setRenderTarget(null); dirty = false; }
     mat.uniforms.tColor.value = rt.texture; mat.uniforms.tDepth.value = rt.depthTexture;
