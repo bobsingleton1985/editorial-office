@@ -5,6 +5,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { createLighting } from './lighting.js';
 import { loadSettings, buildPanel } from './settings.js';
+import { addRepertoire } from './repertoire.js';
 import { createEditor } from './editor.js';
 import { connectLive } from './live.js';
 import { createQuality } from './quality.js';
@@ -165,6 +166,13 @@ async function loadEditor(office) {
     showWho(); setInterval(showWho, 1000);
   } catch (e) { if (who) who.textContent = '👤 Редактор не загрузился: ' + e.message; window.__err = String(e); }
 }
+// registry of clips and chains in the ☰ panel (visible to everyone for now)
+addRepertoire($('settings'), CHAR_BASE + 'assets/registry-live.json', () => {
+  const st = editor ? editor.status() : null; if (!st) return null;
+  if (st.mode === 'walk' || st.mode === 'turn') return 'walk';
+  if (st.seat?.startsWith('desk')) return 'desk'; if (st.seat?.startsWith('bench')) return 'bench';
+  return st.mode === 'idle' ? 'spot' : null;
+});
 live = connectLive(RELAY, (w) => { if (editor) editor.apply(w, live.now()); else pending = w; }, (s) => { net = s; showWho(); });
 
 function tvNews(on) {
