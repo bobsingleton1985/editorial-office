@@ -7,6 +7,7 @@ import { createLighting } from './lighting.js';
 import { loadSettings, buildPanel } from './settings.js';
 import { createEditor } from './editor.js';
 import { connectLive } from './live.js';
+import { createQuality } from './quality.js';
 
 const Q = new URLSearchParams(location.search);
 const GLB = Q.get('m') || 'assets/office-v29c.glb', GLB_SIZE = 3880516;
@@ -21,8 +22,10 @@ const T0 = performance.now();
 const mb = (b) => (b / 1048576).toFixed(1).replace('.', ',');
 
 // ---------- renderer, light, environment (as in the page brief)
-const r = new THREE.WebGLRenderer({ antialias: true });
-r.setPixelRatio(Math.min(devicePixelRatio, 2));
+const S = loadSettings();
+const QL = createQuality(Q.get('q') || S.quality || 'auto');   // weak devices (TVs): lower resolution, no shadows
+const r = new THREE.WebGLRenderer({ antialias: QL.antialias });
+r.setPixelRatio(QL.pixelRatio());
 r.toneMapping = THREE.ACESFilmicToneMapping;
 r.outputColorSpace = THREE.SRGBColorSpace;
 $('view').appendChild(r.domElement);
@@ -31,16 +34,19 @@ sc.background = new THREE.Color(0x1b1714);
 const pm = new THREE.PMREMGenerator(r);
 sc.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture;
 const L = createLighting(sc, r);                          // lamps with shadows, ambient, window light
-const S = loadSettings();
+const eff = (s) => (s.shadows && QL.level.shadows ? s : { ...s, shadows: false });   // the quality level may switch shadows off
 let ttyTimer = null;
 function applyScene(s) {
   clearInterval(ttyTimer); ttyTimer = s.autoTTY ? setInterval(() => incoming(), 45000) : null;
   fpsEl.style.display = s.showFps ? '' : 'none';
 }
-window.__set = (p) => { Object.assign(S, p); L.apply(S); applyScene(S); };
+window.__set = (p) => { Object.assign(S, p); L.apply(eff(S)); applyScene(S); };
 window.__cam = (pos, tgt, zoom = 1) => { cam.position.copy(B(...pos)); ctl.target.copy(B(...tgt)); cam.zoom = zoom; cam.updateProjectionMatrix(); ctl.update(); };
-L.apply(S);
-buildPanel(S, (s) => { L.apply(s); applyScene(s); });
+L.apply(eff(S));
+let qMode = S.quality;
+buildPanel(S, (s) => { if (s.quality !== qMode) { qMode = s.quality; QL.set(s.quality); applyQuality(); } L.apply(eff(s)); applyScene(s); });
+function applyQuality() { r.setPixelRatio(QL.pixelRatio()); fit(); L.apply(eff(S)); }
+window.__quality = () => ({ level: QL.level.id, auto: QL.auto, tv: QL.tv, ratio: r.getPixelRatio(), aa: QL.antialias });
 
 // ---------- main camera: orthographic, south-east (Blender coords -> three: x, z, -y)
 const B = (x, y, z) => new THREE.Vector3(x, z, -y);
@@ -162,7 +168,8 @@ $('tty').addEventListener('click', incoming);
 // ---------- per-frame life: clock, paper feed, TV flicker
 let prev = performance.now(), fAcc = 0, fN = 0, flick = 1, flickT = 0, rollT = 25 + Math.random() * 15, roll = -1;
 function tick(now) {
-  const dt = Math.min(0.1, (now - prev) / 1000); prev = now;
+  const raw = (now - prev) / 1000, dt = Math.min(0.1, raw); prev = now;
+  if (QL.tick(raw, window.__ready)) applyQuality();
   if (!window.__pause) step(dt);
   requestAnimationFrame(tick);
 }
@@ -195,8 +202,8 @@ function step(dt, draw = true) {
   }
   if (editor) editor.update(dt, live.now());
   if (!draw) return;
-  L.update(dt, editor && editor.moving()); ctl.update(); r.render(sc, cam);
-  fAcc += dt; fN++; if (fAcc >= 2) { fpsEl.textContent = `${Math.round(fN / fAcc)} кадров/с`; fAcc = 0; fN = 0; }
+  L.update(dt, editor && editor.moving() && QL.level.live); ctl.update(); r.render(sc, cam);
+  fAcc += dt; fN++; if (fAcc >= 2) { fpsEl.textContent = `${Math.round(fN / fAcc)} кадров/с · ${QL.level.label}${QL.auto ? ' (авто)' : ''}`; fAcc = 0; fN = 0; }
 }
 requestAnimationFrame(tick);
 

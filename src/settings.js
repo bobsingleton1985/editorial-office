@@ -8,7 +8,7 @@ export const DEFAULTS = {
   ...PRESETS.evening,
   lamps: { A: true, B: true, C: true, floor: true }, tvGlow: true,
   shadows: true, shadowQ: matchMedia('(max-width: 700px)').matches ? 'low' : 'medium',
-  autoTTY: true, showFps: true,
+  autoTTY: true, showFps: true, quality: 'auto',
 };
 const clone = (o) => JSON.parse(JSON.stringify(o));
 
@@ -74,6 +74,11 @@ export function buildPanel(state, onChange) {
       inputs.push(() => { i.value = state[k]; o.textContent = (+state[k]).toFixed(2); }); row(label, i, o);
     }
   }
+  h('Картинка');
+  { const sel = document.createElement('select');
+    for (const [v, t] of [['auto', 'Авто — по скорости устройства'], ['high', 'Высокое'], ['medium', 'Среднее'], ['low', 'Низкое (телевизор)'], ['lowest', 'Самое низкое']]) { const o = document.createElement('option'); o.value = v; o.textContent = t; sel.append(o); }
+    sel.addEventListener('change', () => { state.quality = sel.value; commit(); });
+    inputs.push(() => { sel.value = state.quality || 'auto'; }); row('Качество картинки', sel); }
   h('Тени');
   { const i = document.createElement('input'); i.type = 'checkbox';
     i.addEventListener('change', () => { state.shadows = i.checked; commit(); });
