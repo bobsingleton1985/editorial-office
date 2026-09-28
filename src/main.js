@@ -8,6 +8,8 @@ import { loadSettings, buildPanel } from './settings.js';
 import { createEditor } from './editor.js';
 import { connectLive } from './live.js';
 import { createQuality } from './quality.js';
+import { createStaticCache } from './cache.js';
+import { CHAIR_NODE } from './layout.js';
 
 const Q = new URLSearchParams(location.search);
 const GLB = Q.get('m') || 'assets/office-v29c.glb', GLB_SIZE = 3880516;
@@ -34,6 +36,7 @@ sc.background = new THREE.Color(0x1b1714);
 const pm = new THREE.PMREMGenerator(r);
 sc.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture;
 const L = createLighting(sc, r);                          // lamps with shadows, ambient, window light
+let SC = null;                                             // static picture cache (weak devices), made once the camera exists
 const eff = (s) => (s.shadows && QL.level.shadows ? s : { ...s, shadows: false });   // the quality level may switch shadows off
 let ttyTimer = null;
 function applyScene(s) {
@@ -41,12 +44,14 @@ function applyScene(s) {
   fpsEl.style.display = s.showFps ? '' : 'none';
 }
 window.__set = (p) => { Object.assign(S, p); L.apply(eff(S)); applyScene(S); };
-window.__cam = (pos, tgt, zoom = 1) => { cam.position.copy(B(...pos)); ctl.target.copy(B(...tgt)); cam.zoom = zoom; cam.updateProjectionMatrix(); ctl.update(); };
+window.__cam = (pos, tgt, zoom = 1) => { cam.position.copy(B(...pos)); ctl.target.copy(B(...tgt)); cam.zoom = zoom; cam.updateProjectionMatrix(); ctl.update(); SC?.markDirty(); };
 L.apply(eff(S));
 let qMode = S.quality;
-buildPanel(S, (s) => { if (s.quality !== qMode) { qMode = s.quality; QL.set(s.quality); applyQuality(); } L.apply(eff(s)); applyScene(s); });
-function applyQuality() { r.setPixelRatio(QL.pixelRatio()); fit(); L.apply(eff(S)); }
-window.__quality = () => ({ level: QL.level.id, auto: QL.auto, tv: QL.tv, ratio: r.getPixelRatio(), aa: QL.antialias });
+buildPanel(S, (s) => { if (s.quality !== qMode) { qMode = s.quality; QL.set(s.quality); applyQuality(); } L.apply(eff(s)); applyScene(s); SC?.markDirty(); });
+const diag = document.createElement('div'); diag.className = 'hint'; document.getElementById('settings')?.append(diag);
+const gpuName = (() => { try { const gl = r.getContext(), e = gl.getExtension('WEBGL_debug_renderer_info'); return e ? gl.getParameter(e.UNMASKED_RENDERER_WEBGL) : ''; } catch (e) { return ''; } })();
+function applyQuality() { r.setPixelRatio(QL.pixelRatio()); fit(); L.apply(eff(S)); if (SC) { SC.enabled = QL.level.cache; SC.markDirty(); } }
+window.__quality = () => ({ level: QL.level.id, auto: QL.auto, tv: QL.tv, ratio: r.getPixelRatio(), aa: QL.antialias, cache: !!SC?.enabled, calls: r.info.render.calls, cpu_ms: +cpuMs.toFixed(1) });
 
 // ---------- main camera: orthographic, south-east (Blender coords -> three: x, z, -y)
 const B = (x, y, z) => new THREE.Vector3(x, z, -y);
@@ -57,7 +62,7 @@ function fit() {
   const a = innerWidth / innerHeight;
   const v = a < 11.33 / 8.5 ? Math.min(8.2 / a, 16) : 8.5;   // portrait phones: crop the sides a little
   cam.left = -v * a / 2; cam.right = v * a / 2; cam.top = v / 2; cam.bottom = -v / 2;
-  cam.updateProjectionMatrix(); r.setSize(innerWidth, innerHeight);
+  cam.updateProjectionMatrix(); r.setSize(innerWidth, innerHeight); SC?.markDirty();
 }
 fit(); addEventListener('resize', fit);
 const ctl = new OrbitControls(cam, r.domElement);
@@ -67,6 +72,8 @@ const off = cam.position.clone().sub(target), az0 = Math.atan2(off.x, off.z);
 ctl.minAzimuthAngle = az0 - 0.7; ctl.maxAzimuthAngle = az0 + 0.7;
 ctl.minPolarAngle = 0.75; ctl.maxPolarAngle = 1.45;
 ctl.update();
+SC = createStaticCache(r, sc, cam); SC.enabled = QL.level.cache;
+ctl.addEventListener('change', () => SC.markDirty());
 
 // ---------- load the office with a visible byte counter (to see if the network cuts the file)
 async function fetchGLB(url) {
@@ -114,6 +121,14 @@ function setup(g) {
       if (mt.name === 'TV | screen image') tvMat = mt;
     }
   });
+  { // everything that moves goes to the cache's dynamic layer; the rest of the room is drawn once
+    const dyn = new Set();
+    for (const clip of g.animations) for (const t of clip.tracks) { const o = g.scene.getObjectByName(THREE.PropertyBinding.parseTrackName(t.name).nodeName); if (o) dyn.add(o); }
+    for (const p of clockPivots) dyn.add(p.o);
+    g.scene.traverse((o) => { if (o.isMesh && [].concat(o.material).some((m) => m.name === 'TV | screen image' || m.name === 'TTY v24 paper')) dyn.add(o); });
+    for (const n of Object.values(CHAIR_NODE)) { const o = g.scene.getObjectByName(n); if (o) dyn.add(o); }
+    dyn.forEach((o) => SC.addDynamic(o)); SC.lightsEverywhere(); window.__dynCount = dyn.size;
+  }
   if (paperMat && paperMat.map) paperTarget = paperMat.map.offset.y;
   if (tvMat) tvOrig = { map: tvMat.map, emissiveMap: tvMat.emissiveMap };
   new THREE.TextureLoader().load('assets/tv_news.jpg', (t) => {
@@ -144,7 +159,7 @@ async function loadEditor(office) {
       fetch(CHAR_BASE + 'assets/chair-tracks-v30.json').then((r) => r.json())]);
     const gltf = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).parseAsync(buf, '');
     editor = createEditor(sc, office, gltf, tracks);
-    L.attach(editor.holder);
+    L.attach(editor.holder); SC.addDynamic(editor.holder);
     window.__editor = editor;
     if (pending) { editor.apply(pending, live.now()); pending = null; }
     showWho(); setInterval(showWho, 1000);
@@ -166,6 +181,7 @@ function incoming() {
 $('tty').addEventListener('click', incoming);
 
 // ---------- per-frame life: clock, paper feed, TV flicker
+let cpuMs = 0;
 let prev = performance.now(), fAcc = 0, fN = 0, flick = 1, flickT = 0, rollT = 25 + Math.random() * 15, roll = -1;
 function tick(now) {
   const raw = (now - prev) / 1000, dt = Math.min(0.1, raw); prev = now;
@@ -176,6 +192,7 @@ function tick(now) {
 window.__dbg = () => ({ paper: paperMat && paperMat.map.offset.y, target: paperTarget, tvNews: !!(tvMat && newsTex && tvMat.map === newsTex), clocks: clockPivots.length, tty: tty.length, typebox: !!typebox });
 window.__step = (dt, n = 1) => { for (let i = 0; i < n; i++) step(dt, i === n - 1); };   // for automated checks
 function step(dt, draw = true) {
+  const t0 = performance.now();
   if (mixer) mixer.update(dt);
   const d = new Date(), h = d.getHours(), m = d.getMinutes(), s = d.getSeconds();
   const ang = { hour: ((h % 12) + m / 60) * Math.PI / 6, minute: (m + s / 60) * Math.PI / 30, second: s * Math.PI / 30 };
@@ -202,8 +219,14 @@ function step(dt, draw = true) {
   }
   if (editor) editor.update(dt, live.now());
   if (!draw) return;
-  L.update(dt, editor && editor.moving() && QL.level.live); ctl.update(); r.render(sc, cam);
-  fAcc += dt; fN++; if (fAcc >= 2) { fpsEl.textContent = `${Math.round(fN / fAcc)} кадров/с · ${QL.level.label}${QL.auto ? ' (авто)' : ''}`; fAcc = 0; fN = 0; }
+  L.update(dt, editor && editor.moving() && QL.level.live); ctl.update(); SC.render();
+  cpuMs += (performance.now() - t0 - cpuMs) * 0.1;
+  fAcc += dt; fN++;
+  if (fAcc >= 2) {
+    const fps = fN / fAcc; fpsEl.textContent = `${Math.round(fps)} кадров/с · ${QL.level.label}${QL.auto ? ' (авто)' : ''}`;
+    diag.textContent = `Для отладки: ${gpuName || 'видеокарта неизвестна'} · ${r.domElement.width}×${r.domElement.height} · кадр ${Math.round(1000 / fps)} мс, из них подготовка ${Math.round(cpuMs)} мс · ${SC.enabled ? 'кэш комнаты' : 'без кэша'}, отрисовок ${r.info.render.calls}`;
+    fAcc = 0; fN = 0;
+  }
 }
 requestAnimationFrame(tick);
 

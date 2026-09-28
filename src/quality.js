@@ -1,12 +1,13 @@
 // Picture quality for weak devices (TVs, old phones). In "auto" the page watches its own frame rate and steps down:
 // high → medium → low → lowest. The level that worked is remembered per device, so the next visit starts there.
-const KEY = 'editorial.quality.v1';
+const KEY = 'editorial.quality.v2';
 const TV = /SMART-?TV|SmartTV|Tizen|Web0S|webOS|NetCast|BRAVIA|Android TV|GoogleTV|AFT[A-Z]|HbbTV|CrKey|VIDAA|Roku|Hisense|Philips/i.test(navigator.userAgent);
+// cache: the still room is drawn once into a texture; each frame only the moving things are drawn (see cache.js)
 export const LEVELS = [
-  { id: 'lowest', label: 'самое низкое', ratio: 0.5, shadows: false, live: false },
-  { id: 'low', label: 'низкое', ratio: 0.75, shadows: false, live: false },
-  { id: 'medium', label: 'среднее', ratio: 1, shadows: true, live: false },
-  { id: 'high', label: 'высокое', ratio: 2, shadows: true, live: true },   // live: shadows follow a moving character every frame
+  { id: 'lowest', label: 'самое низкое', ratio: 0.75, shadows: false, live: false, cache: true },
+  { id: 'low', label: 'низкое', ratio: 1, shadows: false, live: false, cache: true },
+  { id: 'medium', label: 'среднее', ratio: 1, shadows: true, live: false, cache: false },
+  { id: 'high', label: 'высокое', ratio: 2, shadows: true, live: true, cache: false },   // live: shadows follow a moving character every frame
 ];
 const find = (id) => LEVELS.findIndex((l) => l.id === id);
 function remembered() { try { const v = localStorage.getItem(KEY); return v === null ? -1 : +v; } catch (e) { return -1; } }
