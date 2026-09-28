@@ -6,6 +6,7 @@ import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.j
 import { createLighting } from './lighting.js';
 import { loadSettings, buildPanel } from './settings.js';
 import { addRepertoire } from './repertoire.js';
+import { addDirectorStatus } from './director-status.js';
 import { createEditor } from './editor.js';
 import { connectLive } from './live.js';
 import { createQuality } from './quality.js';
@@ -48,8 +49,8 @@ window.__set = (p) => { Object.assign(S, p); L.apply(eff(S)); applyScene(S); };
 window.__cam = (pos, tgt, zoom = 1) => { cam.position.copy(B(...pos)); ctl.target.copy(B(...tgt)); cam.zoom = zoom; cam.updateProjectionMatrix(); ctl.update(); SC?.markDirty(); };
 L.apply(eff(S));
 let qMode = S.quality;
-buildPanel(S, (s) => { if (s.quality !== qMode) { qMode = s.quality; QL.set(s.quality); applyQuality(); } L.apply(eff(s)); applyScene(s); SC?.markDirty(); });
-const diag = document.createElement('div'); diag.className = 'hint'; document.getElementById('settings')?.append(diag);
+const PANEL = buildPanel(S, (s) => { if (s.quality !== qMode) { qMode = s.quality; QL.set(s.quality); applyQuality(); } L.apply(eff(s)); applyScene(s); SC?.markDirty(); });
+const diag = { textContent: '' }; window.__diag = diag;   // technical line (GPU, frame time): console only — window.__diag.textContent
 const gpuName = (() => { try { const gl = r.getContext(), e = gl.getExtension('WEBGL_debug_renderer_info'); return e ? gl.getParameter(e.UNMASKED_RENDERER_WEBGL) : ''; } catch (e) { return ''; } })();
 function applyQuality() { r.setPixelRatio(QL.pixelRatio()); fit(); L.apply(eff(S)); if (SC) { SC.enabled = QL.level.cache; SC.roomScale = QL.roomScale(); SC.markDirty(); } }
 window.__quality = () => ({ level: QL.level.id, auto: QL.auto, tv: QL.tv, ratio: r.getPixelRatio(), aa: QL.antialias, cache: !!SC?.enabled, calls: r.info.render.calls, cpu_ms: +cpuMs.toFixed(1) });
@@ -166,14 +167,16 @@ async function loadEditor(office) {
     showWho(); setInterval(showWho, 1000);
   } catch (e) { if (who) who.textContent = '👤 Редактор не загрузился: ' + e.message; window.__err = String(e); }
 }
-// registry of clips and chains in the ☰ panel (visible to everyone for now)
-addRepertoire($('settings'), CHAR_BASE + 'assets/registry-live.json', () => {
+// ☰ panel: animation chains and clips (registry), director status
+addRepertoire(PANEL.section, CHAR_BASE + 'assets/registry-live.json', () => {
   const st = editor ? editor.status() : null; if (!st) return null;
   if (st.mode === 'walk' || st.mode === 'turn') return 'walk';
   if (st.seat?.startsWith('desk')) return 'desk'; if (st.seat?.startsWith('bench')) return 'bench';
   return st.mode === 'idle' ? 'spot' : null;
 });
-live = connectLive(RELAY, (w) => { if (editor) editor.apply(w, live.now()); else pending = w; }, (s) => { net = s; showWho(); });
+let lastWorld = null;
+addDirectorStatus(PANEL.section, () => ({ net, world: lastWorld, now: live ? live.now() : Date.now() }));
+live = connectLive(RELAY, (w) => { lastWorld = w; if (editor) editor.apply(w, live.now()); else pending = w; }, (s) => { net = s; showWho(); });
 
 function tvNews(on) {
   if (!tvMat || !tvOrig) return;

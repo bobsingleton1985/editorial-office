@@ -1,4 +1,4 @@
-// ☰ panel section: which clips and chains the newsroom can play (from the animation registry).
+// ☰ panel sections «Цепочки анимации» and «Действия и клипы» (from the animation registry, registry-live.json on the VPS).
 // For now visible to everyone (owner's decision 29.09). isOwner() is kept for the later owner/viewer split (?owner=1 / ?owner=0).
 const KEY = 'editorial.owner';
 export function isOwner() {
@@ -7,51 +7,42 @@ export function isOwner() {
   catch (e) { return q === '1'; }
 }
 const ICON = { 'в живой редакции': '🎬', 'готов': '✅', 'склад': '📦' };
-export function addRepertoire(panel, url, current) {
-  if (!panel) return;
-  const box = document.createElement('section'); box.id = 'repertoire';
-  const css = document.createElement('style');
-  css.textContent = `#repertoire .rc{margin:6px 0;padding:6px 8px;border:1px solid var(--line);border-radius:8px}
-#repertoire .rc.now{border-color:var(--accent);background:rgba(224,145,58,.12)}
-#repertoire .rc b{font-weight:600} #repertoire .dim{color:var(--muted)}
-#repertoire table{width:100%;border-collapse:collapse;font-size:12px} #repertoire td{padding:3px 2px;border-top:1px solid var(--line)}
-#repertoire td.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}`;
-  document.head.append(css);
-  const menuBtn = document.getElementById('menu');
-  panel.insertBefore(box, panel.querySelector('.btns:last-of-type') || null);
-  let data = null, loading = false;
-  const el = (t, cls, txt) => { const e = document.createElement(t); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
+const el = (t, cls, txt) => { const e = document.createElement(t); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
+export function addRepertoire(section, url, current) {
+  if (!section) return;
+  const secC = section('🎬 Цепочки анимации', 'chains'), secA = section('Действия и клипы', 'actions');
+  const boxC = el('div', 'rep'), boxA = el('div', 'rep'); secC.append(boxC); secA.append(boxA);
+  let data = null, loading = false, failed = false;
   function render() {
-    box.replaceChildren(el('h2', null, '🎬 Репертуар'));
-    if (!data) { box.append(el('div', 'hint', loading ? 'Загрузка…' : 'Реестр не загрузился')); return; }
+    if (!data) { const t = loading ? 'Загрузка…' : failed ? 'Реестр не загрузился' : ''; boxC.replaceChildren(el('div', 'hint', t)); boxA.replaceChildren(el('div', 'hint', t)); return; }
     const t = data.totals, now = current();
-    box.append(el('div', 'hint', `Живых клипов ${t.live} · готовых ${t.ready} · на складе ${t.stock} · обновлено ${data.updated}`));
-    box.append(el('h2', null, 'Цепочки'));
+    boxC.replaceChildren(el('div', 'hint', `🎬 в редакции ${t.live} клипов · ✅ готовы ${t.ready} · 📦 на складе ${t.stock}`));
     for (const c of data.chains) {
       const d = el('div', 'rc' + (c.id === now ? ' now' : ''));
       const top = el('div'); top.append(el('b', null, `${ICON[c.status] || ''} ${c.name}`)); if (c.id === now) top.append(el('span', 'dim', '  ← сейчас'));
       d.append(top, el('div', 'dim', [c.place, c.participants !== '1' ? 'участники: ' + c.participants : '', c.status === 'готов' ? 'на странице ' + c.page : '', c.note].filter(Boolean).join(' · ')));
-      box.append(d);
+      boxC.append(d);
     }
+    boxA.replaceChildren(el('div', 'hint', 'Число клипов: 🎬 в редакции / ✅ готовы / 📦 на складе'));
     for (const [g, title] of [['тело', 'Тело'], ['предметы', 'Предметы'], ['люди', 'Люди']]) {
       const rows = data.actions.filter((a) => a.group === g); if (!rows.length) continue;
-      box.append(el('h2', null, title + ' · 🎬 / ✅ / 📦'));
+      boxA.append(el('div', 'sub', title));
       const tb = el('table');
       for (const a of rows) {
         const tr = el('tr', a.live ? '' : 'dim');
         tr.append(el('td', null, a.action + (a.states.length ? ' — ' + a.states.join(', ') : '')), el('td', 'n', `${a.live} / ${a.ready} / ${a.stock}`));
         tb.append(tr);
       }
-      box.append(tb);
+      boxA.append(tb);
     }
   }
   async function load() {
     if (data || loading) return; loading = true; render();
-    try { const r = await fetch(url, { cache: 'no-cache' }); if (!r.ok) throw new Error(r.status); data = await r.json(); } catch (e) { data = null; }
+    try { const r = await fetch(url, { cache: 'no-cache' }); if (!r.ok) throw new Error(r.status); data = await r.json(); } catch (e) { failed = true; }
     loading = false; render();
   }
-  let last = null;
-  setInterval(() => { if (panel.hidden || !data) return; const n = current(); if (n !== last) { last = n; render(); } }, 1000);
-  menuBtn?.addEventListener('click', () => { if (!panel.hidden) load(); });
+  for (const s of [secC, secA]) { s.addEventListener('toggle', () => { if (s.open) load(); }); if (s.open) load(); }
+  let last;
+  setInterval(() => { if (!secC.open || !data) return; const n = current(); if (n !== last) { last = n; render(); } }, 1000);
   render();
 }
