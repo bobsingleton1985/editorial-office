@@ -6,7 +6,8 @@ import * as THREE from 'three';
 
 const DYN = 1;
 export function createStaticCache(r, scene, cam) {
-  let rt = null, dirty = true, on = false;
+  let rt = null, dirty = true, on = false, room = 1;               // room: cached picture resolution as a share of the canvas
+  const css = new THREE.Vector2();
   const half = r.extensions.has('EXT_color_buffer_float') || r.extensions.has('EXT_color_buffer_half_float');
   const quadScene = new THREE.Scene(), quadCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
   const mat = new THREE.ShaderMaterial({
@@ -37,10 +38,12 @@ export function createStaticCache(r, scene, cam) {
 
   function render() {
     if (!on) { cam.layers.enableAll(); r.render(scene, cam); return; }
-    const w = r.domElement.width, h = r.domElement.height;
-    if (!w || !h) return;                                             // hidden or minimised window: nothing to draw into
+    r.getSize(css);
+    const k = r.getPixelRatio() * room, w = Math.round(css.x * k), h = Math.round(css.y * k);
+    if (!w || !h || !r.domElement.width) return;                      // hidden or minimised window: nothing to draw into
     if (!rt || rt.width !== w || rt.height !== h) { rt?.dispose(); rt = target(w, h); dirty = true; }
     if (dirty) { cam.layers.set(0); r.setRenderTarget(rt); r.render(scene, cam); r.setRenderTarget(null); dirty = false; }
+    // the room may be cached at a lower resolution than the canvas; people are drawn at full canvas resolution
     mat.uniforms.tColor.value = rt.texture; mat.uniforms.tDepth.value = rt.depthTexture;
     r.render(quadScene, quadCam);                                     // clears, then the room's colour and depth
     const ac = r.autoClear, bg = scene.background;
@@ -51,6 +54,7 @@ export function createStaticCache(r, scene, cam) {
   return {
     render, addDynamic, lightsEverywhere,
     markDirty: () => { dirty = true; },
+    set roomScale(v) { if (v !== room) { room = v; dirty = true; } },
     set enabled(v) { if (v !== on) { on = v; dirty = true; if (!v) { rt?.dispose(); rt = null; } } },
     get enabled() { return on; },
   };

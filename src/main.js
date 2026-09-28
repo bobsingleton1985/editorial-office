@@ -50,7 +50,7 @@ let qMode = S.quality;
 buildPanel(S, (s) => { if (s.quality !== qMode) { qMode = s.quality; QL.set(s.quality); applyQuality(); } L.apply(eff(s)); applyScene(s); SC?.markDirty(); });
 const diag = document.createElement('div'); diag.className = 'hint'; document.getElementById('settings')?.append(diag);
 const gpuName = (() => { try { const gl = r.getContext(), e = gl.getExtension('WEBGL_debug_renderer_info'); return e ? gl.getParameter(e.UNMASKED_RENDERER_WEBGL) : ''; } catch (e) { return ''; } })();
-function applyQuality() { r.setPixelRatio(QL.pixelRatio()); fit(); L.apply(eff(S)); if (SC) { SC.enabled = QL.level.cache; SC.markDirty(); } }
+function applyQuality() { r.setPixelRatio(QL.pixelRatio()); fit(); L.apply(eff(S)); if (SC) { SC.enabled = QL.level.cache; SC.roomScale = QL.roomScale(); SC.markDirty(); } }
 window.__quality = () => ({ level: QL.level.id, auto: QL.auto, tv: QL.tv, ratio: r.getPixelRatio(), aa: QL.antialias, cache: !!SC?.enabled, calls: r.info.render.calls, cpu_ms: +cpuMs.toFixed(1) });
 
 // ---------- main camera: orthographic, south-east (Blender coords -> three: x, z, -y)
@@ -72,7 +72,7 @@ const off = cam.position.clone().sub(target), az0 = Math.atan2(off.x, off.z);
 ctl.minAzimuthAngle = az0 - 0.7; ctl.maxAzimuthAngle = az0 + 0.7;
 ctl.minPolarAngle = 0.75; ctl.maxPolarAngle = 1.45;
 ctl.update();
-SC = createStaticCache(r, sc, cam); SC.enabled = QL.level.cache;
+SC = createStaticCache(r, sc, cam); SC.enabled = QL.level.cache; SC.roomScale = QL.roomScale();
 ctl.addEventListener('change', () => SC.markDirty());
 
 // ---------- load the office with a visible byte counter (to see if the network cuts the file)
