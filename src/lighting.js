@@ -83,10 +83,10 @@ export function createLighting(sc, r) {
     needs = true;
   }
 
-  function update(dt) {                                  // TV spill follows the screen flicker; shadows at ~5 Hz
+  function update(dt, moving) {                          // TV spill follows the screen flicker; shadows at ~5 Hz, every frame while someone moves
     if (tvMat) tv.intensity = TV_I * tvMat.emissiveIntensity;
     tAcc += dt;
-    if (needs || tAcc > 0.2) { r.shadowMap.needsUpdate = true; tAcc = 0; needs = false; }
+    if (needs || moving || tAcc > 0.2) { r.shadowMap.needsUpdate = true; tAcc = 0; needs = false; }
   }
   return { attach, apply, update };
 }

@@ -5,10 +5,17 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { createLighting } from './lighting.js';
 import { loadSettings, buildPanel } from './settings.js';
+import { createEditor } from './editor.js';
+import { connectLive } from './live.js';
 
-const GLB = new URLSearchParams(location.search).get('m') || 'assets/office-v29c.glb', GLB_SIZE = 3880516;
+const Q = new URLSearchParams(location.search);
+const GLB = Q.get('m') || 'assets/office-v29c.glb', GLB_SIZE = 3880516;
+const RELAY_URL = 'https://135-106-229-50.sslip.io';     // shared newsroom: relay on the VPS (also hosts the character files)
+const RELAY = ((r) => (r === '/' ? '/' : r.replace(/\/$/, '')))(Q.get('relay') ?? RELAY_URL);   // '/' = same origin (local test)
+const CHAR_BASE = Q.get('charbase') ?? (RELAY && RELAY !== '/' ? RELAY + '/' : '');
+const CHAR = Q.get('char') ?? CHAR_BASE + 'assets/editor2A-web-v01.glb';
 const $ = (id) => document.getElementById(id);
-const status = $('status'), bar = $('bar'), fpsEl = $('fps');
+const status = $('status'), bar = $('bar'), fpsEl = $('fps'), who = $('who');
 document.body.classList.add('js');
 const T0 = performance.now();
 const mb = (b) => (b / 1048576).toFixed(1).replace('.', ',');
@@ -109,7 +116,35 @@ function setup(g) {
   if (S.autoTTY) setTimeout(incoming, 6000);
   applyScene(S);
   $('tty').disabled = false;
+  if (CHAR) loadEditor(g.scene);
 }
+
+// ---------- the first character: editor2A, driven by the shared director
+let editor = null, live = null, pending = null, net = { online: false };
+const PLACE = { deskA: 'за столом A', deskB: 'за столом B', deskC: 'за столом C', benchS: 'на скамье', benchM: 'на скамье', benchN: 'на скамье', window: 'у окна', teletype: 'у телетайпа' };
+function showWho() {
+  if (!who) return;
+  const st = editor ? editor.status() : null;
+  let t = editor ? '👤 Редактор' : '👤 Редактор загружается…';
+  if (st) t += ': ' + (st.label || (st.mode === 'seated' ? 'сидит ' + (PLACE[st.seat] || '') : st.motion));
+  if (!net.online) t += net.reason === 'no_relay' ? ' · редакция пока не на связи' : ' · нет связи с редакцией';
+  else if (net.viewers) t += ` · смотрят: ${net.viewers}`;
+  who.textContent = t;
+}
+async function loadEditor(office) {
+  try {
+    showWho();
+    const [buf, tracks] = await Promise.all([fetch(CHAR).then((r) => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); }),
+      fetch(CHAR_BASE + 'assets/chair-tracks-v30.json').then((r) => r.json())]);
+    const gltf = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).parseAsync(buf, '');
+    editor = createEditor(sc, office, gltf, tracks);
+    L.attach(editor.holder);
+    window.__editor = editor;
+    if (pending) { editor.apply(pending, live.now()); pending = null; }
+    showWho(); setInterval(showWho, 1000);
+  } catch (e) { if (who) who.textContent = '👤 Редактор не загрузился: ' + e.message; window.__err = String(e); }
+}
+live = connectLive(RELAY, (w) => { if (editor) editor.apply(w, live.now()); else pending = w; }, (s) => { net = s; showWho(); });
 
 function tvNews(on) {
   if (!tvMat || !tvOrig) return;
@@ -158,8 +193,9 @@ function step(dt, draw = true) {
       if (roll >= 1) roll = -1;
     }
   }
+  if (editor) editor.update(dt, live.now());
   if (!draw) return;
-  L.update(dt); ctl.update(); r.render(sc, cam);
+  L.update(dt, editor && editor.moving()); ctl.update(); r.render(sc, cam);
   fAcc += dt; fN++; if (fAcc >= 2) { fpsEl.textContent = `${Math.round(fN / fAcc)} кадров/с`; fAcc = 0; fN = 0; }
 }
 requestAnimationFrame(tick);

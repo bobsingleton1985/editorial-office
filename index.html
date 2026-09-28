@@ -14,6 +14,8 @@
     background:var(--panel); border:1px solid var(--line); border-radius:10px; backdrop-filter:blur(6px); }
   h1 { margin:0; font-size:20px; letter-spacing:.06em; text-transform:uppercase; font-weight:normal; }
   .sub { color:var(--muted); font-size:13px; margin-top:2px; }
+  #who { margin-top:6px; font:13px/1.35 -apple-system, "Segoe UI", Roboto, sans-serif; color:var(--muted); }
+  #who:empty { display:none; }
   #status { margin-top:8px; font:13px/1.35 -apple-system, "Segoe UI", Roboto, sans-serif; }
   .track { height:3px; background:var(--line); border-radius:2px; margin-top:6px; overflow:hidden; }
   #bar { height:100%; width:0; background:var(--accent); transition:width .15s; }
@@ -51,6 +53,7 @@
   <h1>Editorial</h1>
   <div class="sub">Редакция, Нью-Йорк, 1956 · тестовая версия</div>
   <div id="status">Загрузка…</div>
+  <div id="who"></div>
   <div class="track"><div id="bar"></div></div>
   <div id="nojs">Если эта надпись не исчезает 20 секунд, скрипты сайта не загрузились. Вероятно, мешают ограничения сети.</div>
   <div class="hint">Покрутить — одним пальцем, приблизить — двумя.</div>
@@ -60,6 +63,6 @@
   <span id="fps">…</span>
 </div>
 <noscript><div class="panel" style="top:auto;bottom:16px">Для офиса нужен JavaScript.</div></noscript>
-<script src="app.js?v=29c" defer></script>
+<script src="app.js?v=30" defer></script>
 </body>
 </html>
