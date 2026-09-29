@@ -33,6 +33,7 @@ const TYPEWRITER = 'assets/typewriter-v01.glb';                          // comp
 const SMOKE = Q.get('smoke') ?? CHAR_BASE + 'assets/editor2A-smoke-web-v01.glb';
 const COFFEE = Q.get('coffee') ?? CHAR_BASE + 'assets/editor2A-coffee-web-v01.glb';
 const DRINK_L = CHAR_BASE + 'assets/editor2A-drinkL-web-v01.glb';   // add-on: coffee with the left hand while smoking («Курилка» v8)   // add-on: mugs on the desks, the clip of one sip   // add-on: cigarette, lighter, the clips of one cigarette
+const GESTURES = CHAR_BASE + 'assets/editor2A-gestures-web-v01.glb';     // add-on: small gestures in the pauses (MC Seated / MC Idles)
 const $ = (id) => document.getElementById(id);
 const status = $('status'), bar = $('bar'), fpsEl = $('fps'), who = $('who');
 document.body.classList.add('js');
@@ -270,7 +271,7 @@ async function loadEditor(office) {
     showWho();
     const get = (u) => fetch(u).then((r) => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); });
     const opt = (u) => get(u).catch(() => null);                          // add-ons are optional: without them he just sits
-    const [buf, tracks, tbuf, wbuf, sbuf, cbuf, lbuf] = await Promise.all([get(CHAR), fetch(CHAR_BASE + 'assets/chair-tracks-v30.json').then((r) => r.json()), opt(CHAR_TYPE), opt(TYPEWRITER), SMOKE ? opt(SMOKE) : null, COFFEE ? opt(COFFEE) : null, opt(DRINK_L)]);
+    const [buf, tracks, tbuf, wbuf, sbuf, cbuf, lbuf, gbuf] = await Promise.all([get(CHAR), fetch(CHAR_BASE + 'assets/chair-tracks-v30.json').then((r) => r.json()), opt(CHAR_TYPE), opt(TYPEWRITER), SMOKE ? opt(SMOKE) : null, COFFEE ? opt(COFFEE) : null, opt(DRINK_L), opt(GESTURES)]);
     const ld = () => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
     const gltf = await ld().parseAsync(buf, '');
     const extra = {};
@@ -280,6 +281,7 @@ async function loadEditor(office) {
     if (sbuf) { extra.smoke = await ld().parseAsync(sbuf, '').catch(() => null); extra.camera = cam; extra.renderer = r; }   // without the add-on he simply does not smoke
     if (cbuf) extra.coffee = await ld().parseAsync(cbuf, '').catch(() => null);
     if (lbuf) extra.drinkL = await ld().parseAsync(lbuf, '').catch(() => null);         // without it he smokes over coffee without sipping          // without it there is no coffee
+    if (gbuf) extra.gestures = await ld().parseAsync(gbuf, '').catch(() => null);       // without it he just keeps still in the pauses
     editor = createEditor(sc, office, gltf, tracks, extra);
     for (const g of editor.mugs) { L.attach(g); SC.addDynamic(g); } if (editor.mugs.length) SC.markDirty();
     L.attach(editor.holder); SC.addDynamic(editor.holder); if (editor.fx) SC.addDynamic(editor.fx);
@@ -307,6 +309,17 @@ if (DEMO === 'smoke') {   // review: at the desk → a cigarette at the desk →
   let seq = 0, i = 0;
   const next = () => { const [from, cmd, activity, label, chairs, sec] = script[i % script.length]; i++; seq++;
     const w = { seq, chairs, editor: { from, cmd, at: live.now(), label, activity, source: 'demo' } }; if (editor) editor.apply(w, live.now()); else pending = w; setTimeout(next, sec * 1000); };
+  net = { online: true, viewers: 0 }; next();
+}
+
+if (DEMO === 'gestures') {   // review: small gestures in the pauses — resting at the desk (the machine is cleared away), standing at the window; fresh, then tired
+  const CH = { A: 0, B: 0.1174, C: 0.1174 }, T = { A: -0.25, B: 0.1174, C: 0.1174 };
+  const script = [[12, { seat: 'deskA' }, null, 'work', 'работает за столом A', 30, CH, 10], [374, { seat: 'deskA' }, null, 'rest_desk', 'отдыхает за столом A', 30, CH, 50],
+    [128, { seat: 'deskA' }, { spot: 'window' }, 'wait', 'стоит у окна', 30, CH, 40], [128, { spot: 'window' }, { seat: 'deskA' }, 'rest_desk', 'устал, отдыхает за столом A', 80, T, 60],
+    [313, { seat: 'deskA' }, { spot: 'window' }, 'wait', 'устал, стоит у окна', 80, CH, 35], [11, { spot: 'window' }, { seat: 'deskA' }, 'work', 'работает за столом A', 30, T, 20]];
+  let i = 0;
+  const next = () => { const [seq, from, cmd, activity, label, fatigue, chairs, sec] = script[i % script.length]; i++;
+    const w = { seq, chairs, editor: { from, cmd, at: live.now(), label, activity, fatigue, source: 'demo' } }; if (editor) editor.apply(w, live.now()); else pending = w; setTimeout(next, sec * 1000); };
   net = { online: true, viewers: 0 }; next();
 }
 

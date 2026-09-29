@@ -8,6 +8,7 @@ import { GRID } from './navgrid.js';
 import { S, DESKS, BENCH, SPOTS, RADIUS, chairBox, CHAIR_REST, CHAIR_TUCKED, CHAIR_NODE } from './layout.js';
 import { createSmoking } from './smoke.js';
 import { createCoffee, SIP } from './coffee.js';
+import { plan as gPlan, sample as gSample, wrapUp as gWrap, SEATED as G_SEATED, POOLS as G_POOLS } from './gestures.js';
 
 const FPS = 30, FADE = 0.3, LEAD = 0.9;
 const smooth = (t) => { t = Math.min(1, Math.max(0, t)); return t * t * (3 - 2 * t); };
@@ -96,6 +97,9 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {   /
   if (extra.typeClip) CL.type = stripClip('type', extra.typeClip, seatBase);
   // coffee (director's activity 'coffee', seated at a desk): a mug stands on every desk, sips of the approved DrinkR clip
   let coffee = null;
+  // small gestures in the pauses (add-on editor2A-gestures-web-v01.glb): seated ones in the seat frame, standing ones in place
+  const GEST = {};
+  if (extra.gestures) for (const c of extra.gestures.animations) { try { GEST[c.name] = stripClip('g_' + c.name, c, G_SEATED.has(c.name) ? seatBase : 'first'); } catch (e) { console.warn('gesture', c.name, e); } }
   if (extra.coffee) { try { coffee = createCoffee({ scene, addon: extra.coffee, DESKS, S }); CL.drink = stripClip('drink', coffee.bodyClip, seatBase); }
     catch (e) { console.warn('coffee unavailable:', e); coffee = null; } }
 
@@ -145,6 +149,7 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {   /
   layer('walk', walkClip); layer('stand_idle', CL.stand_idle.clip); layer('sit_idle', CL.sit_idle.clip); if (CL.type) layer('type', CL.type.clip);
   for (const n of Object.keys(CL)) if (n.startsWith('desk_') || n.startsWith('booth_')) layer(n, CL[n].clip, false);
   if (CL.drink) { layer('drink', CL.drink.clip, false); A.drink.paused = true; }
+  for (const n in GEST) { layer('g_' + n, GEST[n].clip, false); A['g_' + n].paused = true; }
   function fadeTo(name, t = FADE) { for (const k in W) W[k].target = k === name ? 1 : 0; W[name].rate = 1 / t; }
   function stepWeights(dt) { let sum = 0; for (const k in W) { const w = W[k]; w.cur += Math.sign(w.target - w.cur) * Math.min(Math.abs(w.target - w.cur), dt * (w.rate || 3)); sum += w.cur; }
     for (const k in W) A[k].setEffectiveWeight(sum > 0 ? W[k].cur / sum : 0); }
@@ -195,15 +200,16 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {   /
   // ---------- behaviour (as the seating page v6)
   const tw = extra.typewriters || null;
   // activities that need a free desk: the typewriter on that desk is taken away (none of them is live yet)
-  const FREE_DESK = new Set(['lunch', 'coffee', 'smoke_coffee']);
+  const FREE_DESK = new Set(['lunch', 'coffee', 'smoke_coffee', 'rest_desk']);   // resting: the desk is free for the gestures (papers, chin on the hand, dozing)
   let freeDesk = null, freeKind = null;
   const typing = () => !!(CL.type && ch.work && ch.seat && SEATS[ch.seat].desk);
   const seatedLoop = () => (typing() ? 'type' : 'sit_idle');
   // a sip: starts only while he is having coffee at a desk (by the coffee clock), once started it is drunk to the end
   const sipping = () => ch.sip !== null;
-  const ch = { sip: null, coffeeT: 0, work: false, title: '', mode: 'idle', seat: null, speed: 0, vis: 0, err: 0, path: null, cursor: 0, after: null, trans: null, queue: null, chairTail: null, blendIn: 0, motion: 'стоит' };
+  const ch = { clk: 0, g: null, gKey: '', fatigue: 0, sip: null, coffeeT: 0, work: false, title: '', mode: 'idle', seat: null, speed: 0, vis: 0, err: 0, path: null, cursor: 0, after: null, trans: null, queue: null, chairTail: null, blendIn: 0, motion: 'стоит' };
   function command(goal) {
     if (ch.mode === 'trans' || ch.mode === 'settle') { ch.queue = goal; return; }
+    if (ch.mode === 'seated' && ch.g) { ch.queue = goal; ch.mode = 'settle'; ch.g = gWrap(ch.g, ch.clk - ch.g.t0); ch.motion = 'сидит'; return; }   // lifts his head first
     if (ch.seat) {
       if (goal.seat === ch.seat) return;
       if (ch.mode === 'seated' && sipping()) { ch.queue = goal; ch.mode = 'settle'; ch.motion = 'допивает'; return; }
@@ -246,7 +252,7 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {   /
   }
   function updateChar(dt) {
     // settle: hands go back from the keys to the desk, then he may stand up
-    if (ch.mode === 'settle') { if ((!W.type || W.type.cur <= 0.02) && !sipping()) { ch.mode = 'seated'; const q = ch.queue; ch.queue = null; if (q) command(q); } }
+    if (ch.mode === 'settle') { if ((!W.type || W.type.cur <= 0.02) && !sipping() && !ch.g) { ch.mode = 'seated'; const q = ch.queue; ch.queue = null; if (q) command(q); } }
     if (ch.mode === 'seated' && W.type) {                              // switch between typing and resting without standing up
       const want = seatedLoop();
       if (W[want].target < 1) { if (want === 'type') { A.type.reset(); A.type.play(); } fadeTo(want, 0.9); }
@@ -269,11 +275,12 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {   /
       else if (W.drink.cur > 0) { W.drink.target = W.drink.cur = 0; if (ch.mode === 'seated' || ch.mode === 'settle') { W.sit_idle.target = W.sit_idle.cur = 1; } }
     }
     if (tw) {                                                           // typewriters stay on the desks; an activity that needs the desk clears it
-      if (FREE_DESK.has(ch.activity)) { freeDesk = ch.goalDesk || freeDesk; freeKind = ch.activity; }          // hidden as soon as he sets off towards that desk
+      if (FREE_DESK.has(ch.activity) && !(ch.activity === 'rest_desk' && W.type && W.type.cur > 0.05)) { freeDesk = ch.goalDesk || freeDesk; freeKind = ch.activity; }   // hidden as soon as he sets off towards that desk (resting: once the hands are off the keys)
+      else if (freeDesk && ch.activity === 'work') freeDesk = null;                              // back to work at the same desk: the machine is back
       else if (freeDesk && !(ch.seat && SEATS[ch.seat].desk === freeDesk) && ch.mode !== 'settle') freeDesk = null;   // back once he has got up and left
       tw.clear(freeDesk);
     }
-    if (coffee) for (const k of Object.keys(DESKS)) coffee.show(k, (!tw || freeDesk === k) && freeKind !== 'smoke_coffee');   // the mug takes the typewriter's place (they would overlap)
+    if (coffee) for (const k of Object.keys(DESKS)) coffee.show(k, (!tw || freeDesk === k) && freeKind !== 'smoke_coffee' && freeKind !== 'rest_desk');   // the mug takes the typewriter's place (they would overlap)
     for (const k in mugL) mugL[k].g.visible = freeDesk === k && freeKind === 'smoke_coffee';                              // with a cigarette: the left-hand mug
     if (ch.chairTail) { const tr = ch.chairTail; tr.t += dt; updateChair(tr); if (tr.t > tr.c.clip.duration) ch.chairTail = null; }
     if (ch.mode === 'walk') {
@@ -316,12 +323,40 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {   /
       W.walk.target = wW; W.stand_idle.target = 1 - wW; for (const k in W) if (k !== 'walk' && k !== 'stand_idle') W[k].target = 0;
       ch.blendIn = Math.max(0, ch.blendIn - dt); W.walk.rate = W.stand_idle.rate = ch.blendIn > 0 ? 3 : 6; A.walk.timeScale = Math.max(0.6, v / NATIVE);
     }
+    gestures();
+  }
+  // ---------- small gestures in the pauses: only while he just sits or just stands (gestures.js keeps the schedule)
+  const G_BUSY = new Set(['work', 'coffee', 'smoke', 'smoke_coffee', 'lunch']);
+  const G_LABEL = { sit_lookat: 'оглядывается', sit_papers: 'просматривает бумаги', sit_lean: 'облокотился на стол', sit_doze: 'дремлет', stand_look: 'оглядывается',
+    stand_watch: 'смотрит на часы', stand_yawn: 'зевает', stand_scratch: 'чешет затылок', stand_neck: 'разминает шею' };
+  const gDur = (n) => GEST[n] && GEST[n].clip.duration;
+  function gestures() {
+    if (!Object.keys(GEST).length) return;
+    const calmSeat = ch.mode === 'seated' && ch.seat && !typing() && !sipping() && !smoking?.active() && !G_BUSY.has(ch.activity);
+    const kind = calmSeat ? (SEATS[ch.seat].desk ? 'desk' : 'bench')
+      : ch.mode === 'idle' && !ch.seat && ch.speed === 0 && !smoking?.active() && ch.activity !== 'smoke' ? 'stand' : null;
+    if (ch.g && !(kind === ch.g.kind || (ch.mode === 'settle' && ch.g.kind !== 'stand'))) ch.g = null;   // something else took over: let it fade out
+    if (!ch.g && kind && cur) {
+      const slot = Math.floor(ch.clk / G_POOLS[kind].P), key = kind + '|' + cur.seq + '|' + slot;
+      if (key !== ch.gKey) { const g = gPlan(kind, cur.seq, slot, ch.fatigue, gDur);
+        if (g && ch.clk >= g.t0 && ch.clk < g.t0 + 0.5) { ch.g = g; ch.gKey = key; } }
+    }
+    if (ch.g && ch.clk - ch.g.t0 >= ch.g.T) ch.g = null;
+    const base = ch.g && (ch.g.kind === 'stand' ? 'stand_idle' : 'sit_idle');
+    const { e, w } = ch.g ? gSample(ch.g, ch.clk - ch.g.t0) : { e: 0, w: {} };
+    for (const n in GEST) { const k = 'g_' + n, v = w[n];
+      if (v) { W[k].target = W[k].cur = v[0]; A[k].time = v[1]; }
+      else if (W[k].target > 0 || W[k].cur > 0) { W[k].target = 0; W[k].rate = 1 / 0.4; } }
+    if (ch.g) { for (const k in W) if (!k.startsWith('g_') && k !== base) W[k].target = W[k].cur = 0;
+      W[base].target = W[base].cur = 1 - e;
+      const main = ch.g.segs.find((a) => !/_(start|stop)$/.test(a.n)) || ch.g.segs[0], lab = G_LABEL[main.n.replace(/_\d+$|_0\d$/, '')];
+      if (lab && ch.mode !== 'settle') ch.motion = lab; }
   }
 
   // ---------- playing the director's commands
   const goalOf = (g) => (!g ? null : g.seat ? { seat: g.seat } : g.spot ? { point: SPOTS[g.spot] } : null);
   function place(from, chairState) {
-    ch.mode = 'idle'; ch.seat = null; ch.trans = null; ch.sip = null; ch.queue = null; ch.chairTail = null; ch.path = null; ch.after = null; ch.speed = 0; ch.vis = 0;
+    ch.mode = 'idle'; ch.seat = null; ch.trans = null; ch.sip = null; ch.g = null; ch.queue = null; ch.chairTail = null; ch.path = null; ch.after = null; ch.speed = 0; ch.vis = 0;
     for (const k of Object.keys(chairs)) { const v = chairState?.[k] ?? CHAIR_REST; setChair(k, v); chairs[k].plan = v; }
     if (from?.seat && SEATS[from.seat]) { const s = SEATS[from.seat]; setHolder(s.pose); ch.seat = from.seat; ch.mode = 'seated'; ch.motion = 'сидит'; fadeTo(seatedLoop()); if (s.desk) { setChair(s.desk, 0); chairs[s.desk].plan = 0; } }
     else { const p = (from?.spot && SPOTS[from.spot]) || SPOTS.window; setHolder(p); ch.motion = 'стоит'; fadeTo('stand_idle'); }
@@ -330,7 +365,7 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {   /
   let cur = null, simT = 0;                          // current command and how far it has been played (s)
   const placeKey = (g) => (g ? g.seat || g.spot || null : null);
   function frame(dt, ff) {
-    updateChar(dt); stepWeights(dt);
+    ch.clk += dt; updateChar(dt); stepWeights(dt);
     if (smoking) smoking.pre(dt, smokeWant(), A);
     { const d = ch.seat && SEATS[ch.seat].desk, M = d && mugL[d];                      // the left-hand mug follows the sip; before the first sip it stands at frame 1, after it at the last
       if (M && cur?.activity === 'smoke_coffee' && ch.mode === 'seated') { const s = smoking.sipTime(), t = s >= 0 ? s : smoking.clockT() >= smoking.holdStart() ? M.D : 0;
@@ -349,6 +384,7 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {   /
   }
   function fastForward(sec) {                         // late join / hidden tab: replay the command at 30 steps a second, draw once
     const n = Math.min(Math.round(sec * FPS), 90 * FPS);       // any walk + sit is over within 90 s
+    ch.clk = simT + sec - n / FPS;                              // the gestures' clock ends where a live viewer's is
     for (let i = 0; i < n; i++) frame(1 / FPS, true);
     simT += sec;
     if (ch.mode === 'trans') A[ch.trans.clip].time = ch.trans.t;
@@ -359,12 +395,13 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {   /
     const e = w.editor, elapsed = Math.max(0, (serverNow - e.at) / 1000);
     ch.work = e.activity ? e.activity === 'work' : /^(работает|правит)/.test(e.label || '');
     ch.title = (/«(.+)»/.exec(e.label || '') || [])[1] || '';
-    ch.activity = e.activity || (ch.work ? 'work' : ''); ch.coffeeT = 0;   // every decision starts its own coffee clock (live and late viewers alike)
+    ch.activity = e.activity || (ch.work ? 'work' : ''); ch.coffeeT = 0; ch.fatigue = +e.fatigue || 0;   // every decision starts its own coffee clock (live and late viewers alike)
     { const g = e.cmd?.seat || e.from?.seat; ch.goalDesk = g && SEATS[g] ? SEATS[g].desk : null; }
     // live viewer: he is already there (or on his way there) — go on from here; otherwise rebuild the start and catch up
     const dest = cur ? placeKey(cur.cmd || cur.from) : null;
     const cont = cur && dest === placeKey(e.from) && elapsed < 3;
     if (!cont) place(e.from, w.chairs);
+    if (ch.g) ch.g.t0 -= ch.clk; ch.clk = 0;             // a gesture already running goes on; the new decision's slots count from zero
     cur = { seq: w.seq, at: e.at, from: e.from, cmd: e.cmd, label: e.label || '', source: e.source || '', activity: e.activity || '' }; simT = 0;
     const g = goalOf(e.cmd); if (g) command(g);
     if (!cont && elapsed > 0.05) fastForward(elapsed);
@@ -377,8 +414,8 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {   /
   return {
     apply, update, holder, SEATS, nav, chairs, fx: smoking ? smoking.fx : null,
     mugs: coffee ? coffee.groups : [],
-    moving: () => ch.mode === 'walk' || ch.mode === 'turn' || ch.mode === 'trans' || !!ch.chairTail || !!smoking?.active() || sipping(),
-    status: () => ({ label: cur?.label || '', motion: ch.motion, mode: ch.mode, seat: ch.seat, source: cur?.source || '', smoke: smoking ? smoking.status() : null, coffee: coffee ? { t: +ch.coffeeT.toFixed(2), sip: ch.sip === null ? null : +ch.sip.toFixed(2), w: W.drink ? +W.drink.cur.toFixed(2) : 0 } : null }),
+    moving: () => ch.mode === 'walk' || ch.mode === 'turn' || ch.mode === 'trans' || !!ch.chairTail || !!smoking?.active() || sipping() || !!ch.g,
+    status: () => ({ label: cur?.label || '', motion: ch.motion, gesture: ch.g ? ch.g.segs.map((a) => a.n).join('+') : null, mode: ch.mode, seat: ch.seat, source: cur?.source || '', smoke: smoking ? smoking.status() : null, coffee: coffee ? { t: +ch.coffeeT.toFixed(2), sip: ch.sip === null ? null : +ch.sip.toFixed(2), w: W.drink ? +W.drink.cur.toFixed(2) : 0 } : null }),
     debug: { ch, CL, A, W, mixer, SEATS, comp, trajAt, setHolder, snapWeights, command: (g) => command(goalOf(g) || g), place, entryOptions, exitOptions, holderPose, NATIVE: () => NATIVE, smoking },
   };
 }

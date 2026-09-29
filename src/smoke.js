@@ -169,11 +169,13 @@ export function createSmoking({ scene, root, B, mixer, U, addon, strip, camera, 
   const tl = { r: { x: new THREE.Vector3(), v: new THREE.Vector3() }, l: { x: new THREE.Vector3(), v: new THREE.Vector3() } };
   function tableLift(s, desk, extra, dt) {
     const Minv = desk.inv, v = new THREE.Vector3(); let Uu = 0, Kk = 0;
-    const test = (pw) => { const p = pw.clone().applyMatrix4(Minv), pen = TABLE.top + TABLE.gap - p.y, inZ = p.z - TABLE.z0; if (pen <= 0 || inZ <= 0) return;
+    const test = (pw) => { const p = pw.clone().applyMatrix4(Minv), pen = TABLE.top + TABLE.gap - p.y, inZ = p.z - TABLE.z0 + 0.03; if (pen <= 0 || inZ <= 0) return;   // 3 cm ahead of the edge already counts: the hand is taken back before it gets there
       const w = smooth((Math.min(p.x - TABLE.x0, TABLE.x1 - p.x, TABLE.z1 - p.z) + 0.02) / 0.04) * (1 - smooth((pen - 0.11) / 0.05)); Uu = Math.max(Uu, pen * w); Kk = Math.max(Kk, inZ * w); };
     HAND_PTS[s].forEach((n) => { if (B[n]) test(wpos(B[n], v)); }); (extra || []).forEach(test);
     const t = smooth((Kk - Uu) / 0.03 + 0.5), T = tl[s], w = 26, e = Math.exp(-w * dt);
-    const c = new THREE.Vector3(0, Uu * t, -Kk * (1 - t)), y0 = T.x.clone().sub(c), k = T.v.clone().addScaledVector(y0, w);
+    // taken back past the front edge with 3 cm to spare (see test above), so the cigarette's end does not stick into the edge (bench, v50)
+    const back = Kk;
+    const c = new THREE.Vector3(0, Uu * t, -back * (1 - t)), y0 = T.x.clone().sub(c), k = T.v.clone().addScaledVector(y0, w);
     T.x.copy(c).add(y0.addScaledVector(k, dt).multiplyScalar(e)); T.v.addScaledVector(k, -w * dt).multiplyScalar(e);
     if (T.x.lengthSq() > 1e-10) ik(s, T.x.clone().applyMatrix3(desk.dir));                   // pack metres in the desk frame → world
   }
