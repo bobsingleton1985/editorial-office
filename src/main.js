@@ -8,6 +8,7 @@ import { loadSettings, buildPanel, presetFor } from './settings.js';
 import { addRepertoire } from './repertoire.js';
 import { addDirectorStatus } from './director-status.js';
 import { createEditor } from './editor.js';
+import { createShared } from './office-shared.js';
 import { connectLive } from './live.js';
 import { createQuality } from './quality.js';
 import { createStaticCache } from './cache.js';
@@ -259,59 +260,102 @@ function setup(g) {
   if (CHAR) loadEditor(g.scene);
 }
 
-// ---------- the first character: editor2A, driven by the shared director
-let editor = null, live = null, pending = null, net = { online: false }, typewriters = null;
+// ---------- the people of the newsroom, driven by the shared director: world.chars = {id: {name, glb, chairBack, home, seq, from, cmd, at, label, …}}.
+// A new person needs no change here: the director names him, his body comes from the VPS, the clips are shared (one skeleton).
+// Old worlds ({editor}) are the columnist alone.
+let editor = null, live = null, pending = null, net = { online: false }, typewriters = null, shared = null, base = null, officeScene = null;
+const people = {}, order = [];                                     // id → {ed, name, loading}; order: as the director lists them
 const PLACE = { deskA: 'за столом A', deskB: 'за столом B', deskC: 'за столом C', benchS: 'на скамье', benchM: 'на скамье', benchN: 'на скамье', window: 'у окна', teletype: 'у телетайпа' };
+const charsOf = (w) => w?.chars || (w?.editor ? { columnist: { name: 'Колумнист', ...w.editor, seq: w.seq } } : {});
+let focus = null;                                                  // the person the viewer picked (click on him): his scales and journal
 function showWho() {
   if (!who) return;
-  const st = editor ? editor.status() : null;
-  let t = editor ? '👤 Редактор' : '👤 Редактор загружается…';
-  if (st) t += ': ' + (st.label || (st.mode === 'seated' ? 'сидит ' + (PLACE[st.seat] || '') : st.motion));
-  if (!net.online) t += net.reason === 'no_relay' ? ' · редакция пока не на связи' : ' · нет связи с редакцией';
-  else if (net.viewers) t += ` · смотрят: ${net.viewers}`;
-  who.textContent = t;
+  const lines = order.length ? order.map((id) => { const P = people[id], st = P.ed ? P.ed.status() : null;
+    return `👤 ${P.name}` + (P.error ? ' не загрузился' : !st ? ' загружается…' : ': ' + (st.label || (st.mode === 'seated' ? 'сидит ' + (PLACE[st.seat] || '') : st.motion))); })
+    : [base ? '👤 Ждём редакцию…' : '👤 Редакция загружается…'];
+  let t = !net.online ? (net.reason === 'no_relay' ? 'редакция пока не на связи' : 'нет связи с редакцией') : net.viewers ? `смотрят: ${net.viewers}` : '';
+  who.replaceChildren(...lines.map((l) => { const d = document.createElement('div'); d.textContent = l; return d; }), ...(t ? [Object.assign(document.createElement('div'), { textContent: t })] : []));
 }
-async function loadEditor(office) {
+const get = (u) => fetch(u).then((r) => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); });
+const opt = (u) => get(u).catch(() => null);                          // add-ons are optional: without them he just sits
+const ld = () => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
+async function loadShared(office) {                                   // once: the clips' file, the add-ons, the things on the desks
+  showWho();
+  const [buf, tracks, tbuf, wbuf, sbuf, cbuf, dbuf, gbuf, lbuf, pbuf, pcbuf, wkbuf] = await Promise.all([get(CHAR), fetch(CHAR_BASE + 'assets/chair-tracks-v30.json').then((r) => r.json()), opt(CHAR_TYPE), opt(TYPEWRITER), SMOKE ? opt(SMOKE) : null, COFFEE ? opt(COFFEE) : null, opt(DRINK_L), opt(GESTURES), LUNCH ? opt(LUNCH) : null, opt(PHONE), opt(PHONE_CLIPS), WALKS ? opt(WALKS) : null]);
+  const parse = (b) => (b ? ld().parseAsync(b.slice(0), '').catch(() => null) : null);
+  const B = { buf, tracks, sbuf, lbuf, wkbuf, typeClip: tbuf ? (await parse(tbuf))?.animations[0] : null, gestures: await parse(gbuf) };
+  if (wbuf) { typewriters = createTypewriters(sc, await ld().parseAsync(wbuf, ''), DESKS, PACK_S);
+    for (const g of typewriters.groups) L.attach(g); for (const g of typewriters.groups) SC.addDynamic(g); }
+  let phones = null;
+  if (pbuf && pcbuf) { phones = createPhones(sc, await ld().parseAsync(pbuf, ''), DESKS, PACK_S);     // phones on every desk; without the clips no phones
+    for (const g of phones.groups) L.attach(g); for (const g of phones.groups) SC.addDynamic(g); window.__phones = phones; B.phoneClips = await parse(pcbuf); }
+  shared = createShared({ scene: sc, office, typewriters, phones, coffeeAddon: await parse(cbuf), drinkLAddon: await parse(dbuf) });
+  for (const g of shared.groups) { L.attach(g); SC.addDynamic(g); } SC.markDirty();
+  window.__tw = typewriters; window.__shared = shared;
+  window.__look = (pos, tgt) => { const c = new THREE.PerspectiveCamera(35, innerWidth / innerHeight, 0.05, 100); c.position.copy(B3(...pos)); c.lookAt(B3(...tgt)); c.layers.enableAll(); r.render(sc, c); return r.domElement.toDataURL('image/jpeg', 0.85); };
+  base = B; setInterval(showWho, 1000);
+  if (pending) { const w = pending; pending = null; onWorld(w); }
+}
+const B3 = (x, y, z) => new THREE.Vector3(x, z, -y);
+const glbOf = (e) => (typeof e.glb === 'string' && /^assets\/[\w.-]+\.glb$/.test(e.glb) ? CHAR_BASE + e.glb : null);
+async function loadPerson(id, e) {
+  const P = people[id] = { name: typeof e.name === 'string' ? e.name.slice(0, 40) : id, ed: null, loading: true }; order.push(id); showWho();
   try {
-    showWho();
-    const get = (u) => fetch(u).then((r) => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); });
-    const opt = (u) => get(u).catch(() => null);                          // add-ons are optional: without them he just sits
-    const [buf, tracks, tbuf, wbuf, sbuf, cbuf, dbuf, gbuf, lbuf, pbuf, pcbuf, wkbuf] = await Promise.all([get(CHAR), fetch(CHAR_BASE + 'assets/chair-tracks-v30.json').then((r) => r.json()), opt(CHAR_TYPE), opt(TYPEWRITER), SMOKE ? opt(SMOKE) : null, COFFEE ? opt(COFFEE) : null, opt(DRINK_L), opt(GESTURES), LUNCH ? opt(LUNCH) : null, opt(PHONE), opt(PHONE_CLIPS), WALKS ? opt(WALKS) : null]);
-    const ld = () => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
-    const gltf = await ld().parseAsync(buf, '');
-    const extra = {};
-    if (tbuf) extra.typeClip = (await ld().parseAsync(tbuf, '')).animations[0];
-    if (wbuf) { typewriters = createTypewriters(sc, await ld().parseAsync(wbuf, ''), DESKS, PACK_S);
-      for (const g of typewriters.groups) L.attach(g); for (const g of typewriters.groups) SC.addDynamic(g); SC.markDirty(); extra.typewriters = typewriters; }
-    if (sbuf) { extra.smoke = await ld().parseAsync(sbuf, '').catch(() => null); extra.camera = cam; extra.renderer = r; }   // without the add-on he simply does not smoke
-    if (cbuf) extra.coffee = await ld().parseAsync(cbuf, '').catch(() => null);          // without it there is no coffee
-    if (dbuf) extra.drinkL = await ld().parseAsync(dbuf, '').catch(() => null);          // without it he smokes over coffee without sipping
-    if (gbuf) extra.gestures = await ld().parseAsync(gbuf, '').catch(() => null);        // without it he just keeps still in the pauses
-    if (lbuf) extra.lunch = await ld().parseAsync(lbuf, '').catch(() => null);           // without it there is no lunch
-    if (wkbuf) extra.walks = await ld().parseAsync(wkbuf, '').catch(() => null);         // without it: the pack walk, never drunk
-    if (Q.has('drunk')) extra.drunk = Q.get('drunk') !== '0';                           // review: force the drunk walk on / off
-    if (pbuf && pcbuf) { const ph = createPhones(sc, await ld().parseAsync(pbuf, ''), DESKS, PACK_S);     // phones on every desk; without the clips no phones
-      for (const g of ph.groups) L.attach(g); for (const g of ph.groups) SC.addDynamic(g); SC.markDirty(); extra.phones = ph; window.__phones = ph;
-      extra.phoneClips = await ld().parseAsync(pcbuf, '').catch(() => null); }
-    editor = createEditor(sc, office, gltf, tracks, extra);
-    for (const g of editor.mugs) { L.attach(g); SC.addDynamic(g); } if (editor.lunchGroup) { L.attach(editor.lunchGroup); SC.addDynamic(editor.lunchGroup); } if (editor.mugs.length) SC.markDirty();
-    L.attach(editor.holder); SC.addDynamic(editor.holder); if (editor.fx) SC.addDynamic(editor.fx);
-    window.__editor = editor; window.__tw = typewriters; window.__look = (pos, tgt) => { const c = new THREE.PerspectiveCamera(35, innerWidth / innerHeight, 0.05, 100); c.position.copy(B(...pos)); c.lookAt(B(...tgt)); c.layers.enableAll(); r.render(sc, c); return r.domElement.toDataURL('image/jpeg', 0.85); };
-    if (pending) { editor.apply(pending, live.now()); pending = null; }
-    showWho(); setInterval(showWho, 1000);
-  } catch (e) { if (who) who.textContent = '👤 Редактор не загрузился: ' + e.message; window.__err = String(e); }
+    const url = glbOf(e), parse = (b) => (b ? ld().parseAsync(b.slice(0), '').catch(() => null) : null);
+    const clips = await ld().parseAsync(base.buf.slice(0), '');                       // his own copy of the shared clips (the page edits clips in place)
+    const bodyG = url && url !== CHAR ? await ld().parseAsync(await get(url), '') : clips;
+    const extra = { shared, id, chairBack: Number.isFinite(e.chairBack) ? Math.max(-0.2, Math.min(0.2, e.chairBack)) : 0, home: e.home, mouth: e.mouth,
+      typeClip: base.typeClip, gestures: base.gestures, smoke: await parse(base.sbuf), lunch: await parse(base.lbuf), walks: await parse(base.wkbuf), camera: cam, renderer: r,
+      ...(Q.has('drunk') ? { drunk: Q.get('drunk') !== '0' } : {}),
+      ...(base.phoneClips ? { phones: shared.phonesFor(id), phoneClips: base.phoneClips } : {}) };
+    const ed = createEditor(sc, officeScene, { scene: bodyG.scene, animations: clips.animations }, base.tracks, extra);
+    if (ed.lunchGroup) { L.attach(ed.lunchGroup); SC.addDynamic(ed.lunchGroup); }
+    L.attach(ed.holder); SC.addDynamic(ed.holder); if (ed.fx) SC.addDynamic(ed.fx); SC.markDirty();
+    P.ed = ed; P.loading = false; if (!editor) { editor = ed; window.__editor = ed; }
+    window.__people = people;
+    if (latest) ed.apply(latest, live.now());                                       // the newest world, whatever came while he was loading
+  } catch (e2) { P.error = String(e2); P.loading = false; console.warn('person', id, e2); window.__err = String(e2); }
+  showWho();
 }
+let latest = null;
+function onWorld(w) {
+  latest = w;
+  if (!base) { pending = w; return; }
+  shared.initChairs(w.chairs);
+  for (const [id, e] of Object.entries(charsOf(w))) {
+    if (!/^[a-z][a-z0-9_]{0,30}$/.test(id)) continue;
+    if (!people[id]) { loadPerson(id, e); continue; }
+    people[id].ed?.apply(w.chars ? w : { ...w, chars: { [id]: e } }, live.now());
+  }
+}
+window.__world = (w) => onWorld(w);                              // for automated checks: a world by hand (page opened with ?relay=)
+const eachPerson = (f) => { for (const id of order) if (people[id].ed) f(people[id].ed, id); };
+function loadEditor(office) { officeScene = office; loadShared(office).catch((e) => { if (who) who.textContent = '👤 Редакция не загрузилась: ' + e.message; window.__err = String(e); }); }
+// click on a person: the ☰ panel opens on his scales and journal
+{ const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(); let down = null;
+  r.domElement.addEventListener('pointerdown', (ev) => { down = [ev.clientX, ev.clientY]; });
+  r.domElement.addEventListener('pointerup', (ev) => {
+    if (!down || Math.hypot(ev.clientX - down[0], ev.clientY - down[1]) > 6) return; down = null;
+    ndc.set(ev.clientX / innerWidth * 2 - 1, -(ev.clientY / innerHeight) * 2 + 1); ray.setFromCamera(ndc, cam);
+    let best = null, bd = 0.32;                                                      // distance from the ray to his body line (office units)
+    eachPerson((ed, id) => { const h = ed.root.getObjectByName('head'), f = ed.holder;
+      if (!h) return; const a = f.getWorldPosition(new THREE.Vector3()).setY(0.15), b = h.getWorldPosition(new THREE.Vector3());
+      const d = ray.ray.distanceSqToSegment(a, b); if (Math.sqrt(d) < bd) { bd = Math.sqrt(d); best = id; } });
+    if (best) { focus = best; window.__focus = best; openPerson?.(best); }
+  });
+}
+let openPerson = null;
 // ☰ panel: animation chains and clips (registry), director status
 addRepertoire(PANEL.section, CHAR_BASE + 'assets/registry-live.json', () => {
-  const st = editor ? editor.status() : null; if (!st) return null;
+  const ed = (focus && people[focus]?.ed) || editor, st = ed ? ed.status() : null; if (!st) return null;
   if (st.mode === 'walk' || st.mode === 'turn') return 'walk';
   if (st.seat?.startsWith('desk')) return 'desk'; if (st.seat?.startsWith('bench')) return 'bench';
   return st.mode === 'idle' ? 'spot' : null;
 });
 let lastWorld = null;
-addDirectorStatus(PANEL.section, () => ({ net, world: lastWorld, now: live ? live.now() : Date.now() }),
+openPerson = addDirectorStatus(PANEL.section, () => ({ net, world: lastWorld, now: live ? live.now() : Date.now(), focus, setFocus: (id) => { focus = id; }, open: () => { if ($('settings').hidden) $('menu').click(); } }),
   RELAY ? () => fetch((RELAY === '/' ? '' : RELAY) + '/journal?n=150', { cache: 'no-store' }).then((r) => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }) : null);
-live = connectLive(RELAY, (w) => { lastWorld = w; ttyFrom(w); bulletinFrom(w); if (editor) editor.apply(w, live.now()); else pending = w; }, (s) => { net = s; showWho(); }, { weather: applyWeather, blinds: (b) => applyBlinds(b, true) });
+live = connectLive(RELAY, (w) => { lastWorld = w; ttyFrom(w); bulletinFrom(w); onWorld(w); }, (s) => { net = s; showWho(); }, { weather: applyWeather, blinds: (b) => applyBlinds(b, true) });
 
 if (DEMO === 'lunch') {   // review: at the desk → lunch on the bench, all six dishes one after another → back to work, round and round
   const CH = { A: 0, B: 0.1174, C: 0.1174 }, T = { A: -0.25, B: 0.1174, C: 0.1174 }, R = { A: 0.1174, B: 0.1174, C: 0.1174 };
@@ -323,7 +367,7 @@ if (DEMO === 'lunch') {   // review: at the desk → lunch on the bench, all six
     [{ seat: 'benchM' }, { seat: 'deskA' }, 'work', 'работает за столом A', T, 14, 42]];
   let i = 0, round = 0;
   const next = () => { const [from, cmd, activity, label, chairs, sec, sq] = script[i % script.length]; if (i && i % script.length === 0) round++; i++;
-    const w = { seq: sq + round * 60, chairs, editor: { from, cmd, at: live.now(), label, activity, source: 'demo' } }; if (editor) editor.apply(w, live.now()); else pending = w; setTimeout(next, sec * 1000); };
+    const w = { seq: sq + round * 60, chairs, editor: { from, cmd, at: live.now(), label, activity, source: 'demo' } }; onWorld(w); setTimeout(next, sec * 1000); };
   net = { online: true, viewers: 0 }; next();
 }
 if (DEMO === 'smoke') {   // review: at the desk → a cigarette at the desk → a cigarette at the window → back to work, round and round
@@ -332,7 +376,7 @@ if (DEMO === 'smoke') {   // review: at the desk → a cigarette at the desk →
     [{ seat: 'deskA' }, { spot: 'window' }, 'smoke', 'курит у окна', CH, 62], [{ spot: 'window' }, { seat: 'deskA' }, 'work', 'работает за столом A', T, 16]];
   let seq = 0, i = 0;
   const next = () => { const [from, cmd, activity, label, chairs, sec] = script[i % script.length]; i++; seq++;
-    const w = { seq, chairs, editor: { from, cmd, at: live.now(), label, activity, source: 'demo' } }; if (editor) editor.apply(w, live.now()); else pending = w; setTimeout(next, sec * 1000); };
+    const w = { seq, chairs, editor: { from, cmd, at: live.now(), label, activity, source: 'demo' } }; onWorld(w); setTimeout(next, sec * 1000); };
   net = { online: true, viewers: 0 }; next();
 }
 
@@ -343,14 +387,14 @@ if (DEMO === 'gestures') {   // review: small gestures in the pauses — resting
     [313, { seat: 'deskA' }, { spot: 'window' }, 'wait', 'устал, стоит у окна', 80, CH, 35], [11, { spot: 'window' }, { seat: 'deskA' }, 'work', 'работает за столом A', 30, T, 20]];
   let i = 0;
   const next = () => { const [seq, from, cmd, activity, label, fatigue, chairs, sec] = script[i % script.length]; i++;
-    const w = { seq, chairs, editor: { from, cmd, at: live.now(), label, activity, fatigue, source: 'demo' } }; if (editor) editor.apply(w, live.now()); else pending = w; setTimeout(next, sec * 1000); };
+    const w = { seq, chairs, editor: { from, cmd, at: live.now(), label, activity, fatigue, source: 'demo' } }; onWorld(w); setTimeout(next, sec * 1000); };
   net = { online: true, viewers: 0 }; next();
 }
 if (DEMO === 'phone') {   // review: the owner calls (button «Позвонить»): at the desk he answers seated; standing at the window he walks to the phone
   const CH = { A: 0, B: 0.1174, C: 0.1174 }, T = { A: -0.25, B: 0.1174, C: 0.1174 };
   let seq = 100, place = { seat: 'deskA' }, timer = 0;
   const send = (from, cmd, activity, label, chairs) => { seq++; const w = { seq, chairs, editor: { from, cmd, at: live.now(), label, activity, source: 'demo' } };
-    if (editor) editor.apply(w, live.now()); else pending = w; };
+    onWorld(w); };
   const btn = document.createElement('button'); btn.id = 'call'; btn.textContent = '☎️ Позвонить';
   btn.style.cssText = 'position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:20;padding:10px 18px;font-size:16px';
   document.body.appendChild(btn);
@@ -374,8 +418,9 @@ if (DEMO === 'phone') {   // review: the owner calls (button «Позвонит�
 
 // NEWS BULLETIN on the TV for 20 s when the editor takes a new story off the wire (director's teletype tasks)
 const stories = new Set();
-function bulletinFrom(w) {
-  const e = w?.editor, m = /правит «(.+?)»/.exec(e?.label || '');
+function bulletinFrom(w) { for (const e of Object.values(charsOf(w))) bulletinOf(e); }
+function bulletinOf(e) {
+  const m = /правит «(.+?)»/.exec(e?.label || '');
   const key = e?.story?.id || (m ? m[1] : null);                  // the director names the story; old worlds: from the label
   if (!key || stories.has(key)) return; stories.add(key);          // only the first time he takes this story
   if (!sched || !bulletinTV || !Number.isFinite(e.at)) return;
@@ -433,9 +478,10 @@ function step(dt, draw = true) {
     sched.update(); bulletinTV?.update(dt); tv.update(dt);
     if (tvMat) tvMat.emissiveIntensity = 1 + tv.uniforms.flicker.value - 0.5 * tv.uniforms.snow.value;
   }
-  if (editor) editor.update(dt, window.__simNow ?? live.now());   // __simNow: automated checks run on their own clock
+  { const now = window.__simNow ?? live.now(); eachPerson((ed) => ed.update(dt, now)); shared?.applyProps(); }   // __simNow: automated checks run on their own clock
   if (!draw) return;
-  L.update(dt, editor && editor.moving() && QL.level.live, SC.enabled); ctl.update(); SC.render();
+  let moving = false; eachPerson((ed) => { moving = moving || ed.moving(); });
+  L.update(dt, moving && QL.level.live, SC.enabled); ctl.update(); SC.render();
   cpuMs += (performance.now() - t0 - cpuMs) * 0.1;
   fAcc += dt; fN++;
   if (fAcc >= 2) {

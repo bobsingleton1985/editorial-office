@@ -1,14 +1,14 @@
 // ☰ panel section «Режиссёр (Jev)»: is the newsroom online, who made the last decision (Jev or the fallback rule), and when.
 const el = (t, cls, txt) => { const e = document.createElement(t); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
 function ago(ms) { const s = Math.max(0, Math.round(ms / 1000)); if (s < 60) return 'только что'; const m = Math.round(s / 60); if (m < 60) return m + ' мин назад'; return Math.round(m / 60) + ' ч назад'; }
-// journal: the editor's recent actions and who chose each one (read from the relay, newest first)
+// journal: the people's recent actions and who chose each one (read from the relay, newest first); a filter by person
 const TXT = { continue: 'продолжает' };
 function who(e) {
   if (e.source === 'jev') return 'Jev' + (e.confidence != null ? ` · ${Math.round(e.confidence * 100)} %` : '');
   return e.source === 'rule' ? 'правило' : e.source === 'start' ? 'старт' : (e.source || '—');
 }
 let css = false;
-function openJournal(load) {
+function openJournal(load, only = null, names = {}) {
   if (!css) { css = true; const st = document.createElement('style'); st.textContent = `
     #journal { position:fixed; inset:0; z-index:20; background:rgba(10,8,6,.55); display:flex; align-items:center; justify-content:center; padding:16px; }
     #journal .jb { background:#1f1914; color:#efe6da; border:1px solid rgba(255,255,255,.12); border-radius:14px; width:min(620px,100%); max-height:min(80vh,760px);
@@ -20,17 +20,23 @@ function openJournal(load) {
     #journal .jt { color:#a89a8a; font-variant-numeric:tabular-nums; } #journal .js { color:#a89a8a; font-size:12px; text-align:right; white-space:nowrap; }
     #journal .js.jev { color:#e0913a; } #journal .js.rule { color:#c9a86a; } #journal .ja { grid-column:2 / -1; color:#a89a8a; font-size:12px; }
     #journal .jd { color:#e0913a; font:600 11px/1 -apple-system,"Segoe UI",Roboto,sans-serif; letter-spacing:.1em; text-transform:uppercase; padding:14px 0 4px; }
-    #journal .hint { padding:10px 0; }`; document.head.append(st); }
+    #journal .hint { padding:10px 0; } #journal .jn { color:#e7c9a0; font-weight:600; margin-right:6px; }
+    #journal header select { margin-left:auto; margin-right:8px; background:#2a221b; color:inherit; border:1px solid rgba(255,255,255,.15); border-radius:6px; padding:3px 6px; font:inherit; }`; document.head.append(st); }
   document.getElementById('journal')?.remove();
   const wrap = el('div'); wrap.id = 'journal';
   const box = el('div', 'jb'), head = el('header'), close = el('button', null, '✕'), list = el('div', 'jl');
-  close.setAttribute('aria-label', 'Закрыть'); head.append(el('b', null, '📜 Журнал: что делал редактор'), close); box.append(head, list); wrap.append(box);
+  const pick = el('select'); pick.setAttribute('aria-label', 'Чьи действия');
+  close.setAttribute('aria-label', 'Закрыть'); head.append(el('b', null, '📜 Журнал: что делали в редакции'), pick, close); box.append(head, list); wrap.append(box);
   const shut = () => { wrap.remove(); removeEventListener('keydown', esc, true); };
   const esc = (ev) => { if (ev.key === 'Escape') { ev.stopPropagation(); shut(); } };
   close.addEventListener('click', shut); wrap.addEventListener('click', (ev) => { if (ev.target === wrap) shut(); }); addEventListener('keydown', esc, true);
   list.append(el('div', 'hint', 'Загружаю…')); document.body.append(wrap);
-  load().then(({ entries, now }) => {
-    list.replaceChildren();
+  load().then(({ entries: all, now }) => {
+    const nameOf = (e) => e.name || names[e.char || 'columnist'] || (e.char ? e.char : 'Колумнист');   // entries before 29.09 evening: the columnist alone
+    const ids = [...new Set((all || []).map((e) => e.char || 'columnist'))];
+    pick.replaceChildren(el('option', null, 'Все'), ...ids.map((id) => { const o = el('option', null, nameOf((all || []).find((e) => (e.char || 'columnist') === id))); o.value = id; return o; }));
+    pick.firstChild.value = ''; pick.value = only && ids.includes(only) ? only : '';
+    const draw = () => { list.replaceChildren(); const entries = (all || []).filter((e) => !pick.value || (e.char || 'columnist') === pick.value);
     if (!entries?.length) { list.append(el('div', 'hint', 'Записей пока нет: журнал ведётся с 29.09, пока редакцию смотрят.')); return; }
     const off = Date.now() - (now || Date.now()); let day = '';
     for (const e of entries) {
@@ -38,13 +44,14 @@ function openJournal(load) {
       if (dd !== day) { day = dd; list.append(el('div', 'jd', dd === new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' }) ? 'Сегодня' : dd)); }
       const r = el('div', 'jr'), verb = (e.action || '').split('@')[0];
       r.append(el('span', 'jt', d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })),
-        el('span', null, (TXT[verb] ? TXT[verb] + ': ' : '') + (e.label || e.action || '—')),
+        (() => { const t = el('span'); if (ids.length > 1) t.append(el('span', 'jn', nameOf(e))); t.append((TXT[verb] ? TXT[verb] + ': ' : '') + (e.label || e.action || '—')); return t; })(),
         el('span', 'js ' + (e.source || ''), who(e)));
       const extra = [e.moved ? 'идёт на новое место' : '', e.fatigue != null ? `усталость ${e.fatigue}` : '', ago((now || Date.now()) - e.at)].filter(Boolean).join(' · ');
       r.append(el('span', 'ja', extra)); list.append(r);
     }
     const n = entries.length, w = n % 10 === 1 && n % 100 !== 11 ? 'решение' : [2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100) ? 'решения' : 'решений';
-    list.append(el('div', 'hint', `Последние ${n} ${w}. Jev думает, только пока редакцию кто-то смотрит.`));
+    list.append(el('div', 'hint', `Последние ${n} ${w}. Jev думает, только пока редакцию кто-то смотрит.`)); };
+    pick.addEventListener('change', draw); draw();
   }).catch(() => { list.replaceChildren(el('div', 'hint', 'Журнал не загрузился: нет связи с редакцией.')); });
 }
 
@@ -80,12 +87,21 @@ function scales(state, now) {
   return box;
 }
 
+// the people in the world: {id: entry}; an old world ({editor}) is the columnist alone
+const peopleOf = (w) => Object.entries(w?.chars || (w?.editor ? { columnist: { name: 'Колумнист', ...w.editor, state: w.state } } : {}));
 export function addDirectorStatus(section, get, loadJournal) {
-  if (!section) return;
-  const sec = section('🧠 Режиссёр (Jev)', 'director'), box = el('div', 'rep'); sec.append(box);
-  if (loadJournal) { const b = el('div', 'btns'), btn = el('button', null, '📜 Журнал действий'); btn.addEventListener('click', () => openJournal(loadJournal)); b.append(btn); sec.append(b); }
+  if (!section) return null;
+  const sec = section('🧠 Режиссёр (Jev)', 'director'), tabs = el('div', 'btns ptabs'), box = el('div', 'rep'); sec.append(tabs, box);
+  if (!document.getElementById('ptabs-css')) { const st = document.createElement('style'); st.id = 'ptabs-css'; st.textContent = '#settings .ptabs button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }'; document.head.append(st); }
+  const names = () => Object.fromEntries(peopleOf(get().world).map(([id, e]) => [id, e.name || id]));
+  if (loadJournal) { const b = el('div', 'btns'), btn = el('button', null, '📜 Журнал действий'); btn.addEventListener('click', () => openJournal(loadJournal, get().focus, names())); b.append(btn); sec.append(b); }
+  let tabKey = '';
   function render() {
-    const { net, world, now } = get(), e = world?.editor;
+    const { net, world, now, focus, setFocus } = get(), list = peopleOf(world);
+    const id = list.some(([k]) => k === focus) ? focus : list[0]?.[0], e = list.find(([k]) => k === id)?.[1];
+    const key = list.map(([k, x]) => k + ':' + (x.name || '')).join('|') + '#' + id;
+    if (key !== tabKey) { tabKey = key; tabs.replaceChildren(...(list.length > 1 ? list.map(([k, x]) => { const b = el('button', null, '👤 ' + (x.name || k)); b.setAttribute('aria-pressed', String(k === id));
+      b.addEventListener('click', () => { setFocus(k); render(); }); return b; }) : [])); }
     const rows = [];
     rows.push(['Связь с редакцией', net.online ? `есть · смотрят: ${net.viewers ?? '—'}` : (net.reason === 'no_relay' ? 'не настроена' : 'нет')]);
     if (e) {
@@ -97,11 +113,12 @@ export function addDirectorStatus(section, get, loadJournal) {
       rows.push(['Jev сейчас', e.source === 'jev' ? '✅ работает' : e.source === 'rule' ? '⚠️ не отвечает, решает правило' : 'ждёт первого решения']);
     } else rows.push(['Последнее решение', 'ещё не получено']);
     const tb = el('table'); for (const [k, v] of rows) { const tr = el('tr'); tr.append(el('td', 'dim', k), el('td', null, v)); tb.append(tr); }
-    const st = world?.state, sub = el('div', 'sub', 'Шкалы потребностей');
+    const st = e?.state || (list.length === 1 ? world?.state : null), sub = el('div', 'sub', list.length > 1 && e ? `Шкалы потребностей: ${e.name || id}` : 'Шкалы потребностей');
     const needs = st && typeof st.at === 'number' ? scales(st, now) : el('div', 'hint', 'Шкалы появятся после следующего решения режиссёра.');
     box.replaceChildren(sub, needs, tb, el('div', 'hint', 'Jev думает, только пока редакцию кто-то смотрит. Время редакции (и шкалы) идёт тоже только при зрителях.'));
   }
   setInterval(() => { if (sec.open) render(); }, 1000);
   sec.addEventListener('toggle', () => { if (sec.open) render(); });
   render();
+  return (id) => { const g = get(); g.setFocus(id); g.open?.(); sec.open = true; render(); sec.scrollIntoView({ block: 'start', behavior: 'smooth' }); };   // a click on a person in the room
 }
