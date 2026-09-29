@@ -23,9 +23,9 @@ export const FILES = {
 };
 
 // Чистая функция: что идёт в эфире в момент t (мс, UTC).
-export function onAir(tMs, { slotSec = 60, program = PROGRAM, cityHour = null } = {}) {
-  if (cityHour != null && cityHour >= 1 && cityHour < 6) return { ch: 'card', offset: 0 }; // ночью станция не вещает
+export function onAir(tMs, { slotSec = 60, program = PROGRAM, cityHour = null, night = 'card' } = {}) {
   const s = tMs / 1000;
+  if (cityHour != null && cityHour >= 1 && cityHour < 6) return { ch: night, offset: night === 'card' ? 0 : s % CLIP_SEC }; // ночью — один канал (или таблица)
   const slot = Math.floor(s / slotSec);
   const ch = program[((slot % program.length) + program.length) % program.length];
   const offset = (s - slot * slotSec) % CLIP_SEC;
@@ -59,7 +59,7 @@ export function createTvSchedule(tv, loadVideoTexture, opts = {}) {
     update() {
       const t = now();
       if (t < bulletinUntil) return;
-      const { ch, offset } = onAir(t, { slotSec: opts.slotSec, program: opts.program, cityHour: opts.cityHour ? opts.cityHour() : null });
+      const { ch, offset } = onAir(t, { slotSec: opts.slotSec, program: opts.program, cityHour: opts.cityHour ? opts.cityHour() : null, night: opts.night });
       if (ch !== current) { show(ch, offset); lastSync = t; return; }
       // раз в 30 с подтягиваем ролик к общим часам (вкладка могла спать)
       if (t - lastSync > 30000) {

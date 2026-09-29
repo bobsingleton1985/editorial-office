@@ -239,7 +239,7 @@ function setup(g) {
     let screen = null; g.scene.traverse((o) => { if (!screen && o.isMesh && /TV[ _]v14[ _]crt[ _]face/.test(o.name)) screen = o; });
     if (screen) {
       tv = createTvScreen(screen, { flipY: false });             // the CHANNEL 7 test card from the GLB stays in tv.testcard
-      sched = createTvSchedule(tv, loadVideoTexture, { base: 'assets/tv/', cityHour: () => cityTime().h, now: () => (live ? live.now() : Date.now()) });
+      sched = createTvSchedule(tv, loadVideoTexture, { base: 'assets/tv/', cityHour: () => cityTime().h, night: 'jazz', now: () => (live ? live.now() : Date.now()) });
       window.__tv = () => ({ ch: sched.current, t: tv.uniforms.map.value?.userData?.video?.currentTime ?? null, snow: tv.uniforms.snow.value });
     }
   }
