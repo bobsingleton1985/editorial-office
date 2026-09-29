@@ -16,6 +16,7 @@ import { createTypewriters } from './typewriter.js';
 import { createWeather } from './weather.js';
 import { createBlinds } from './blinds.js';
 import { createSunbeams } from './sunbeams.js';
+import { createNeon } from './neon.js';
 
 const Q = new URLSearchParams(location.search);
 const GLB = Q.get('m') || 'assets/office-v29c.glb', GLB_SIZE = 3880516;
@@ -69,11 +70,11 @@ function applyWeather(w) {
   if (w) wx = w;
   const o = outside();
   if (o.sky !== litSky) { litSky = o.sky; Object.assign(S, presetFor(o.sky)); PANEL?.sync(); }   // the room light follows the sky; sliders may still tweak it
-  S.sky = o.sky; L.apply(eff(S)); WX?.apply(o.sky, o); SB?.set(o.sky === 'sun', S.beams); SC?.markDirty(); showOutside();
+  S.sky = o.sky; L.apply(eff(S)); WX?.apply(o.sky, o); SB?.set(o.sky === 'sun', S.beams); NE?.set(o.sky); SC?.markDirty(); showOutside();
 }
 
 // ---------- blinds: one setting for everyone (how far down, how shut); the sun and its beams follow them
-let BL = null, SB = null, blinds = { down: 0.63, tilt: 0 }, blindsUI = null, sendT = null;
+let BL = null, SB = null, NE = null, blinds = { down: 0.63, tilt: 0 }, blindsUI = null, sendT = null;
 function applyBlinds(b, fromNet) {
   if (fromNet && blindsUI?.busy) return;                    // this viewer is dragging a slider right now
   blinds = { down: +b.down, tilt: +b.tilt };
@@ -229,6 +230,7 @@ function setup(g) {
   WX.onReady = () => SC.markDirty();                          // day facades arrived: redraw the cached room
   BL = createBlinds(g.scene); sc.add(BL.group);                 // blinds and sun rays in the air (still: part of the cached room)
   SB = createSunbeams(SUN_DIR); sc.add(SB.group); SC.addDynamic(SB.dust);   // dust twinkles every frame
+  NE = createNeon(); sc.add(NE.group); SC.addDynamic(NE.group);   // the sign buzzes now and then: drawn every frame
   applyBlinds(blinds);
   applyWeather();
   if (paperMat && paperMat.map) paperTarget = paperMat.map.offset.y;
@@ -322,7 +324,7 @@ window.__step = (dt, n = 1) => { for (let i = 0; i < n; i++) step(dt, i === n - 
 function step(dt, draw = true) {
   const t0 = performance.now();
   if (mixer) mixer.update(dt);
-  WX?.update(dt); SB?.update(dt, r.getPixelRatio());
+  WX?.update(dt); SB?.update(dt, r.getPixelRatio()); NE?.update(dt);
   const d = wx && Number.isFinite(wx.utc) ? new Date(live.now() + wx.utc * 1000) : null;   // the clock shows the time of the city outside
   const h = d ? d.getUTCHours() : new Date().getHours(), m = d ? d.getUTCMinutes() : new Date().getMinutes(), s = d ? d.getUTCSeconds() : new Date().getSeconds();
   const ang = { hour: ((h % 12) + m / 60) * Math.PI / 6, minute: (m + s / 60) * Math.PI / 30, second: s * Math.PI / 30 };

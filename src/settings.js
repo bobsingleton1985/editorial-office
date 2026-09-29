@@ -4,11 +4,11 @@ const KEY = 'editorial.settings.v1';
 const clonePreset = (p) => JSON.parse(JSON.stringify(p));
 // room light for each state of the weather outside (the weather is shared: see main.js)
 export const PRESETS = {
-  evening: { sky: 'night', sunLight: 0, beams: 1, ambient: 0.3, windowLight: 0.35, env: 0.25, exposure: 1.1, desk: 1, floor: 1, warmth: 0.65, lamps: { A: true, B: true, C: true, floor: true } },
-  sun: { sky: 'sun', sunLight: 8, beams: 1.5, ambient: 0.3, windowLight: 0.4, env: 0.32, exposure: 1.08, desk: 0.6, floor: 0.6, warmth: 0.45, lamps: { A: false, B: false, C: false, floor: false } },
-  cloudy: { sky: 'cloudy', sunLight: 0, beams: 1, ambient: 0.85, windowLight: 1.3, env: 0.42, exposure: 1.05, desk: 0.7, floor: 0.6, warmth: 0.55, lamps: { A: true, B: true, C: true, floor: false } },
-  rain: { sky: 'rain', sunLight: 0, beams: 1, ambient: 0.6, windowLight: 0.9, env: 0.35, exposure: 1.1, desk: 0.85, floor: 0.7, warmth: 0.6, lamps: { A: true, B: true, C: true, floor: true } },
-  snow: { sky: 'snow', sunLight: 0, beams: 1, ambient: 0.95, windowLight: 1.7, env: 0.46, exposure: 1.0, desk: 0.7, floor: 0.6, warmth: 0.55, lamps: { A: true, B: true, C: true, floor: false } },
+  evening: { sky: 'night', neon: 1, sunLight: 0, beams: 1, ambient: 0.3, windowLight: 0.35, env: 0.25, exposure: 1.1, desk: 1, floor: 1, warmth: 0.65, lamps: { A: true, B: true, C: true, floor: true } },
+  sun: { sky: 'sun', neon: 0, sunLight: 8, beams: 1.5, ambient: 0.3, windowLight: 0.4, env: 0.32, exposure: 1.08, desk: 0.6, floor: 0.6, warmth: 0.45, lamps: { A: false, B: false, C: false, floor: false } },
+  cloudy: { sky: 'cloudy', neon: 0, sunLight: 0, beams: 1, ambient: 0.85, windowLight: 1.3, env: 0.42, exposure: 1.05, desk: 0.7, floor: 0.6, warmth: 0.55, lamps: { A: true, B: true, C: true, floor: false } },
+  rain: { sky: 'rain', neon: 0, sunLight: 0, beams: 1, ambient: 0.6, windowLight: 0.9, env: 0.35, exposure: 1.1, desk: 0.85, floor: 0.7, warmth: 0.6, lamps: { A: true, B: true, C: true, floor: true } },
+  snow: { sky: 'snow', neon: 0, sunLight: 0, beams: 1, ambient: 0.95, windowLight: 1.7, env: 0.46, exposure: 1.0, desk: 0.7, floor: 0.6, warmth: 0.55, lamps: { A: true, B: true, C: true, floor: false } },
 };
 // room light for what is outside: night → evening lamps, day → the weather's preset
 export const presetFor = (sky) => clonePreset(PRESETS[sky === 'night' || !PRESETS[sky] ? 'evening' : sky]);
@@ -38,6 +38,7 @@ const SLIDERS = [
     ['exposure', 'Яркость картинки', 0.5, 2, 0.05],
     ['sunLight', 'Солнце в окнах (в ясный день)', 0, 14, 0.1],
     ['beams', 'Лучи и пылинки в воздухе', 0, 3, 0.05],
+    ['neon', 'Свет неона с улицы (ночью)', 0, 3, 0.05],
   ]],
   ['Лампы', [
     ['desk', 'Настольные лампы', 0, 3, 0.05],

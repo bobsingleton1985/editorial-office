@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { NEON } from './neon.js';
 
 // Blender (x, y, z) -> three (x, z, -y)
 const B = (x, y, z) => new THREE.Vector3(x, z, -y);
@@ -13,7 +14,7 @@ export function tint(warmth) {
 
 // desk lamps: centre of the green shade (Blender coords); the chair side of each desk is +y
 const DESK = { A: [-3.52, 1.766], B: [1.08, 2.67], C: [4.58, 2.666] };
-const DESK_I = 5.0, FLOOR_I = 22.0, TV_I = 0.6;
+const DESK_I = 5.0, FLOOR_I = 22.0, TV_I = 0.6, NEON_I = 24;
 // light from the windows and the sky dome for each state of the weather: [window, hemisphere sky, hemisphere ground]
 const SKY_LIGHT = { night: [0xb9c7ff, 0xffe9d0, 0x2a2420], sun: [0xfff0d8, 0xe4ecf8, 0x5a4a3c], cloudy: [0xe2e8f0, 0xdfe4ea, 0x4a4440],
   rain: [0xc8d2de, 0xcfd6de, 0x3a3634], snow: [0xeef2fb, 0xedf1f8, 0x6a6660] };
@@ -40,6 +41,11 @@ export function createLighting(sc, r) {
     for (const x of [-5.45, 3.5]) for (const y of [0, 4.75]) for (const z of [-6.05, 6.05]) { v.set(x, y, z).applyMatrix4(inv); lo.min(v); hi.max(v); }
     const sc_ = sun.shadow.camera; sc_.left = lo.x; sc_.right = hi.x; sc_.bottom = lo.y; sc_.top = hi.y; sc_.near = -hi.z - 1; sc_.far = -lo.z + 1; sc_.updateProjectionMatrix(); }
   sc.add(sun, sun.target);
+  // red light of the neon sign across the street: through the windows and the blinds onto the floor (night only, steady)
+  const neonL = new THREE.SpotLight(0xff3346, 0, 16, 1.05, 0.75, 2);
+  neonL.position.set(...NEON.light); neonL.target.position.set(-1.2, 0.2, NEON.light[2] + 0.4);   // the glow comes from above the sign: over the sill, onto the floor
+  neonL.shadow.bias = -0.0004; neonL.shadow.normalBias = 0.02; neonL.shadow.radius = 3; neonL.shadow.camera.near = 0.2; neonL.shadow.camera.far = 16;
+  sc.add(neonL, neonL.target);
 
   const spot = (pos, tgt, angle, pen, near) => {
     const l = new THREE.SpotLight(0xffffff, 1, 0, angle, pen, 2);
@@ -88,6 +94,10 @@ export function createLighting(sc, r) {
     sc.environmentIntensity = s.env; r.toneMappingExposure = s.exposure;
     const sunny = s.sky === 'sun' && (s.sunLight ?? 0) > 0;
     sun.intensity = sunny ? s.sunLight : 0; sun.castShadow = sunny && s.shadows;
+    const neonOn = s.sky === 'night' && (s.neon ?? 0) > 0;
+    neonL.intensity = neonOn ? NEON_I * s.neon : 0; neonL.castShadow = neonOn && s.shadows;
+    const ns = { low: 512, medium: 1024, high: 2048 }[s.shadowQ] || 1024;
+    if (neonL.shadow.mapSize.x !== ns) { neonL.shadow.mapSize.set(ns, ns); neonL.shadow.map?.dispose(); neonL.shadow.map = null; }
     const ss = { low: 1024, medium: 2048, high: 2048 }[s.shadowQ] || 2048;
     if (sun.shadow.mapSize.x !== ss) { sun.shadow.mapSize.set(ss, ss); sun.shadow.map?.dispose(); sun.shadow.map = null; }
     const col = tint(s.warmth), size = { low: 512, medium: 1024, high: 2048 }[s.shadowQ] || 1024;
