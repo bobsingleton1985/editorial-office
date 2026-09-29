@@ -3,15 +3,16 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
-import { createLighting } from './lighting.js';
+import { createLighting, SUN_DIR } from './lighting.js';
 import { loadSettings, buildPanel, presetFor } from './settings.js';
 import { createEditor } from './editor.js';
 import { connectLive } from './live.js';
 import { createQuality } from './quality.js';
 import { createStaticCache } from './cache.js';
-import { CHAIR_NODE, DESKS, S as PACK_S } from './layout.js';
-import { createTypewriters } from './typewriter.js';
+import { CHAIR_NODE } from './layout.js';
 import { createWeather } from './weather.js';
+import { createBlinds } from './blinds.js';
+import { createSunbeams } from './sunbeams.js';
 
 const Q = new URLSearchParams(location.search);
 const GLB = Q.get('m') || 'assets/office-v29c.glb', GLB_SIZE = 3880516;
@@ -19,8 +20,6 @@ const RELAY_URL = 'https://135-106-229-50.sslip.io';     // shared newsroom: rel
 const RELAY = ((r) => (r === '/' ? '/' : r.replace(/\/$/, '')))(Q.get('relay') ?? RELAY_URL);   // '/' = same origin (local test)
 const CHAR_BASE = Q.get('charbase') ?? (RELAY && RELAY !== '/' ? RELAY + '/' : '');
 const CHAR = Q.get('char') ?? CHAR_BASE + 'assets/editor2A-web-v01.glb';
-const CHAR_TYPE = CHAR_BASE + 'assets/editor2A-type-v13.glb';          // add-on: rig + typing clip (editor2A v13, approved page «Редактор в офисе»)
-const TYPEWRITER = 'assets/typewriter-v01.glb';                          // compact flat typewriter, pack table frame
 const $ = (id) => document.getElementById(id);
 const status = $('status'), bar = $('bar'), fpsEl = $('fps'), who = $('who');
 document.body.classList.add('js');
@@ -42,13 +41,13 @@ sc.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture;
 const L = createLighting(sc, r);                          // lamps with shadows, ambient, window light
 let SC = null;                                             // static picture cache (weak devices), made once the camera exists
 let WX = null;                                             // what is outside the windows: evening or day with the weather
-const eff = (s) => (s.shadows && QL.level.shadows ? s : { ...s, shadows: false });   // the quality level may switch shadows off
+const eff = (s) => (s.shadows && (QL.level.shadows || QL.level.cache) ? s : { ...s, shadows: false });   // cached levels: shadows drawn once with the room
 let ttyTimer = null;
 function applyScene(s) {
   clearInterval(ttyTimer); ttyTimer = s.autoTTY ? setInterval(() => incoming(), 45000) : null;
   fpsEl.style.display = s.showFps ? '' : 'none';
 }
-window.__set = (p) => { Object.assign(S, p); L.apply(eff(S)); applyScene(S); WX?.apply(S.sky); SC?.markDirty(); };
+window.__set = (p) => { Object.assign(S, p); L.apply(eff(S)); applyScene(S); SB?.set(S.sky === 'sun', S.beams); SC?.markDirty(); };
 
 // ---------- weather: one for everyone, the real weather of the owner's city (the relay looks outside every 10 min)
 const FORCE = Q.get('sky');                                // ?sky=snow — for checks only
@@ -63,12 +62,46 @@ function applyWeather(w) {
   if (w) wx = w;
   const o = outside();
   if (o.sky !== litSky) { litSky = o.sky; Object.assign(S, presetFor(o.sky)); PANEL?.sync(); }   // the room light follows the sky; sliders may still tweak it
-  S.sky = o.sky; L.apply(eff(S)); WX?.apply(o.sky, o); SC?.markDirty(); showOutside();
+  S.sky = o.sky; L.apply(eff(S)); WX?.apply(o.sky, o); SB?.set(o.sky === 'sun', S.beams); SC?.markDirty(); showOutside();
 }
-window.__weather = applyWeather;
+
+// ---------- blinds: one setting for everyone (how far down, how shut); the sun and its beams follow them
+let BL = null, SB = null, blinds = { down: 0.63, tilt: 0 }, blindsUI = null, sendT = null;
+function applyBlinds(b, fromNet) {
+  if (fromNet && blindsUI?.busy) return;                    // this viewer is dragging a slider right now
+  blinds = { down: +b.down, tilt: +b.tilt };
+  BL?.set(blinds); SB?.setBlinds(blinds); L.touch(); SC?.markDirty(); blindsUI?.sync();
+}
+function sendBlinds() {
+  clearTimeout(sendT);
+  sendT = setTimeout(async () => {
+    try {
+      const res = await fetch((RELAY === '/' ? '' : RELAY) + '/settings/blinds', { method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(ownerToken ? { Authorization: 'Bearer ' + ownerToken } : {}) }, body: JSON.stringify(blinds) });
+      if (res.status === 429) sendBlinds();
+    } catch (e) { /* offline: stays local */ }
+  }, 150);
+}
+function buildBlindsUI(box) {
+  const ui = { busy: false, rows: [] };
+  for (const [k, label] of [['down', 'Жалюзи: подняты ↔ опущены'], ['tilt', 'Ламели: открыты ↔ закрыты']]) {
+    const l = document.createElement('label'); l.className = 'row';
+    const sp = document.createElement('span'); sp.textContent = label; l.append(sp);
+    const i = document.createElement('input'); i.type = 'range'; i.min = 0; i.max = 1; i.step = 0.01;
+    i.addEventListener('pointerdown', () => { ui.busy = true; });
+    i.addEventListener('input', () => { applyBlinds({ ...blinds, [k]: +i.value }); });
+    i.addEventListener('change', () => { ui.busy = false; if (RELAY) sendBlinds(); });
+    l.append(i); box.append(l); ui.rows.push([k, i]);
+  }
+  ui.sync = () => { for (const [k, i] of ui.rows) if (+i.value !== blinds[k]) i.value = blinds[k]; };
+  ui.sync();
+  return ui;
+}
+window.__weather = applyWeather; window.__blinds = (b) => (b ? applyBlinds(b) : blinds);
 const ICON = { sun: '☀️', cloudy: '⛅', rain: '🌧', snow: '❄️' };
+let wxBox = null;
 function showOutside(note) {
-  const box = PANEL?.outside; if (!box) return;
+  const box = wxBox; if (!box) return;
   box.textContent = '';
   const p = document.createElement('div'); p.className = 'hint';
   const t = wx && Number.isFinite(wx.temp) ? `, ${wx.temp > 0 ? '+' : ''}${wx.temp}°` : '';
@@ -98,8 +131,10 @@ async function choose(choice) {
 window.__cam = (pos, tgt, zoom = 1) => { cam.position.copy(B(...pos)); ctl.target.copy(B(...tgt)); cam.zoom = zoom; cam.updateProjectionMatrix(); ctl.update(); SC?.markDirty(); };
 L.apply(eff(S));
 let qMode = S.quality;
-PANEL = buildPanel(S, (s) => { if (s.quality !== qMode) { qMode = s.quality; QL.set(s.quality); applyQuality(); } s.sky = outside().sky; L.apply(eff(s)); applyScene(s); SC?.markDirty(); },
+PANEL = buildPanel(S, (s) => { if (s.quality !== qMode) { qMode = s.quality; QL.set(s.quality); applyQuality(); } s.sky = outside().sky; L.apply(eff(s)); applyScene(s); SB?.set(s.sky === 'sun', s.beams); SC?.markDirty(); },
   { resetTo: () => presetFor(outside().sky) });
+{ const h = document.createElement('h2'); h.textContent = 'Окна — меняются у всех'; wxBox = document.createElement('div'); const bb = document.createElement('div');
+  PANEL.outside.append(h, wxBox, bb); blindsUI = buildBlindsUI(bb); }
 applyWeather();
 const diag = document.createElement('div'); diag.className = 'hint'; document.getElementById('settings')?.append(diag);
 const gpuName = (() => { try { const gl = r.getContext(), e = gl.getExtension('WEBGL_debug_renderer_info'); return e ? gl.getParameter(e.UNMASKED_RENDERER_WEBGL) : ''; } catch (e) { return ''; } })();
@@ -156,7 +191,7 @@ const clockPivots = [], tty = [];
 let paperTarget = 0, lastX = null, returning = false, ttyBusy = false;
 
 function setup(g) {
-  sc.add(g.scene);
+  sc.add(g.scene); window.__scene = sc; window.__THREE = THREE;   // for automated checks
   L.attach(g.scene);
   mixer = new THREE.AnimationMixer(g.scene);
   for (const clip of g.animations) {
@@ -185,6 +220,9 @@ function setup(g) {
   WX = createWeather(sc, g.scene, r);
   WX.onDynamic = (o) => SC.addDynamic(o);                     // rain and snow move every frame
   WX.onReady = () => SC.markDirty();                          // day facades arrived: redraw the cached room
+  BL = createBlinds(g.scene); sc.add(BL.group);                 // blinds and sun rays in the air (still: part of the cached room)
+  SB = createSunbeams(SUN_DIR); sc.add(SB.group); SC.addDynamic(SB.dust);   // dust twinkles every frame
+  applyBlinds(blinds);
   applyWeather();
   if (paperMat && paperMat.map) paperTarget = paperMat.map.offset.y;
   if (tvMat) tvOrig = { map: tvMat.map, emissiveMap: tvMat.emissiveMap };
@@ -198,7 +236,7 @@ function setup(g) {
 }
 
 // ---------- the first character: editor2A, driven by the shared director
-let editor = null, live = null, pending = null, net = { online: false }, typewriters = null;
+let editor = null, live = null, pending = null, net = { online: false };
 const PLACE = { deskA: 'за столом A', deskB: 'за столом B', deskC: 'за столом C', benchS: 'на скамье', benchM: 'на скамье', benchN: 'на скамье', window: 'у окна', teletype: 'у телетайпа' };
 function showWho() {
   if (!who) return;
@@ -212,23 +250,17 @@ function showWho() {
 async function loadEditor(office) {
   try {
     showWho();
-    const get = (u) => fetch(u).then((r) => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); });
-    const opt = (u) => get(u).catch(() => null);                          // add-ons are optional: without them he just sits
-    const [buf, tracks, tbuf, wbuf] = await Promise.all([get(CHAR), fetch(CHAR_BASE + 'assets/chair-tracks-v30.json').then((r) => r.json()), opt(CHAR_TYPE), opt(TYPEWRITER)]);
-    const ld = () => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
-    const gltf = await ld().parseAsync(buf, '');
-    const extra = {};
-    if (tbuf) extra.typeClip = (await ld().parseAsync(tbuf, '')).animations[0];
-    if (wbuf) { typewriters = createTypewriters(sc, await ld().parseAsync(wbuf, ''), DESKS, PACK_S);
-      for (const g of typewriters.groups) L.attach(g); for (const g of typewriters.groups) SC.addDynamic(g); SC.markDirty(); extra.typewriters = typewriters; }
-    editor = createEditor(sc, office, gltf, tracks, extra);
+    const [buf, tracks] = await Promise.all([fetch(CHAR).then((r) => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); }),
+      fetch(CHAR_BASE + 'assets/chair-tracks-v30.json').then((r) => r.json())]);
+    const gltf = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).parseAsync(buf, '');
+    editor = createEditor(sc, office, gltf, tracks);
     L.attach(editor.holder); SC.addDynamic(editor.holder);
-    window.__editor = editor; window.__tw = typewriters; window.__look = (pos, tgt) => { const c = new THREE.PerspectiveCamera(35, innerWidth / innerHeight, 0.05, 100); c.position.copy(B(...pos)); c.lookAt(B(...tgt)); c.layers.enableAll(); r.render(sc, c); return r.domElement.toDataURL('image/jpeg', 0.85); };
+    window.__editor = editor;
     if (pending) { editor.apply(pending, live.now()); pending = null; }
     showWho(); setInterval(showWho, 1000);
   } catch (e) { if (who) who.textContent = '👤 Редактор не загрузился: ' + e.message; window.__err = String(e); }
 }
-live = connectLive(RELAY, (w) => { if (editor) editor.apply(w, live.now()); else pending = w; }, (s) => { net = s; showWho(); }, applyWeather);
+live = connectLive(RELAY, (w) => { if (editor) editor.apply(w, live.now()); else pending = w; }, (s) => { net = s; showWho(); }, { weather: applyWeather, blinds: (b) => applyBlinds(b, true) });
 
 function tvNews(on) {
   if (!tvMat || !tvOrig) return;
@@ -257,7 +289,7 @@ window.__step = (dt, n = 1) => { for (let i = 0; i < n; i++) step(dt, i === n - 
 function step(dt, draw = true) {
   const t0 = performance.now();
   if (mixer) mixer.update(dt);
-  WX?.update(dt);
+  WX?.update(dt); SB?.update(dt, r.getPixelRatio());
   const d = wx && Number.isFinite(wx.utc) ? new Date(live.now() + wx.utc * 1000) : null;   // the clock shows the time of the city outside
   const h = d ? d.getUTCHours() : new Date().getHours(), m = d ? d.getUTCMinutes() : new Date().getMinutes(), s = d ? d.getUTCSeconds() : new Date().getSeconds();
   const ang = { hour: ((h % 12) + m / 60) * Math.PI / 6, minute: (m + s / 60) * Math.PI / 30, second: s * Math.PI / 30 };
@@ -282,9 +314,9 @@ function step(dt, draw = true) {
       if (roll >= 1) roll = -1;
     }
   }
-  if (editor) editor.update(dt, window.__simNow ?? live.now());   // __simNow: automated checks run on their own clock
+  if (editor) editor.update(dt, live.now());
   if (!draw) return;
-  L.update(dt, editor && editor.moving() && QL.level.live); ctl.update(); SC.render();
+  L.update(dt, editor && editor.moving() && QL.level.live, SC.enabled); ctl.update(); SC.render();
   cpuMs += (performance.now() - t0 - cpuMs) * 0.1;
   fAcc += dt; fN++;
   if (fAcc >= 2) {

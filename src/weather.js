@@ -101,17 +101,22 @@ export function createWeather(scene, office, r) {
   });
   const loader = new THREE.TextureLoader(), dayTex = [];
   for (let i = 0; i < 4; i++) {
-    dayTex[i] = loader.load(`assets/city-day/facade_${i}.webp`, () => { onReady && onReady(); });
+    dayTex[i] = loader.load(`assets/city-day/facade_${i}.webp`, () => {
+      if (pending && dayTex.every((t) => t.image)) { const [k, o] = pending; pending = null; apply(k, o); }   // day facades arrived
+      onReady && onReady();
+    });
     dayTex[i].flipY = false; dayTex[i].colorSpace = THREE.SRGBColorSpace;
     dayTex[i].wrapS = dayTex[i].wrapT = THREE.RepeatWrapping;
   }
   const skies = {}, falls = { rain: null, snow: null };
   const group = new THREE.Group(); group.name = 'WEATHER'; scene.add(group);
-  let current = null, active = null;
+  let current = null, active = null, pending = null;
 
   // kind: the sky and light of the city; opts.fall: 'rain' | 'snow' | null (also at night); opts.ground: snow lies on roofs and street
   function apply(kind, opts = {}) {
     if (!SKIES.includes(kind)) kind = 'night';
+    if (DAY[kind] && !dayTex.every((t) => t.image)) { pending = [kind, opts]; return false; }   // day facades still loading: keep the city as it is, not black walls
+    pending = null;
     const d = DAY[kind];
     const fall = opts.fall !== undefined ? opts.fall : kind === 'rain' || kind === 'snow' ? kind : null;
     const ground = !!d && (opts.ground !== undefined ? opts.ground : !!d.snow);

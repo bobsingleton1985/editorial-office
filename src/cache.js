@@ -42,6 +42,7 @@ export function createStaticCache(r, scene, cam) {
     const k = r.getPixelRatio() * room, w = Math.round(css.x * k), h = Math.round(css.y * k);
     if (!w || !h || !r.domElement.width) return;                      // hidden or minimised window: nothing to draw into
     if (!rt || rt.width !== w || rt.height !== h) { rt?.dispose(); rt = target(w, h); dirty = true; }
+    if (r.shadowMap.needsUpdate) dirty = true;                          // shadows must be drawn with the whole room, never with the moving things only
     if (dirty) { cam.layers.set(0); r.setRenderTarget(rt); r.render(scene, cam); r.setRenderTarget(null); dirty = false; }
     // the room may be cached at a lower resolution than the canvas; people are drawn at full canvas resolution
     mat.uniforms.tColor.value = rt.texture; mat.uniforms.tDepth.value = rt.depthTexture;

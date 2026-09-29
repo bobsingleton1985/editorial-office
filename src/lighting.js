@@ -18,6 +18,10 @@ const DESK_I = 5.0, FLOOR_I = 22.0, TV_I = 0.6;
 const SKY_LIGHT = { night: [0xb9c7ff, 0xffe9d0, 0x2a2420], sun: [0xfff0d8, 0xe4ecf8, 0x5a4a3c], cloudy: [0xe2e8f0, 0xdfe4ea, 0x4a4440],
   rain: [0xc8d2de, 0xcfd6de, 0x3a3634], snow: [0xeef2fb, 0xedf1f8, 0x6a6660] };
 
+// afternoon sun through the west windows: direction the light travels (from west-south-west, 32° above the horizon)
+const EL = 32 * Math.PI / 180, AZ = 18 * Math.PI / 180;
+export const SUN_DIR = new THREE.Vector3(Math.cos(EL) * Math.cos(AZ), -Math.sin(EL), -Math.cos(EL) * Math.sin(AZ));
+
 export function createLighting(sc, r) {
   r.shadowMap.enabled = true;
   r.shadowMap.type = THREE.PCFShadowMap;
@@ -27,6 +31,15 @@ export function createLighting(sc, r) {
   const win = new THREE.DirectionalLight(0xb9c7ff, 0.45);   // cool light from the west windows
   win.position.copy(B(-12, 1, 9)); win.target.position.copy(B(0, 0, 0));
   sc.add(hemi, win, win.target);
+  // the sun: hard light with shadows, so the window frames and the slats draw stripes on the floor and desks
+  const sun = new THREE.DirectionalLight(0xffe6c4, 0);
+  { const c = new THREE.Vector3(0, 2, 0); sun.target.position.copy(c); sun.position.copy(c).addScaledVector(SUN_DIR, -20);
+    sun.shadow.bias = -0.0002; sun.shadow.normalBias = 0.02; sun.shadow.radius = 2;
+    const cam = new THREE.OrthographicCamera(); cam.position.copy(sun.position); cam.lookAt(c); cam.updateMatrixWorld();
+    const inv = cam.matrixWorldInverse, lo = new THREE.Vector3(1e9, 1e9, 1e9), hi = lo.clone().negate(), v = new THREE.Vector3();
+    for (const x of [-5.45, 3.5]) for (const y of [0, 4.75]) for (const z of [-6.05, 6.05]) { v.set(x, y, z).applyMatrix4(inv); lo.min(v); hi.max(v); }
+    const sc_ = sun.shadow.camera; sc_.left = lo.x; sc_.right = hi.x; sc_.bottom = lo.y; sc_.top = hi.y; sc_.near = -hi.z - 1; sc_.far = -lo.z + 1; sc_.updateProjectionMatrix(); }
+  sc.add(sun, sun.target);
 
   const spot = (pos, tgt, angle, pen, near) => {
     const l = new THREE.SpotLight(0xffffff, 1, 0, angle, pen, 2);
@@ -73,6 +86,10 @@ export function createLighting(sc, r) {
     const sl = SKY_LIGHT[s.sky] || SKY_LIGHT.night;
     win.color.setHex(sl[0]); hemi.color.setHex(sl[1]); hemi.groundColor.setHex(sl[2]);
     sc.environmentIntensity = s.env; r.toneMappingExposure = s.exposure;
+    const sunny = s.sky === 'sun' && (s.sunLight ?? 0) > 0;
+    sun.intensity = sunny ? s.sunLight : 0; sun.castShadow = sunny && s.shadows;
+    const ss = { low: 1024, medium: 2048, high: 2048 }[s.shadowQ] || 2048;
+    if (sun.shadow.mapSize.x !== ss) { sun.shadow.mapSize.set(ss, ss); sun.shadow.map?.dispose(); sun.shadow.map = null; }
     const col = tint(s.warmth), size = { low: 512, medium: 1024, high: 2048 }[s.shadowQ] || 1024;
     for (const k of ['A', 'B', 'C', 'floor']) {
       const l = lamps[k], on = s.lamps[k];
@@ -88,10 +105,12 @@ export function createLighting(sc, r) {
     needs = true;
   }
 
-  function update(dt, moving) {                          // TV spill follows the screen flicker; shadows at ~5 Hz, every frame while someone moves
+  // TV spill follows the screen flicker; shadows at ~5 Hz, every frame while someone moves.
+  // frozen (cached room on weak devices): shadows are drawn only when the lights or the blinds change, together with the room picture
+  function update(dt, moving, frozen) {
     if (tvMat) tv.intensity = TV_I * tvMat.emissiveIntensity;
     tAcc += dt;
-    if (needs || moving || tAcc > 0.2) { r.shadowMap.needsUpdate = true; tAcc = 0; needs = false; }
+    if (needs || (!frozen && (moving || tAcc > 0.2))) { r.shadowMap.needsUpdate = true; tAcc = 0; needs = false; }
   }
-  return { attach, apply, update };
+  return { attach, apply, update, touch: () => { needs = true; }, sun };
 }
