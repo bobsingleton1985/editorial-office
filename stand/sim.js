@@ -1,8 +1,8 @@
 // Стенд эмерджентности редакции — модель мира (без DOM; работает и в браузере, и в node).
 // Решения принимает только Jev: модель лишь собирает снимок и список доступных действий.
 
-export const NEEDS = ['fatigue', 'boredom', 'social', 'recognition', 'fun', 'coffee', 'nicotine', 'alcohol'];
-export const NEED_LABEL = { fatigue: 'Усталость', boredom: 'Скука', social: 'Общение', recognition: 'Признание', fun: 'Развлечение', coffee: 'Кофе', nicotine: 'Никотин', alcohol: 'Алкоголь' };
+export const NEEDS = ['fatigue', 'boredom', 'social', 'recognition', 'fun', 'love', 'coffee', 'nicotine', 'alcohol'];
+export const NEED_LABEL = { fatigue: 'Усталость', boredom: 'Скука', social: 'Общение', recognition: 'Признание', fun: 'Развлечение', love: 'Любовь', coffee: 'Кофе', nicotine: 'Никотин', alcohol: 'Алкоголь' };
 export const TRAITS = ['sociability', 'initiative', 'discipline', 'music', 'risk'];
 export const TRAIT_LABEL = { sociability: 'Общительность', initiative: 'Инициативность', discipline: 'Дисциплина', music: 'Любовь к музыке', risk: 'Тяга к риску' };
 export const IDS = ['editor', 'reporter', 'columnist', 'heroine'];
@@ -37,6 +37,8 @@ export function defaultConfig() {
     seed: 7,
     startHour: 9,
     tempo: 1.5,
+    afterIssueDrink: 15,
+    drinkContagion: 8,
     jevCallCap: 150,
     deadlineHour: 19,
     heroineVisitChance: 70,
@@ -47,19 +49,19 @@ export function defaultConfig() {
     characters: {
       editor: ch('Редактор', 'Усталый ветеран за 50. Видел войну и три газеты. Циничен, но справедлив. Держит редакцию на дисциплине, виски — в нижнем ящике стола. О прошлом молчит. Судья между репортёром и колумнистом.', 'deskB',
         { sociability: 40, initiative: 55, discipline: 85, music: 40, risk: 20 },
-        { fatigue: 7, boredom: 4, social: 3, recognition: 3, fun: 3, coffee: 8, nicotine: 6, alcohol: 5 },
+        { fatigue: 7, boredom: 4, social: 3, recognition: 3, fun: 3, love: 2, coffee: 8, nicotine: 6, alcohol: 5 },
         { goal: 'Сдать номер вовремя', stressSensitivity: 60, tolerance: 70 }),
       reporter: ch('Репортёр', 'Около 30. Сын состоятельной семьи; отец женился повторно, и наследство ушло новой семье — воспитание осталось, денег нет. Авантюрист, любит риск, романтик и мечтатель. Легко загорается, за столом быстро скучает, срывается по первой наводке, берёт в долг до гонорара. Сначала действует, потом думает.', 'deskA',
         { sociability: 65, initiative: 85, discipline: 30, music: 60, risk: 90 },
-        { fatigue: 5, boredom: 12, social: 5, recognition: 5, fun: 6, coffee: 5, nicotine: 8, alcohol: 4 },
+        { fatigue: 5, boredom: 12, social: 5, recognition: 5, fun: 6, love: 5, coffee: 5, nicotine: 8, alcohol: 4 },
         { goal: 'Раскопать большую историю; вернуть долги', stressSensitivity: 40, tolerance: 55 }),
       columnist: ch('Колумнист', 'Звезда газеты с именной колонкой. Выходец из бедного Бруклина, пробился сам. Остроумен, любит публику, кофе, пластинки и долгие разговоры. Тщеславен и ревнив, работает рывками. Редактора считает пережитком, к репортёру — тихая зависть.', 'deskC',
         { sociability: 80, initiative: 60, discipline: 45, music: 85, risk: 35 },
-        { fatigue: 5, boredom: 6, social: 9, recognition: 8, fun: 5, coffee: 9, nicotine: 3, alcohol: 4 },
+        { fatigue: 5, boredom: 6, social: 9, recognition: 8, fun: 5, love: 4, coffee: 9, nicotine: 3, alcohol: 4 },
         { goal: 'Колонка к номеру; всеобщее восхищение', stressSensitivity: 65, tolerance: 45 }),
       heroine: ch('Героиня', 'Певица из джаз-клуба по соседству и источник наводок. Не сотрудница редакции, заходит иногда — за рецензией, с пластинкой, с новостями. Свободная и игривая: любит внимание и флирт, не спешит выбирать, тянется к тому, с кем весело; ревность мужчин её забавляет.', null,
         { sociability: 90, initiative: 70, discipline: 25, music: 95, risk: 60 },
-        { fatigue: 4, boredom: 8, social: 8, recognition: 4, fun: 10, coffee: 3, nicotine: 5, alcohol: 5 },
+        { fatigue: 4, boredom: 8, social: 8, recognition: 4, fun: 10, love: 4, coffee: 3, nicotine: 5, alcohol: 5 },
         { goal: 'Рецензия на выступление; весёлый вечер', stressSensitivity: 30, tolerance: 50 }),
     },
     // Стартовые отношения: sympathy[кто][к кому] −100…100; attraction[кто][к кому] 0…100 (мужчины ↔ героиня).
@@ -193,6 +195,7 @@ export class World {
         if (n === 'fatigue' && (hour >= 1 && hour < 7)) rate *= 1.5;
         if (n === 'nicotine' || n === 'alcohol') rate *= 1 + c.stress / 100 * (cc.stressSensitivity / 50);
         if (n === 'fun') rate *= 1 + c.intox / 50;
+        if (n === 'love') rate *= Math.max(0, ...Object.values(c.attraction)) / 50 * (1 + c.intox / 100);
         if (c.asleep && n !== 'fatigue') rate *= 0.2;
         c.needs[n] = clamp(c.needs[n] + (rate + (during[n] || 0)) * h);
       }
@@ -249,7 +252,7 @@ export class World {
       this.issue.closedDay = day;
       const staff = MEN.filter(id => this.present(id));
       this.log(null, 'event', `${hhmm(this.t)} — номер ушёл в печать.`);
-      for (const id of staff) { const c = this.chars[id]; c.stress = clamp(c.stress - 30); if (c.workToday >= 2) c.needs.recognition = clamp(c.needs.recognition - 20); this.episode(id, 'номер сдан'); }
+      for (const id of staff) { const c = this.chars[id]; c.stress = clamp(c.stress - 30); c.needs.alcohol = clamp(c.needs.alcohol + (this.cfg.afterIssueDrink ?? 15)); if (c.workToday >= 2) c.needs.recognition = clamp(c.needs.recognition - 20); this.episode(id, 'номер сдан'); }
       this._interruptAll('номер сдан');
     }
     if (this.issue.closedDay < day && this._crossed(this.cfg.deadlineHour - 2)) { this.bubble('editor', '⏰!'); this.log('editor', 'event', 'До сдачи номера два часа.'); this._interruptAll('до сдачи номера два часа'); }
@@ -373,6 +376,12 @@ export class World {
     for (const o of IDS) if (o !== id && this.awake(o)) this.episode(o, `${c.name} перебрал и уснул`, [id]);
   }
 
+  // кто-то пьёт на виду — у остальных просыпается тяга
+  _contagion(drinkers) {
+    const k = this.cfg.drinkContagion ?? 8; if (!k) return;
+    for (const o of IDS) if (!drinkers.includes(o) && this.awake(o)) { const c = this.chars[o]; c.needs.alcohol = clamp(c.needs.alcohol + k); c.needs.social = clamp(c.needs.social + k / 2); }
+  }
+
   _cancelInvitationsOf(id) {
     for (const inv of this.invitations.filter(i => i.from === id || i.to === id)) {
       this.invitations = this.invitations.filter(i => i !== inv);
@@ -384,7 +393,8 @@ export class World {
   // Список действий, которые исполнитель сейчас допускает для персонажа.
   availableActions(id) {
     const c = this.chars[id], cat = this.cfg.catalog, list = [], staff = id !== 'heroine', hour = hourOf(this.t);
-    const add = (aid, description) => list.push({ id: aid, description });
+    const EFF = { work: 'утоляет признание; утомляет, со временем становится скучно', rest: 'снимает усталость и стресс', window: 'разгоняет скуку', stroll: 'немного разгоняет скуку', teletype: 'разгоняет скуку, даёт повод для материала', coffee: 'утоляет тягу к кофе, бодрит', smoke: 'утоляет тягу к сигарете, снимает стресс', drink: 'утоляет тягу к алкоголю, снимает стресс, пьянит', record: 'музыка для всех в комнате', dance: 'развлекает', sleep: 'снимает усталость', invite_talk: 'общение', invite_drink: 'общение и выпивка вместе', invite_coffee: 'общение и кофе', invite_smoke: 'общение и сигарета', invite_dance: 'развлечение и общение', invite_flirt: 'любовь и развлечение', invite_loan: 'деньги до гонорара', answer_phone: 'узнать новость', tell_news: 'общение' };
+    const add = (aid, description) => { const v = aid.split(/[:@]/)[0], e = EFF[v]; list.push({ id: aid, description: e ? `${description} — ${e}` : description }); };
     const others = IDS.filter(o => o !== id && this.awake(o));
     const myInv = this.invitations.filter(i => i.to === id);
     for (const inv of myInv) {
@@ -474,6 +484,9 @@ export class World {
     const c = this.chars[id];
     if (c.forced) { this.log(id, 'event', `Выбор «${actionId}» отменён: задача Арчи важнее.`); this._startForced(id); return true; }
     if (!this.awake(id)) { c.needsDecision = false; return false; }
+    // встречный порыв: собрался звать того, кто уже зовёт его к тому же — это согласие
+    { const [h, t] = actionId.split('@'); const mutual = h.startsWith('invite_') && this.invitations.find(i => i.from === t && i.to === id && i.kind === h.slice(7));
+      if (mutual) { this.log(id, 'decision', `сам хотел того же: ${this.chars[t].name}, ${KIND_LABEL[mutual.kind]}`, meta); c.needsDecision = false; this._resolveInvitation(mutual, 'accept', false); return true; } }
     const valid = this.availableActions(id).some(a => a.id === actionId);
     c.needsDecision = false;
     if (!valid) { this.log(id, 'event', `Выбор «${actionId}» устарел — новое решение.`); c.needsDecision = true; c.decisionReason = 'обстановка изменилась'; return false; }
@@ -497,7 +510,7 @@ export class World {
       case 'teletype': this.tapes = Math.max(0, this.tapes - 1); this._setActivity(id, 'teletype', 'teletype', d(5, 10)); break;
       case 'coffee': this._setActivity(id, 'coffee', 'coffee', d(8, 12)); break;
       case 'smoke': this._setActivity(id, 'smoke', 'window', d(6, 9)); break;
-      case 'drink': this._setActivity(id, 'drink', id === 'editor' ? desk : 'bar', d(15, 25)); break;
+      case 'drink': this._setActivity(id, 'drink', id === 'editor' ? desk : 'bar', d(15, 25)); this._contagion([id]); break;
       case 'record': this._setActivity(id, 'record', 'record', d(2, 3)); break;
       case 'dance': this._setActivity(id, 'dance', 'floor', d(8, 12)); break;
       case 'sleep': c.asleep = true; this._setActivity(id, 'sleep', c.spot, d(120, 300), { where: c.spot === 'bench' ? 'на скамье' : c.spot.startsWith('desk') ? 'на столе' : 'на полу' }); break;
@@ -541,6 +554,7 @@ export class World {
       const dur = ({ drink: this._between(20, 35), coffee: this._between(10, 15), smoke: this._between(7, 10), dance: this._between(10, 15), talk: this._between(10, 20), flirt: this._between(6, 12), loan: 3 }[k]) * (this.cfg.tempo || 1);
       for (const who of [inv.from, inv.to]) { this._setActivity(who, 'joint_' + k, spot, dur, { partner: who === inv.from ? inv.to : inv.from }); this.chars[who].activity.until = this.t + dur + 2; this.chars[who].needsDecision = false; }
       this.log(inv.to, 'result', `${B.name} → ${A.name}: 👍 ${KIND_LABEL[k]}`);
+      if (k === 'drink') this._contagion([inv.from, inv.to]);
       if (k === 'loan') { this.debts.push({ from: inv.from, to: inv.to, t: this.t }); this.log(inv.from, 'result', `💵 ${A.name} теперь в долгу у персонажа «${B.name}».`); }
       // ревность: остальные мужчины видят героиню с соперником
       if ((k === 'flirt' || k === 'dance' || k === 'drink') && (inv.from === 'heroine' || inv.to === 'heroine')) {
@@ -575,7 +589,8 @@ const staff = id => id !== 'heroine';
 // Эффекты занятий: during — прибавка к скорости изменения (в час); done — разово по завершении.
 const pair = (w, id, a, fn) => { if (!a.partner) return; fn(w.chars[id], w.chars[a.partner]); };
 const bond = (w, id, a, s) => pair(w, id, a, (me, other) => { me.sympathy[other.id] = clamp(me.sympathy[other.id] + s, -100, 100); });
-const attract = (w, id, a, s) => pair(w, id, a, (me, other) => { if (me.attraction[other.id] !== undefined) me.attraction[other.id] = clamp(me.attraction[other.id] + s); });
+const attract = (w, id, a, s) => pair(w, id, a, (me, other) => { const v = me.attraction[other.id]; if (v !== undefined) me.attraction[other.id] = clamp(v + s * (1 - v / 120)); });
+const loveSat = (w, id, a, v) => pair(w, id, a, (me, other) => { if (me.attraction[other.id] !== undefined) sub(me, 'love', v * (0.5 + me.attraction[other.id] / 100)); });
 const epi = (w, id, a, text) => w.episode(id, a.partner ? `${text} с ${w.chars[a.partner].name}` : text, a.partner ? [a.partner] : []);
 const sub = (c, n, v) => { c.needs[n] = clamp(c.needs[n] - v); };
 
@@ -596,12 +611,12 @@ export const ACTIONS = {
   inviting: { label: 'зовёт коллегу', interruptible: false },
   repay: { label: 'возвращает долг', interruptible: false, done: (w, id, a) => { const c = w.chars[id]; c.sympathy[a.target] = clamp(c.sympathy[a.target] + 5, -100, 100); w.chars[a.target].sympathy[id] = clamp(w.chars[a.target].sympathy[id] + 8, -100, 100); w.episode(id, `вернул долг ${w.chars[a.target].name}`, [a.target]); w.episode(a.target, `${c.name} вернул долг`, [id]); } },
   tell_news: { label: 'рассказывает новость', interruptible: false, done: (w, id, a) => { const t = w.chars[a.target]; sub(t, 'social', 15); sub(t, 'boredom', 10); if (a.target === 'reporter') sub(t, 'recognition', 10); t.sympathy[id] = clamp(t.sympathy[id] + 4, -100, 100); w.episode(a.target, `${w.chars[id].name} рассказала новость из клуба`, [id]); w.episode(id, `рассказала новость: ${t.name}`, [a.target]); } },
-  joint_drink: { label: 'выпивает вместе', interruptible: false, during: { stress: -40 }, done: (w, id, a) => { const c = w.chars[id]; sub(c, 'alcohol', 50); sub(c, 'social', 30); c.intox = clamp(c.intox + 20); bond(w, id, a, 6); attract(w, id, a, 4); epi(w, id, a, 'выпил виски'); } },
+  joint_drink: { label: 'выпивает вместе', interruptible: false, during: { stress: -40 }, done: (w, id, a) => { const c = w.chars[id]; sub(c, 'alcohol', 50); sub(c, 'social', 30); c.intox = clamp(c.intox + 20); loveSat(w, id, a, 15); bond(w, id, a, 6); attract(w, id, a, 4); epi(w, id, a, 'выпил виски'); } },
   joint_coffee: { label: 'пьёт кофе вместе', interruptible: false, done: (w, id, a) => { const c = w.chars[id]; sub(c, 'coffee', 60); sub(c, 'social', 25); bond(w, id, a, 4); epi(w, id, a, 'пил кофе'); } },
   joint_smoke: { label: 'курит вместе', interruptible: false, during: { stress: -50 }, done: (w, id, a) => { const c = w.chars[id]; sub(c, 'nicotine', 70); sub(c, 'social', 20); bond(w, id, a, 4); epi(w, id, a, 'курил'); } },
-  joint_dance: { label: 'танцует в паре', interruptible: false, during: { fatigue: 6 }, done: (w, id, a) => { const c = w.chars[id]; sub(c, 'fun', 40); sub(c, 'social', 20); bond(w, id, a, 5); attract(w, id, a, 8); epi(w, id, a, 'танцевал'); } },
-  joint_talk: { label: 'разговаривает', interruptible: false, done: (w, id, a) => { const c = w.chars[id]; sub(c, 'social', 35); sub(c, 'boredom', 15); bond(w, id, a, 4); epi(w, id, a, 'разговаривал'); } },
-  joint_flirt: { label: 'флиртует, обнимаются', interruptible: false, done: (w, id, a) => { const c = w.chars[id]; sub(c, 'fun', 25); sub(c, 'social', 20); bond(w, id, a, 6); attract(w, id, a, 12); w.bubble(id, '❤️'); epi(w, id, a, 'обнимались и целовались'); } },
+  joint_dance: { label: 'танцует в паре', interruptible: false, during: { fatigue: 6 }, done: (w, id, a) => { const c = w.chars[id]; sub(c, 'fun', 40); sub(c, 'social', 20); loveSat(w, id, a, 30); bond(w, id, a, 5); attract(w, id, a, 8); epi(w, id, a, 'танцевал'); } },
+  joint_talk: { label: 'разговаривает', interruptible: false, done: (w, id, a) => { const c = w.chars[id]; sub(c, 'social', 35); sub(c, 'boredom', 15); loveSat(w, id, a, 10); bond(w, id, a, 4); epi(w, id, a, 'разговаривал'); } },
+  joint_flirt: { label: 'флиртует, обнимаются', interruptible: false, done: (w, id, a) => { const c = w.chars[id]; sub(c, 'fun', 25); sub(c, 'social', 20); loveSat(w, id, a, 45); bond(w, id, a, 6); attract(w, id, a, 12); w.bubble(id, '❤️'); epi(w, id, a, 'обнимались и целовались'); } },
   joint_loan: { label: 'договаривается о долге', interruptible: false, done: (w, id, a) => { bond(w, id, a, 2); epi(w, id, a, 'договорились о долге'); } },
   archie_scout: { label: 'ищет фильмы (скаут Арчи)', interruptible: false, during: { recognition: -20, fatigue: 3, boredom: -8 } },
   archie_match: { label: 'сверяет находки со вкусом владельца', interruptible: false, during: { recognition: -20, fatigue: 3 } },

@@ -1,8 +1,8 @@
-import { World, defaultConfig, NEEDS, NEED_LABEL, TRAITS, TRAIT_LABEL, IDS, SPOTS, CATALOG, ACTIONS, hhmm, dayOf } from './sim.js';
+import { World, defaultConfig, NEEDS, NEED_LABEL, TRAITS, TRAIT_LABEL, IDS, SPOTS, CATALOG, ACTIONS, hhmm, dayOf } from './sim.js?v=3';
 
 const $ = id => document.getElementById(id);
 const COLOR = { editor: '#8a5a2b', reporter: '#2f6f8f', columnist: '#7b3f8c', heroine: '#c0392b' };
-const SERIES = { fatigue: '#8a5a2b', boredom: '#9aa13a', social: '#2f6f8f', recognition: '#d08a1c', fun: '#c0392b', coffee: '#5b3a1e', nicotine: '#6d6d6d', alcohol: '#b5651d', stress: '#e0412f', intox: '#7b3f8c' };
+const SERIES = { fatigue: '#8a5a2b', boredom: '#9aa13a', social: '#2f6f8f', recognition: '#d08a1c', fun: '#c0392b', love: '#e25577', coffee: '#5b3a1e', nicotine: '#6d6d6d', alcohol: '#b5651d', stress: '#e0412f', intox: '#7b3f8c' };
 const SERIES_LABEL = { ...NEED_LABEL, stress: 'Стресс', intox: 'Опьянение' };
 const MAX_SPEED = 86400 / 5;   // сутки за 5 секунд
 
@@ -15,7 +15,7 @@ const inflight = new Set();
 const bubbleSeen = new Map();
 let tab = 'editor';
 let graphChar = 'editor';
-const shownSeries = new Set(['fatigue', 'boredom', 'social', 'stress', 'intox']);
+const shownSeries = new Set(['social', 'love', 'alcohol', 'recognition', 'stress', 'intox']);
 let realRate = { simMin: 0, realS: 0, value: 0 };
 let journalDirty = true;
 
@@ -254,6 +254,7 @@ function buildPane() {
     const F = config.forgetting, A = config.archie;
     p.innerHTML = '<h3>Прогон</h3>' + slider('Seed случайности', () => config.seed, v => config.seed = v, 1, 999, 1, 'Нужен «Новый прогон»') + slider('Старт, час', () => config.startHour, v => config.startHour = v, 0, 23, 1, 'Нужен «Новый прогон»')
       + slider('Темп занятий ×', () => config.tempo, v => config.tempo = v, 0.5, 3, 0.1, 'Множитель длительности занятий: больше — реже решения Jev')
+      + '<h3>Выпивка</h3>' + slider('После сдачи номера: тяга выпить +', () => config.afterIssueDrink, v => config.afterIssueDrink = v, 0, 50) + slider('Кто-то пьёт рядом: тяга +', () => config.drinkContagion, v => config.drinkContagion = v, 0, 30)
       + '<h3>Редакция</h3>' + slider('Сдача номера, час', () => config.deadlineHour, v => config.deadlineHour = v, 12, 23) + slider('Визит героини, %/вечер', () => config.heroineVisitChance, v => config.heroineVisitChance = v, 0, 100) + slider('Телетайп, раз в N ч', () => config.teletypeEveryHours, v => config.teletypeEveryHours = v, 0.5, 8, 0.5)
       + '<h3>Арчи, минут на этап</h3>' + slider('Скаут', () => A.scout, v => A.scout = v, 1, 90) + slider('Сверка', () => A.match, v => A.match = v, 1, 90) + slider('Карточки', () => A.cards, v => A.cards = v, 1, 90)
       + '<h3>Забывание</h3>' + slider('Симпатия, дней', () => F.sympathyDays, v => F.sympathyDays = v, 0.5, 14, 0.5) + slider('Влечение, дней', () => F.attractionDays, v => F.attractionDays = v, 0.5, 14, 0.5) + slider('Ревность, часов', () => F.jealousyHours, v => F.jealousyHours = v, 0.5, 24, 0.5) + slider('Обида, часов', () => F.grudgeHours, v => F.grudgeHours = v, 1, 72) + slider('Долг, дней', () => F.debtDays, v => F.debtDays = v, 0.5, 7, 0.5)
