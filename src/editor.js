@@ -17,7 +17,7 @@ const fwd = (T) => [Math.sin(T.th), Math.cos(T.th)];
 const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const deg = THREE.MathUtils.degToRad;
 
-export function createEditor(scene, office, gltf, chairTracks) {
+export function createEditor(scene, office, gltf, chairTracks, extra = {}) {
   const root = gltf.scene, Bn = {};
   const holder = new THREE.Group(), body = new THREE.Group(); body.scale.setScalar(S);
   holder.add(body); body.add(root); scene.add(holder); holder.name = 'EDITOR2A';
@@ -55,7 +55,7 @@ export function createEditor(scene, office, gltf, chairTracks) {
     const pel = sam.pelvis, parent = pel.parent; let T0 = null, prevX = null; const spd = [], py = [];
     for (let k = 0; k < n; k++) {
       const t = Math.min(clip.duration, k / FPS); act.time = t; smix.update(0); sg.updateMatrixWorld(true);
-      let T = groundFrame(); if (!T0) T0 = T; if (mode === 'first') T = T0;
+      let T = groundFrame(); if (!T0) T0 = T; if (mode === 'first') T = T0; else if (typeof mode === 'object') T = mode;   // object: a fixed frame (the seat)
       traj.push(T); times[k] = t; py.push(pel.matrixWorld.elements[13]);
       const X = sam.ext.map((b) => b.getWorldPosition(new THREE.Vector3())); if (prevX) spd.push(Math.max(...X.map((p, i) => p.distanceTo(prevX[i]))) * FPS); prevX = X;
       const M = matOf(T).invert().multiply(pel.matrixWorld);
@@ -89,6 +89,9 @@ export function createEditor(scene, office, gltf, chairTracks) {
       let e = pk; while (e < t.length - 1 && t[e] > fin + 0.005) e++; c.cutGo = Math.max(c.cutUp, e / FPS + 0.6); }
     const k = Math.round(c.cutGo * FPS), a = c.traj[Math.max(0, k - 3)], b = c.traj[Math.min(c.traj.length - 1, k + 3)]; c.vGo = dist(a, b) / 6 * FPS; }
   const seatBase = CL.sit_idle.traj[0];                                   // seated ground frame of the pack (desk frame at its origin)
+  // typing (MC Seated SitChairTablePC_01_Type, clip from editor2A v13 as on the approved page): the actor sits 4.5 cm nearer the desk; the chair stays put
+  const TYPE_KEYS = [8, 25, 30, 34, 38, 42, 46, 51, 56, 60, 65, 69, 73, 76, 81, 89, 93, 103].map((f) => (f - 1) / FPS);   // fingertip strikes (type-contacts.json)
+  if (extra.typeClip) CL.type = stripClip('type', extra.typeClip, seatBase);
 
   // ---------- seats in the office
   const SEATS = {};
@@ -133,7 +136,7 @@ export function createEditor(scene, office, gltf, chairTracks) {
   // ---------- animation layers
   const mixer = new THREE.AnimationMixer(root), A = {}, W = {};
   function layer(name, clip, loop = true) { const a = mixer.clipAction(clip); a.setLoop(loop ? THREE.LoopRepeat : THREE.LoopOnce); a.clampWhenFinished = true; a.play(); a.setEffectiveWeight(0); A[name] = a; W[name] = { cur: 0, target: 0, rate: 1 / FADE }; }
-  layer('walk', walkClip); layer('stand_idle', CL.stand_idle.clip); layer('sit_idle', CL.sit_idle.clip);
+  layer('walk', walkClip); layer('stand_idle', CL.stand_idle.clip); layer('sit_idle', CL.sit_idle.clip); if (CL.type) layer('type', CL.type.clip);
   for (const n of Object.keys(CL)) if (n.startsWith('desk_') || n.startsWith('booth_')) layer(n, CL[n].clip, false);
   function fadeTo(name, t = FADE) { for (const k in W) W[k].target = k === name ? 1 : 0; W[name].rate = 1 / t; }
   function stepWeights(dt) { let sum = 0; for (const k in W) { const w = W[k]; w.cur += Math.sign(w.target - w.cur) * Math.min(Math.abs(w.target - w.cur), dt * (w.rate || 3)); sum += w.cur; }
@@ -141,11 +144,18 @@ export function createEditor(scene, office, gltf, chairTracks) {
   function snapWeights() { for (const k in W) W[k].cur = W[k].target; stepWeights(0); }
 
   // ---------- behaviour (as the seating page v6)
-  const ch = { mode: 'idle', seat: null, speed: 0, vis: 0, err: 0, path: null, cursor: 0, after: null, trans: null, queue: null, chairTail: null, blendIn: 0, motion: 'стоит' };
+  const tw = extra.typewriters || null;
+  // activities that need a free desk: the typewriter on that desk is taken away (none of them is live yet)
+  const FREE_DESK = new Set(['lunch', 'coffee']);
+  let freeDesk = null;
+  const typing = () => !!(CL.type && ch.work && ch.seat && SEATS[ch.seat].desk);
+  const seatedLoop = () => (typing() ? 'type' : 'sit_idle');
+  const ch = { work: false, title: '', mode: 'idle', seat: null, speed: 0, vis: 0, err: 0, path: null, cursor: 0, after: null, trans: null, queue: null, chairTail: null, blendIn: 0, motion: 'стоит' };
   function command(goal) {
-    if (ch.mode === 'trans') { ch.queue = goal; return; }
+    if (ch.mode === 'trans' || ch.mode === 'settle') { ch.queue = goal; return; }
     if (ch.seat) {
       if (goal.seat === ch.seat) return;
+      if (ch.mode === 'seated' && W.type && W.type.cur > 0.05) { ch.queue = goal; ch.mode = 'settle'; fadeTo('sit_idle', 0.6); W.type.rate = 1 / 0.6; ch.motion = 'откладывает работу'; return; }
       const opts = exitOptions(ch.seat, goal), pick = opts.filter((o) => o.cost < Infinity).sort((a, b) => a.cost - b.cost)[0] || opts[0];
       ch.queue = goal; startTrans(pick.clip, pick.anc, 'stand'); ch.motion = 'встаёт'; return;
     }
@@ -183,6 +193,18 @@ export function createEditor(scene, office, gltf, chairTracks) {
     setChair(tr.desk, dy);
   }
   function updateChar(dt) {
+    // settle: hands go back from the keys to the desk, then he may stand up
+    if (ch.mode === 'settle') { if (W.type.cur <= 0.02) { ch.mode = 'seated'; const q = ch.queue; ch.queue = null; if (q) command(q); } }
+    if (ch.mode === 'seated' && W.type) {                              // switch between typing and resting without standing up
+      const want = seatedLoop();
+      if (W[want].target < 1) { if (want === 'type') { A.type.reset(); A.type.play(); } fadeTo(want, 0.9); }
+      ch.motion = want === 'type' ? 'печатает' : 'сидит';
+    }
+    if (tw) {                                                           // typewriters stay on the desks; an activity that needs the desk clears it
+      if (FREE_DESK.has(ch.activity)) freeDesk = ch.goalDesk || freeDesk;          // hidden as soon as he sets off towards that desk
+      else if (freeDesk && !(ch.seat && SEATS[ch.seat].desk === freeDesk) && ch.mode !== 'settle') freeDesk = null;   // back once he has got up and left
+      tw.clear(freeDesk);
+    }
     if (ch.chairTail) { const tr = ch.chairTail; tr.t += dt; updateChair(tr); if (tr.t > tr.c.clip.duration) ch.chairTail = null; }
     if (ch.mode === 'walk') {
       const pts = ch.path; let rest = 0; const p = holderPose();
@@ -213,7 +235,7 @@ export function createEditor(scene, office, gltf, chairTracks) {
       setHolder(P(T.x + tr.off.x * k, T.z + tr.off.z * k, T.th + tr.off.th * k));
       updateChair(tr);
       if (tr.t >= (tr.kind === 'stand' ? (ch.queue ? tr.c.cutGo : tr.c.cutEnd) : tr.c.clip.duration - 1 / FPS)) {
-        if (tr.kind === 'sit') { ch.seat = tr.seatId; ch.mode = 'seated'; fadeTo('sit_idle'); A.sit_idle.reset(); setHolder(SEATS[tr.seatId].pose); ch.motion = 'сидит';
+        if (tr.kind === 'sit') { ch.seat = tr.seatId; ch.mode = 'seated'; fadeTo(seatedLoop(), typing() ? 0.9 : FADE); A.sit_idle.reset(); if (typing()) { A.type.reset(); A.type.play(); } setHolder(SEATS[tr.seatId].pose); ch.motion = 'сидит';
           if (tr.desk) setChair(tr.desk, 0); const q = ch.queue; ch.queue = null; if (q) command(q); }
         else { ch.seat = null; ch.mode = 'idle'; fadeTo('stand_idle'); ch.motion = 'стоит'; const q = ch.queue; if (tr.desk) ch.chairTail = tr; ch.queue = null;
           if (q) { goTo(q); if (ch.mode === 'walk') { ch.speed = THREE.MathUtils.clamp(tr.c.vGo, 0.6, 1.4); ch.blendIn = 0.45; } } }
@@ -231,7 +253,7 @@ export function createEditor(scene, office, gltf, chairTracks) {
   function place(from, chairState) {
     ch.mode = 'idle'; ch.seat = null; ch.trans = null; ch.queue = null; ch.chairTail = null; ch.path = null; ch.after = null; ch.speed = 0; ch.vis = 0;
     for (const k of Object.keys(chairs)) { const v = chairState?.[k] ?? CHAIR_REST; setChair(k, v); chairs[k].plan = v; }
-    if (from?.seat && SEATS[from.seat]) { const s = SEATS[from.seat]; setHolder(s.pose); ch.seat = from.seat; ch.mode = 'seated'; ch.motion = 'сидит'; fadeTo('sit_idle'); if (s.desk) { setChair(s.desk, 0); chairs[s.desk].plan = 0; } }
+    if (from?.seat && SEATS[from.seat]) { const s = SEATS[from.seat]; setHolder(s.pose); ch.seat = from.seat; ch.mode = 'seated'; ch.motion = 'сидит'; fadeTo(seatedLoop()); if (s.desk) { setChair(s.desk, 0); chairs[s.desk].plan = 0; } }
     else { const p = (from?.spot && SPOTS[from.spot]) || SPOTS.window; setHolder(p); ch.motion = 'стоит'; fadeTo('stand_idle'); }
     syncBoxes(); snapWeights();
   }
@@ -239,7 +261,14 @@ export function createEditor(scene, office, gltf, chairTracks) {
   const placeKey = (g) => (g ? g.seat || g.spot || null : null);
   function frame(dt, ff) {
     updateChar(dt); stepWeights(dt);
-    if (!ff) { mixer.update(dt); lidFrame(dt); }
+    if (!ff) {
+      const t0 = A.type ? A.type.time : 0;
+      mixer.update(dt); lidFrame(dt);
+      if (A.type && tw && ch.seat && SEATS[ch.seat].desk && W.type.cur > 0.6) {     // a letter on every fingertip strike
+        const t1 = A.type.time, d = CL.type.clip.duration;
+        for (const k of TYPE_KEYS) if ((t1 >= t0 && k > t0 && k <= t1) || (t1 < t0 && (k > t0 || k <= t1))) tw.key(SEATS[ch.seat].desk);
+      }
+    }
   }
   function fastForward(sec) {                         // late join / hidden tab: replay the command at 30 steps a second, draw once
     const n = Math.min(Math.round(sec * FPS), 90 * FPS);       // any walk + sit is over within 90 s
@@ -251,6 +280,10 @@ export function createEditor(scene, office, gltf, chairTracks) {
   function apply(w, serverNow) {                      // w = {seq, editor: {from, cmd, at}, chairs}
     if (!w?.editor || (cur && cur.seq === w.seq)) return;
     const e = w.editor, elapsed = Math.max(0, (serverNow - e.at) / 1000);
+    ch.work = e.activity ? e.activity === 'work' : /^(работает|правит)/.test(e.label || '');
+    ch.title = (/«(.+)»/.exec(e.label || '') || [])[1] || '';
+    ch.activity = e.activity || (ch.work ? 'work' : '');
+    { const g = e.cmd?.seat || e.from?.seat; ch.goalDesk = g && SEATS[g] ? SEATS[g].desk : null; }
     // live viewer: he is already there (or on his way there) — go on from here; otherwise rebuild the start and catch up
     const dest = cur ? placeKey(cur.cmd || cur.from) : null;
     const cont = cur && dest === placeKey(e.from) && elapsed < 3;
@@ -268,6 +301,6 @@ export function createEditor(scene, office, gltf, chairTracks) {
     apply, update, holder, SEATS, nav, chairs,
     moving: () => ch.mode === 'walk' || ch.mode === 'turn' || ch.mode === 'trans' || !!ch.chairTail,
     status: () => ({ label: cur?.label || '', motion: ch.motion, mode: ch.mode, seat: ch.seat, source: cur?.source || '' }),
-    debug: { ch, CL, command: (g) => command(goalOf(g) || g), place, entryOptions, exitOptions, holderPose, NATIVE: () => NATIVE },
+    debug: { ch, CL, A, W, mixer, SEATS, comp, trajAt, setHolder, snapWeights, command: (g) => command(goalOf(g) || g), place, entryOptions, exitOptions, holderPose, NATIVE: () => NATIVE },
   };
 }
