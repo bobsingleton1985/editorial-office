@@ -105,15 +105,19 @@ export function createWeather(scene, office, r) {
     dayTex[i].flipY = false; dayTex[i].colorSpace = THREE.SRGBColorSpace;
     dayTex[i].wrapS = dayTex[i].wrapT = THREE.RepeatWrapping;
   }
-  const skies = {}, fall = { rain: null, snow: null };
+  const skies = {}, falls = { rain: null, snow: null };
   const group = new THREE.Group(); group.name = 'WEATHER'; scene.add(group);
   let current = null, active = null;
 
-  function apply(kind) {
+  // kind: the sky and light of the city; opts.fall: 'rain' | 'snow' | null (also at night); opts.ground: snow lies on roofs and street
+  function apply(kind, opts = {}) {
     if (!SKIES.includes(kind)) kind = 'night';
-    if (kind === current) return false;
-    current = kind;
     const d = DAY[kind];
+    const fall = opts.fall !== undefined ? opts.fall : kind === 'rain' || kind === 'snow' ? kind : null;
+    const ground = !!d && (opts.ground !== undefined ? opts.ground : !!d.snow);
+    const key = `${kind}|${fall}|${ground}`;
+    if (key === current) return false;
+    current = key;
     for (const { m, i, e } of facades) {
       const o = orig.get(m);
       if (!d) { m.map = o.map; m.emissiveMap = o.emissiveMap; m.emissive.copy(o.emissive); m.color.copy(o.color); m.envMapIntensity = o.env; }
@@ -131,7 +135,7 @@ export function createWeather(scene, office, r) {
       const o = orig.get(m);
       if (!d) { m.emissive.copy(o.emissive); m.color.copy(o.color); m.envMapIntensity = o.env; continue; }
       m.color.setScalar(0); m.envMapIntensity = 0;
-      const c = new THREE.Color(d.snow && SNOWY.has(m.name) ? 0xdfe4ea : PART[m.name]);
+      const c = new THREE.Color(ground && SNOWY.has(m.name) ? 0xdfe4ea : PART[m.name]);
       m.emissive.copy(c.multiplyScalar(d.parts));
     }
     if (sky) {
@@ -142,9 +146,9 @@ export function createWeather(scene, office, r) {
     }
     if (active) active.visible = false;
     active = null;
-    if (kind === 'rain' || kind === 'snow') {
-      if (!fall[kind]) { fall[kind] = precipitation(kind); group.add(fall[kind]); if (onDynamic) onDynamic(fall[kind]); }
-      active = fall[kind]; active.visible = true;
+    if (fall === 'rain' || fall === 'snow') {
+      if (!falls[fall]) { falls[fall] = precipitation(fall); group.add(falls[fall]); if (onDynamic) onDynamic(falls[fall]); }
+      active = falls[fall]; active.visible = true;
     }
     return true;
   }
@@ -154,7 +158,7 @@ export function createWeather(scene, office, r) {
   }
   return {
     apply, update, group,
-    get sky() { return current; },
+    get sky() { return current && current.split('|')[0]; },
     set onReady(f) { onReady = f; },
     set onDynamic(f) { onDynamic = f; },
   };

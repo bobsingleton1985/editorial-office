@@ -15,6 +15,8 @@ export const DEFAULTS = {
   autoTTY: true, showFps: true, quality: 'auto',
 };
 const clone = (o) => JSON.parse(JSON.stringify(o));
+// room light for what is outside: night → evening lamps, day → the weather's preset
+export const presetFor = (sky) => clonePreset(PRESETS[sky === 'night' || !PRESETS[sky] ? 'evening' : sky]);
 
 export function loadSettings() {
   let s = clone(DEFAULTS);
@@ -40,7 +42,7 @@ const TOGGLES = [['lamps.A', 'Лампа на столе A'], ['lamps.B', 'Ла�
 const get = (s, p) => p.split('.').reduce((o, k) => o[k], s);
 const set = (s, p, v) => { const ks = p.split('.'); const last = ks.pop(); ks.reduce((o, k) => o[k], s)[last] = v; };
 
-export function buildPanel(state, onChange) {
+export function buildPanel(state, onChange, opts = {}) {
   const btn = document.createElement('button');
   btn.id = 'menu'; btn.setAttribute('aria-label', 'Настройки'); btn.setAttribute('aria-expanded', 'false'); btn.textContent = '☰';
   const panel = document.createElement('aside'); panel.id = 'settings'; panel.hidden = true;
@@ -57,17 +59,7 @@ export function buildPanel(state, onChange) {
     const sp = document.createElement('span'); sp.textContent = label; l.append(sp);
     if (out) l.append(out); l.append(input); panel.append(l);
   };
-  const presetRow = document.createElement('div'); presetRow.className = 'btns';
-  for (const [k, t] of [['evening', '🌙 Вечер'], ['sun', '☀️ Солнце'], ['cloudy', '⛅ Облачно'], ['rain', '🌧 Дождь'], ['snow', '❄️ Снег']]) {
-    const b = document.createElement('button'); b.textContent = t;
-    b.addEventListener('click', () => { Object.assign(state, clonePreset(PRESETS[k])); sync(); commit(); });
-    presetRow.append(b);
-  }
-  panel.append(presetRow);
-  { const sel = document.createElement('select');
-    for (const [v, t] of [['night', 'Вечер, огни города'], ['sun', 'День, солнце'], ['cloudy', 'День, облачно'], ['rain', 'День, дождь'], ['snow', 'День, снег']]) { const o = document.createElement('option'); o.value = v; o.textContent = t; sel.append(o); }
-    sel.addEventListener('change', () => { state.sky = sel.value; commit(); });
-    inputs.push(() => { sel.value = state.sky || 'night'; }); row('За окном', sel); }
+  const outside = document.createElement('div'); outside.className = 'outside'; panel.append(outside);   // filled by the page: shared weather
   for (const [title, list] of SLIDERS) {
     h(title);
     if (title === 'Лампы') for (const [p, label] of TOGGLES) {
@@ -103,7 +95,7 @@ export function buildPanel(state, onChange) {
   }
   const tail = document.createElement('div'); tail.className = 'btns';
   const reset = document.createElement('button'); reset.textContent = 'Сбросить';
-  reset.addEventListener('click', () => { Object.assign(state, clone(DEFAULTS)); sync(); commit(); });
+  reset.addEventListener('click', () => { Object.assign(state, clone(DEFAULTS), opts.resetTo ? opts.resetTo() : {}); sync(); commit(); });
   const copy = document.createElement('button'); copy.textContent = 'Скопировать настройки';
   copy.title = 'Скопировать значения, чтобы прислать их в чат';
   copy.addEventListener('click', async () => {
@@ -115,5 +107,5 @@ export function buildPanel(state, onChange) {
   tail.append(reset, copy); panel.append(tail);
   const sync = () => inputs.forEach((f) => f());
   sync();
-  return { toggle };
+  return { toggle, sync, outside };
 }

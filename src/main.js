@@ -4,7 +4,7 @@ import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { createLighting } from './lighting.js';
-import { loadSettings, buildPanel } from './settings.js';
+import { loadSettings, buildPanel, presetFor } from './settings.js';
 import { createEditor } from './editor.js';
 import { connectLive } from './live.js';
 import { createQuality } from './quality.js';
@@ -46,10 +46,53 @@ function applyScene(s) {
   fpsEl.style.display = s.showFps ? '' : 'none';
 }
 window.__set = (p) => { Object.assign(S, p); L.apply(eff(S)); applyScene(S); WX?.apply(S.sky); SC?.markDirty(); };
+
+// ---------- weather: one for everyone, the real weather of the owner's city (the relay looks outside every 10 min)
+const FORCE = Q.get('sky');                                // ?sky=snow — for checks only
+const CITY = { nyc: 'Нью-Йорк', msk: 'Москва' };
+let wx = null, litSky = null, PANEL = null;              // wx: {city, name, day, sky, fall, ground, desc, temp, utc}
+const outside = () => (FORCE ? { sky: FORCE } : wx ? { sky: wx.sky, fall: wx.fall, ground: wx.ground } : { sky: 'night', fall: null, ground: false });
+let ownerToken = null;                                     // the owner opens the site once with #owner=… and may then pick the city
+try { const m = location.hash.match(/owner=([\w-]{24,})/); if (m) { ownerToken = m[1]; history.replaceState(null, '', location.pathname + location.search); localStorage.setItem('editorial.owner', m[1]); }
+  ownerToken = ownerToken || localStorage.getItem('editorial.owner'); } catch (e) { /* private mode: key lives until the tab closes */ }
+function applyWeather(w) {
+  if (w) wx = w;
+  const o = outside();
+  if (o.sky !== litSky) { litSky = o.sky; Object.assign(S, presetFor(o.sky)); PANEL?.sync(); }   // the room light follows the sky; sliders may still tweak it
+  S.sky = o.sky; L.apply(eff(S)); WX?.apply(o.sky, o); SC?.markDirty(); showOutside();
+}
+window.__weather = applyWeather;
+const ICON = { sun: '☀️', cloudy: '⛅', rain: '🌧', snow: '❄️' };
+function showOutside(note) {
+  const box = PANEL?.outside; if (!box) return;
+  box.textContent = '';
+  const p = document.createElement('div'); p.className = 'hint';
+  p.textContent = wx ? `${wx.fall ? ICON[wx.fall] : wx.day ? ICON[wx.sky] : '🌙'} За окном — ${wx.name}: ${wx.day ? 'день' : 'ночь'}, ${wx.desc}, ${wx.temp > 0 ? '+' : ''}${wx.temp}°`
+    : 'За окном вечер. Настоящая погода появится, когда будет связь с редакцией.';
+  box.append(p);
+  if (!ownerToken || !RELAY) return;
+  const l = document.createElement('label'); l.className = 'row';
+  const sp = document.createElement('span'); sp.textContent = 'Погода по городу (видят все)'; l.append(sp);
+  const sel = document.createElement('select');
+  for (const [v, t] of Object.entries(CITY)) { const op = document.createElement('option'); op.value = v; op.textContent = t; sel.append(op); }
+  sel.value = wx?.city || 'nyc';
+  sel.addEventListener('change', () => setCity(sel.value));
+  l.append(sel); box.append(l);
+  if (note) { const n = document.createElement('div'); n.className = 'hint'; n.textContent = note; box.append(n); }
+}
+async function setCity(city) {
+  try {
+    const res = await fetch((RELAY === '/' ? '' : RELAY) + '/owner/settings', { method: 'POST', headers: { Authorization: 'Bearer ' + ownerToken, 'Content-Type': 'application/json' }, body: JSON.stringify({ city }) });
+    if (res.status === 401) { ownerToken = null; try { localStorage.removeItem('editorial.owner'); } catch (e) { /* ignore */ } return showOutside(); }
+    const j = await res.json(); applyWeather(j.weather);
+  } catch (e) { showOutside('Не удалось сменить город: нет связи с редакцией.'); }
+}
 window.__cam = (pos, tgt, zoom = 1) => { cam.position.copy(B(...pos)); ctl.target.copy(B(...tgt)); cam.zoom = zoom; cam.updateProjectionMatrix(); ctl.update(); SC?.markDirty(); };
 L.apply(eff(S));
 let qMode = S.quality;
-buildPanel(S, (s) => { if (s.quality !== qMode) { qMode = s.quality; QL.set(s.quality); applyQuality(); } L.apply(eff(s)); applyScene(s); WX?.apply(s.sky); SC?.markDirty(); });
+PANEL = buildPanel(S, (s) => { if (s.quality !== qMode) { qMode = s.quality; QL.set(s.quality); applyQuality(); } s.sky = outside().sky; L.apply(eff(s)); applyScene(s); SC?.markDirty(); },
+  { resetTo: () => presetFor(outside().sky) });
+applyWeather();
 const diag = document.createElement('div'); diag.className = 'hint'; document.getElementById('settings')?.append(diag);
 const gpuName = (() => { try { const gl = r.getContext(), e = gl.getExtension('WEBGL_debug_renderer_info'); return e ? gl.getParameter(e.UNMASKED_RENDERER_WEBGL) : ''; } catch (e) { return ''; } })();
 function applyQuality() { r.setPixelRatio(QL.pixelRatio()); fit(); L.apply(eff(S)); if (SC) { SC.enabled = QL.level.cache; SC.roomScale = QL.roomScale(); SC.markDirty(); } }
@@ -134,7 +177,7 @@ function setup(g) {
   WX = createWeather(sc, g.scene, r);
   WX.onDynamic = (o) => SC.addDynamic(o);                     // rain and snow move every frame
   WX.onReady = () => SC.markDirty();                          // day facades arrived: redraw the cached room
-  WX.apply(S.sky); SC.markDirty();
+  applyWeather();
   if (paperMat && paperMat.map) paperTarget = paperMat.map.offset.y;
   if (tvMat) tvOrig = { map: tvMat.map, emissiveMap: tvMat.emissiveMap };
   new THREE.TextureLoader().load('assets/tv_news.jpg', (t) => {
@@ -171,7 +214,7 @@ async function loadEditor(office) {
     showWho(); setInterval(showWho, 1000);
   } catch (e) { if (who) who.textContent = '👤 Редактор не загрузился: ' + e.message; window.__err = String(e); }
 }
-live = connectLive(RELAY, (w) => { if (editor) editor.apply(w, live.now()); else pending = w; }, (s) => { net = s; showWho(); });
+live = connectLive(RELAY, (w) => { if (editor) editor.apply(w, live.now()); else pending = w; }, (s) => { net = s; showWho(); }, applyWeather);
 
 function tvNews(on) {
   if (!tvMat || !tvOrig) return;
@@ -201,7 +244,8 @@ function step(dt, draw = true) {
   const t0 = performance.now();
   if (mixer) mixer.update(dt);
   WX?.update(dt);
-  const d = new Date(), h = d.getHours(), m = d.getMinutes(), s = d.getSeconds();
+  const d = wx && Number.isFinite(wx.utc) ? new Date(live.now() + wx.utc * 1000) : null;   // the clock shows the time of the city outside
+  const h = d ? d.getUTCHours() : new Date().getHours(), m = d ? d.getUTCMinutes() : new Date().getMinutes(), s = d ? d.getUTCSeconds() : new Date().getSeconds();
   const ang = { hour: ((h % 12) + m / 60) * Math.PI / 6, minute: (m + s / 60) * Math.PI / 30, second: s * Math.PI / 30 };
   for (const p of clockPivots) p.o.rotation.set(0, 0, p.sign * ang[p.kind]);
   if (typebox && paperMat && paperMat.map) {                    // one line of paper per carriage return
