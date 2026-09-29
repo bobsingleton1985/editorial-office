@@ -17,6 +17,8 @@ import { createWeather } from './weather.js';
 import { createBlinds } from './blinds.js';
 import { createSunbeams } from './sunbeams.js';
 import { createNeon } from './neon.js';
+import { createTvScreen, loadVideoTexture } from './tv-crt.js';
+import { createTvSchedule } from './tv-schedule.js';
 
 const Q = new URLSearchParams(location.search);
 const GLB = Q.get('m') || 'assets/office-v29c.glb', GLB_SIZE = 3880516;
@@ -194,7 +196,7 @@ async function fetchGLB(url) {
   return { buffer: buf.buffer, got };
 }
 
-let mixer = null, typebox = null, paperMat = null, tvMat = null, tvOrig = null, newsTex = null;
+let mixer = null, typebox = null, paperMat = null, tvMat = null, newsTex = null, tv = null, sched = null;
 const clockPivots = [], tty = [];
 let paperTarget = 0, lastX = null, returning = false, ttyBusy = false;
 
@@ -234,10 +236,15 @@ function setup(g) {
   applyBlinds(blinds);
   applyWeather();
   if (paperMat && paperMat.map) paperTarget = paperMat.map.offset.y;
-  if (tvMat) tvOrig = { map: tvMat.map, emissiveMap: tvMat.emissiveMap };
-  new THREE.TextureLoader().load('assets/tv_news.jpg', (t) => {
-    t.flipY = false; t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; newsTex = t;
-  });
+  { // CHANNEL 7: CRT shader + a broadcast grid shared by every viewer (channel and clip position come from UTC)
+    let screen = null; g.scene.traverse((o) => { if (!screen && o.isMesh && /TV[ _]v14[ _]crt[ _]face/.test(o.name)) screen = o; });
+    if (screen) {
+      tv = createTvScreen(screen, { flipY: false });             // the CHANNEL 7 test card from the GLB stays in tv.testcard
+      sched = createTvSchedule(tv, loadVideoTexture, { base: 'assets/tv/', cityHour: () => cityTime().h, now: () => (live ? live.now() : Date.now()) });
+      window.__tv = () => ({ ch: sched.current, t: tv.uniforms.map.value?.userData?.video?.currentTime ?? null, snow: tv.uniforms.snow.value });
+    }
+  }
+  new THREE.TextureLoader().load('assets/tv_news.jpg', (t) => { t.flipY = false; t.colorSpace = THREE.SRGBColorSpace; newsTex = t; });
   if (S.autoTTY) setTimeout(incoming, 6000);
   applyScene(S);
   $('tty').disabled = false;
@@ -285,7 +292,7 @@ addRepertoire(PANEL.section, CHAR_BASE + 'assets/registry-live.json', () => {
 });
 let lastWorld = null;
 addDirectorStatus(PANEL.section, () => ({ net, world: lastWorld, now: live ? live.now() : Date.now() }));
-live = connectLive(RELAY, (w) => { lastWorld = w; if (editor) editor.apply(w, live.now()); else pending = w; }, (s) => { net = s; showWho(); }, { weather: applyWeather, blinds: (b) => applyBlinds(b, true) });
+live = connectLive(RELAY, (w) => { lastWorld = w; bulletinFrom(w); if (editor) editor.apply(w, live.now()); else pending = w; }, (s) => { net = s; showWho(); }, { weather: applyWeather, blinds: (b) => applyBlinds(b, true) });
 
 if (DEMO === 'smoke') {   // review: at the desk → a cigarette at the desk → a cigarette at the window → back to work, round and round
   const CH = { A: 0, B: 0.1174, C: 0.1174 }, T = { A: -0.25, B: 0.1174, C: 0.1174 };
@@ -297,36 +304,43 @@ if (DEMO === 'smoke') {   // review: at the desk → a cigarette at the desk →
   net = { online: true, viewers: 0 }; next();
 }
 
-function tvNews(on) {
-  if (!tvMat || !tvOrig) return;
-  const t = on && newsTex ? newsTex : null;
-  tvMat.map = t || tvOrig.map; tvMat.emissiveMap = t || tvOrig.emissiveMap;
+// NEWS BULLETIN on the TV for 20 s when the editor takes a new story off the wire (director's teletype tasks)
+const stories = new Set();
+function bulletinFrom(w) {
+  const m = /правит «(.+?)»/.exec(w?.editor?.label || ''); const story = m ? m[1] : null;
+  if (!story || stories.has(story)) return; stories.add(story);    // only the first time he takes this story
+  if (!sched || !newsTex || !Number.isFinite(w.editor.at)) return;
+  const left = Math.min(20, 20 - (live.now() - w.editor.at) / 1000);   // a late viewer gets only the rest of it
+  if (left > 1) sched.bulletin(newsTex, left);
 }
 function incoming() {
   if (ttyBusy || !tty.length) return;
-  ttyBusy = true; for (const a of tty) a.reset().play(); tvNews(true);
+  ttyBusy = true; for (const a of tty) a.reset().play();
   setTimeout(() => { ttyBusy = false; }, 9700);
-  setTimeout(() => tvNews(false), 30000);
 }
 $('tty').addEventListener('click', incoming);
 
 // ---------- per-frame life: clock, paper feed, TV flicker
 let cpuMs = 0;
-let prev = performance.now(), fAcc = 0, fN = 0, flick = 1, flickT = 0, rollT = 25 + Math.random() * 15, roll = -1;
+let prev = performance.now(), fAcc = 0, fN = 0;
+function cityTime() {                                           // time of the city outside (relay weather), else local
+  const d = wx && Number.isFinite(wx.utc) && live ? new Date(live.now() + wx.utc * 1000) : null;
+  const n = new Date();
+  return d ? { h: d.getUTCHours(), m: d.getUTCMinutes(), s: d.getUTCSeconds() } : { h: n.getHours(), m: n.getMinutes(), s: n.getSeconds() };
+}
 function tick(now) {
   const raw = (now - prev) / 1000, dt = Math.min(0.1, raw); prev = now;
   if (QL.tick(raw, window.__ready)) applyQuality();
   if (!window.__pause) step(dt);
   requestAnimationFrame(tick);
 }
-window.__dbg = () => ({ paper: paperMat && paperMat.map.offset.y, target: paperTarget, tvNews: !!(tvMat && newsTex && tvMat.map === newsTex), clocks: clockPivots.length, tty: tty.length, typebox: !!typebox });
+window.__dbg = () => ({ paper: paperMat && paperMat.map.offset.y, target: paperTarget, tv: sched ? sched.current : null, clocks: clockPivots.length, tty: tty.length, typebox: !!typebox });
 window.__step = (dt, n = 1) => { for (let i = 0; i < n; i++) step(dt, i === n - 1); };   // for automated checks
 function step(dt, draw = true) {
   const t0 = performance.now();
   if (mixer) mixer.update(dt);
   WX?.update(dt); SB?.update(dt, r.getPixelRatio()); NE?.update(dt);
-  const d = wx && Number.isFinite(wx.utc) ? new Date(live.now() + wx.utc * 1000) : null;   // the clock shows the time of the city outside
-  const h = d ? d.getUTCHours() : new Date().getHours(), m = d ? d.getUTCMinutes() : new Date().getMinutes(), s = d ? d.getUTCSeconds() : new Date().getSeconds();
+  const { h, m, s } = cityTime();                               // the clock shows the time of the city outside
   const ang = { hour: ((h % 12) + m / 60) * Math.PI / 6, minute: (m + s / 60) * Math.PI / 30, second: s * Math.PI / 30 };
   for (const p of clockPivots) p.o.rotation.set(0, 0, p.sign * ang[p.kind]);
   if (typebox && paperMat && paperMat.map) {                    // one line of paper per carriage return
@@ -339,15 +353,9 @@ function step(dt, draw = true) {
     lastX = x;
     const o = paperMat.map.offset; o.y += (paperTarget - o.y) * Math.min(1, dt * 12);
   }
-  if (tvMat) {
-    flickT -= dt; if (flickT <= 0) { flickT = 0.08 + Math.random() * 0.06; flick = 0.94 + Math.random() * 0.1; }
-    tvMat.emissiveIntensity += (flick - tvMat.emissiveIntensity) * Math.min(1, dt * 20);
-    rollT -= dt; if (rollT <= 0) { roll = 0; rollT = 20 + Math.random() * 20; }
-    if (roll >= 0) {
-      roll += dt / 0.3; const y = roll >= 1 ? 0 : roll;
-      for (const t of new Set([tvMat.map, tvMat.emissiveMap])) if (t) t.offset.y = y;
-      if (roll >= 1) roll = -1;
-    }
+  if (tv) {                                                     // flicker and snow live in tv-crt.js; the room glow follows the screen
+    sched.update(); tv.update(dt);
+    if (tvMat) tvMat.emissiveIntensity = 1 + tv.uniforms.flicker.value - 0.5 * tv.uniforms.snow.value;
   }
   if (editor) editor.update(dt, window.__simNow ?? live.now());   // __simNow: automated checks run on their own clock
   if (!draw) return;
