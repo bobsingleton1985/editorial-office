@@ -160,10 +160,28 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {   /
       smoking.setSitBase(CL.sit_idle.clip); }
     catch (e) { console.warn('smoking unavailable:', e); smoking = null; }
   }
+  // «курит и пьёт кофе» (smoke_coffee, approved «Курилка» v8): the left hand drinks from a mug on the left while the right one holds the cigarette
+  const mugL = {};
+  if (smoking && extra.drinkL) {
+    try { const dc = extra.drinkL.animations[0], nodeOf = (t) => THREE.PropertyBinding.parseTrackName(t.name).nodeName; let slot = null;
+      extra.drinkL.scene.traverse((o) => { if (!slot && /^PROP.*mug.*slot.*L$/i.test(o.name)) slot = o; });
+      const body = stripClip('drink_l', new THREE.AnimationClip('drink_l', dc.duration, dc.tracks.filter((t) => nodeOf(t) !== slot.name)), seatBase).clip;
+      const armR = new Set(), armL = new Set(); Bn.clavicle_r.traverse((o) => { if (o.isBone) armR.add(o.name); }); Bn.clavicle_l.traverse((o) => { if (o.isBone) armL.add(o.name); });
+      const part = (keep, sfx) => new THREE.AnimationClip('drink_l' + sfx, body.duration, body.tracks.filter((t) => keep(nodeOf(t))));
+      smoking.setDrinkL(part((b) => !armR.has(b) && !armL.has(b), '_core'), part((b) => armL.has(b), '_L'));
+      const mugClip = new THREE.AnimationClip('drink_l_mug', dc.duration, dc.tracks.filter((t) => nodeOf(t) === slot.name));
+      for (const [k, D] of Object.entries(DESKS)) {                  // a mug per desk in the pack's table frame (DESK × S), moved along the baked path
+        const g = new THREE.Group(); g.name = 'COFFEE L ' + k; g.matrixAutoUpdate = false; g.matrix.makeRotationY(D.th).setPosition(D.x, 0, D.z).multiply(new THREE.Matrix4().makeScale(S, S, S));
+        const s = slot.clone(true); s.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } }); g.add(s); g.visible = false; scene.add(g);
+        const m = new THREE.AnimationMixer(s), a = m.clipAction(mugClip); a.setLoop(THREE.LoopOnce, 1); a.clampWhenFinished = true; a.play(); a.paused = true; a.time = 0; m.update(0);
+        mugL[k] = { g, m, a, t: 0, D: dc.duration }; }
+    } catch (e) { console.warn('coffee with a cigarette unavailable:', e); }
+  }
   const smokeWant = () => {
-    if (cur?.activity !== 'smoke') return null;
-    if (ch.mode === 'seated' && ch.seat?.startsWith('desk')) return { mode: 'sit', desk: deskFrame[SEATS[ch.seat].desk], seq: cur.seq };
-    if (ch.mode === 'idle' && !ch.seat) return { mode: 'stand', seq: cur.seq };
+    const act = cur?.activity; if (act !== 'smoke' && act !== 'smoke_coffee') return null;
+    if (ch.mode === 'seated' && ch.seat) { const d = SEATS[ch.seat].desk;                      // at a desk, or on the bench (no desk top to keep the hands off)
+      return { mode: 'sit', desk: d ? deskFrame[d] : null, seq: cur.seq, drink: act === 'smoke_coffee' && !!d && !!mugL[d] }; }
+    if (act === 'smoke' && ch.mode === 'idle' && !ch.seat) return { mode: 'stand', seq: cur.seq };
     return null;
   };
   // hand IK on top of the mixer: put the arms back to the clean animated pose before each update (the mixer skips unchanged values)
@@ -173,8 +191,8 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {   /
   // ---------- behaviour (as the seating page v6)
   const tw = extra.typewriters || null;
   // activities that need a free desk: the typewriter on that desk is taken away (none of them is live yet)
-  const FREE_DESK = new Set(['lunch', 'coffee']);
-  let freeDesk = null;
+  const FREE_DESK = new Set(['lunch', 'coffee', 'smoke_coffee']);
+  let freeDesk = null, freeKind = null;
   const typing = () => !!(CL.type && ch.work && ch.seat && SEATS[ch.seat].desk);
   const seatedLoop = () => (typing() ? 'type' : 'sit_idle');
   // a sip: starts only while he is having coffee at a desk (by the coffee clock), once started it is drunk to the end
@@ -247,11 +265,12 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {   /
       else if (W.drink.cur > 0) { W.drink.target = W.drink.cur = 0; if (ch.mode === 'seated' || ch.mode === 'settle') { W.sit_idle.target = W.sit_idle.cur = 1; } }
     }
     if (tw) {                                                           // typewriters stay on the desks; an activity that needs the desk clears it
-      if (FREE_DESK.has(ch.activity)) freeDesk = ch.goalDesk || freeDesk;          // hidden as soon as he sets off towards that desk
+      if (FREE_DESK.has(ch.activity)) { freeDesk = ch.goalDesk || freeDesk; freeKind = ch.activity; }          // hidden as soon as he sets off towards that desk
       else if (freeDesk && !(ch.seat && SEATS[ch.seat].desk === freeDesk) && ch.mode !== 'settle') freeDesk = null;   // back once he has got up and left
       tw.clear(freeDesk);
     }
-    if (coffee) for (const k of Object.keys(DESKS)) coffee.show(k, !tw || freeDesk === k);   // the mug takes the typewriter's place (they would overlap)
+    if (coffee) for (const k of Object.keys(DESKS)) coffee.show(k, (!tw || freeDesk === k) && freeKind !== 'smoke_coffee');   // the mug takes the typewriter's place (they would overlap)
+    for (const k in mugL) mugL[k].g.visible = freeDesk === k && freeKind === 'smoke_coffee';                              // with a cigarette: the left-hand mug
     if (ch.chairTail) { const tr = ch.chairTail; tr.t += dt; updateChair(tr); if (tr.t > tr.c.clip.duration) ch.chairTail = null; }
     if (ch.mode === 'walk') {
       const pts = ch.path; let rest = 0; const p = holderPose();
@@ -309,6 +328,9 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {   /
   function frame(dt, ff) {
     updateChar(dt); stepWeights(dt);
     if (smoking) smoking.pre(dt, smokeWant(), A);
+    { const d = ch.seat && SEATS[ch.seat].desk, M = d && mugL[d];                      // the left-hand mug follows the sip; before the first sip it stands at frame 1, after it at the last
+      if (M && cur?.activity === 'smoke_coffee' && ch.mode === 'seated') { const s = smoking.sipTime(), t = s >= 0 ? s : smoking.clockT() >= smoking.holdStart() ? M.D : 0;
+        if (Math.abs(t - M.t) > 1e-6) { M.t = t; M.a.time = Math.min(t, M.D); M.m.update(0); } } }
     if (!ff) {
       const t0 = A.type ? A.type.time : 0;
       if (smoking) armRestore();

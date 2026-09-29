@@ -55,6 +55,9 @@ export function createSmoking({ scene, root, B, mixer, U, addon, strip, camera, 
   }
   { const e = THREE.AnimationUtils.subclip(raw.smoke_stop, 'smoke_stop_end', STOP_END - 1, 182, FPS); const c = clean(e); D.smoke_stop_end = c.duration; A.st_smoke_stop_end = act(strip('st_stop_end', c, 'first').clip); }
   let sitParts = null;                                            // the seated idle cut into body / right arm / left arm (set by the editor)
+  // «курит и пьёт» (approved «Курилка» v8): a sip with the left hand (mirrored DrinkL) at the start of each "hold" — the mouth is free there
+  let drinkL = null;
+  function setDrinkL(core, L) { drinkL = { core: act(core), L: act(L), D: core.duration }; }
   function setSitBase(clip) { sitParts = { core: act(sub(clip, (b) => !armR.has(b) && !armL.has(b), '_core')), R: act(sub(clip, (b) => armR.has(b), '_R')), L: act(sub(clip, (b) => armL.has(b), '_L')) }; }
 
   // ---------- measured once from the standing clips (with their own prop tracks): pockets, lighter in the hand
@@ -212,7 +215,7 @@ export function createSmoking({ scene, root, B, mixer, U, addon, strip, camera, 
     // seated idle always runs as three parts (the same pose as one clip); smoking takes the arms from it
     const wSit = base.sit_idle.getEffectiveWeight(), wSt = base.stand_idle.getEffectiveWeight();
     if (sitParts) { base.sit_idle.setEffectiveWeight(0); for (const k of ['core', 'R', 'L']) { sitParts[k].time = base.sit_idle.time; sitParts[k].setEffectiveWeight(wSit); } }
-    sm.lw = 0;
+    sm.lw = 0; sm.dW = 0; sm.dT = -1; if (drinkL) { drinkL.core.setEffectiveWeight(0); drinkL.L.setEffectiveWeight(0); }
     if (!sm.on || !sm.list.length) return;
     const tot = sm.list.reduce((s, e) => s + e.w, 0) || 1;
     if (mode === 'stand') {
@@ -224,7 +227,13 @@ export function createSmoking({ scene, root, B, mixer, U, addon, strip, camera, 
         r.time = l.time = Math.min(e.time, r.getClip().duration - 1e-4); r.setEffectiveWeight(wr);
         const lightW = name === 'smoke_light' ? hump(e.time * FPS + 1, 1, 12, 150, 175) : 0; l.setEffectiveWeight(wr * lightW); sm.lw += (wSit > 0 ? wr / wSit : 0) * lightW;
       }
-      sitParts.R.setEffectiveWeight(wSit * (1 - sm.W)); sitParts.L.setEffectiveWeight(wSit * Math.max(0, 1 - sm.lw));
+      if (drinkL && want?.drink) {                        // the hold clip is longer than the sip: drink from its first frame, eased in and out over 0.4 s
+        const h = sm.list.find((e) => e.name === 'smoke_hold');
+        if (h && h.time < drinkL.D) { sm.dT = h.time; sm.dW = smooth(Math.min(h.time / 0.4, (drinkL.D - h.time) / 0.4)) * sm.W; }
+        drinkL.core.time = drinkL.L.time = Math.max(0, sm.dT); drinkL.core.setEffectiveWeight(wSit * sm.dW); drinkL.L.setEffectiveWeight(wSit * sm.dW);
+        sitParts.core.setEffectiveWeight(wSit * (1 - sm.dW));
+      }
+      sitParts.R.setEffectiveWeight(wSit * (1 - sm.W)); sitParts.L.setEffectiveWeight(wSit * Math.max(0, 1 - sm.lw - sm.dW));
     }
   }
   // post: after the mixer — hand to the mouth / pocket / off the desk, the cigarette, the lighter, smoke
@@ -293,7 +302,7 @@ export function createSmoking({ scene, root, B, mixer, U, addon, strip, camera, 
     if (N.flame.visible) { flameLight.position.copy(wpos(N.flame, tmp2)); flameLight.intensity = (0.35 + Math.random() * 0.12) * LI; } else flameLight.intensity = 0;
   }
   return {
-    fx, pre, post, setSitBase,
+    fx, pre, post, setSitBase, setDrinkL, sipTime: () => sm.dT, holdStart: () => (sm.mode === 'sit' ? D.smoke_start + D.smoke_light : Infinity), clockT: () => sm.t,
     active: () => sm.on && sm.W > 0.001,
     status: () => ({ on: sm.on, mode: sm.mode, t: +sm.t.toFixed(2), clip: sm.cur, frame: Math.round(sm.f), W: +sm.W.toFixed(2), lit: sm.lit, rest: sm.rest, cig: N.cig.visible, lighter: N.lighter.visible, particles: liveN }),
     props: N,
