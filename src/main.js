@@ -5,11 +5,14 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { createLighting, SUN_DIR } from './lighting.js';
 import { loadSettings, buildPanel, presetFor } from './settings.js';
+import { addRepertoire } from './repertoire.js';
+import { addDirectorStatus } from './director-status.js';
 import { createEditor } from './editor.js';
 import { connectLive } from './live.js';
 import { createQuality } from './quality.js';
 import { createStaticCache } from './cache.js';
-import { CHAIR_NODE } from './layout.js';
+import { CHAIR_NODE, DESKS, S as PACK_S } from './layout.js';
+import { createTypewriters } from './typewriter.js';
 import { createWeather } from './weather.js';
 import { createBlinds } from './blinds.js';
 import { createSunbeams } from './sunbeams.js';
@@ -20,6 +23,8 @@ const RELAY_URL = 'https://135-106-229-50.sslip.io';     // shared newsroom: rel
 const RELAY = ((r) => (r === '/' ? '/' : r.replace(/\/$/, '')))(Q.get('relay') ?? RELAY_URL);   // '/' = same origin (local test)
 const CHAR_BASE = Q.get('charbase') ?? (RELAY && RELAY !== '/' ? RELAY + '/' : '');
 const CHAR = Q.get('char') ?? CHAR_BASE + 'assets/editor2A-web-v01.glb';
+const CHAR_TYPE = CHAR_BASE + 'assets/editor2A-type-v13.glb';          // add-on: rig + typing clip (editor2A v13, approved page «Редактор в офисе»)
+const TYPEWRITER = 'assets/typewriter-v01.glb';                          // compact flat typewriter, pack table frame
 const $ = (id) => document.getElementById(id);
 const status = $('status'), bar = $('bar'), fpsEl = $('fps'), who = $('who');
 document.body.classList.add('js');
@@ -133,10 +138,10 @@ L.apply(eff(S));
 let qMode = S.quality;
 PANEL = buildPanel(S, (s) => { if (s.quality !== qMode) { qMode = s.quality; QL.set(s.quality); applyQuality(); } s.sky = outside().sky; L.apply(eff(s)); applyScene(s); SB?.set(s.sky === 'sun', s.beams); SC?.markDirty(); },
   { resetTo: () => presetFor(outside().sky) });
-{ const h = document.createElement('h2'); h.textContent = 'Окна — меняются у всех'; wxBox = document.createElement('div'); const bb = document.createElement('div');
-  PANEL.outside.append(h, wxBox, bb); blindsUI = buildBlindsUI(bb); }
+{ wxBox = document.createElement('div'); const bb = document.createElement('div');
+  PANEL.outside.append(wxBox, bb); blindsUI = buildBlindsUI(bb); }
 applyWeather();
-const diag = document.createElement('div'); diag.className = 'hint'; document.getElementById('settings')?.append(diag);
+const diag = { textContent: '' }; window.__diag = diag;   // technical line (GPU, frame time): console only — window.__diag.textContent
 const gpuName = (() => { try { const gl = r.getContext(), e = gl.getExtension('WEBGL_debug_renderer_info'); return e ? gl.getParameter(e.UNMASKED_RENDERER_WEBGL) : ''; } catch (e) { return ''; } })();
 function applyQuality() { r.setPixelRatio(QL.pixelRatio()); fit(); L.apply(eff(S)); if (SC) { SC.enabled = QL.level.cache; SC.roomScale = QL.roomScale(); SC.markDirty(); } }
 window.__quality = () => ({ level: QL.level.id, auto: QL.auto, tv: QL.tv, ratio: r.getPixelRatio(), aa: QL.antialias, cache: !!SC?.enabled, calls: r.info.render.calls, cpu_ms: +cpuMs.toFixed(1) });
@@ -236,7 +241,7 @@ function setup(g) {
 }
 
 // ---------- the first character: editor2A, driven by the shared director
-let editor = null, live = null, pending = null, net = { online: false };
+let editor = null, live = null, pending = null, net = { online: false }, typewriters = null;
 const PLACE = { deskA: 'за столом A', deskB: 'за столом B', deskC: 'за столом C', benchS: 'на скамье', benchM: 'на скамье', benchN: 'на скамье', window: 'у окна', teletype: 'у телетайпа' };
 function showWho() {
   if (!who) return;
@@ -250,17 +255,32 @@ function showWho() {
 async function loadEditor(office) {
   try {
     showWho();
-    const [buf, tracks] = await Promise.all([fetch(CHAR).then((r) => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); }),
-      fetch(CHAR_BASE + 'assets/chair-tracks-v30.json').then((r) => r.json())]);
-    const gltf = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).parseAsync(buf, '');
-    editor = createEditor(sc, office, gltf, tracks);
+    const get = (u) => fetch(u).then((r) => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); });
+    const opt = (u) => get(u).catch(() => null);                          // add-ons are optional: without them he just sits
+    const [buf, tracks, tbuf, wbuf] = await Promise.all([get(CHAR), fetch(CHAR_BASE + 'assets/chair-tracks-v30.json').then((r) => r.json()), opt(CHAR_TYPE), opt(TYPEWRITER)]);
+    const ld = () => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
+    const gltf = await ld().parseAsync(buf, '');
+    const extra = {};
+    if (tbuf) extra.typeClip = (await ld().parseAsync(tbuf, '')).animations[0];
+    if (wbuf) { typewriters = createTypewriters(sc, await ld().parseAsync(wbuf, ''), DESKS, PACK_S);
+      for (const g of typewriters.groups) L.attach(g); for (const g of typewriters.groups) SC.addDynamic(g); SC.markDirty(); extra.typewriters = typewriters; }
+    editor = createEditor(sc, office, gltf, tracks, extra);
     L.attach(editor.holder); SC.addDynamic(editor.holder);
-    window.__editor = editor;
+    window.__editor = editor; window.__tw = typewriters; window.__look = (pos, tgt) => { const c = new THREE.PerspectiveCamera(35, innerWidth / innerHeight, 0.05, 100); c.position.copy(B(...pos)); c.lookAt(B(...tgt)); c.layers.enableAll(); r.render(sc, c); return r.domElement.toDataURL('image/jpeg', 0.85); };
     if (pending) { editor.apply(pending, live.now()); pending = null; }
     showWho(); setInterval(showWho, 1000);
   } catch (e) { if (who) who.textContent = '👤 Редактор не загрузился: ' + e.message; window.__err = String(e); }
 }
-live = connectLive(RELAY, (w) => { if (editor) editor.apply(w, live.now()); else pending = w; }, (s) => { net = s; showWho(); }, { weather: applyWeather, blinds: (b) => applyBlinds(b, true) });
+// ☰ panel: animation chains and clips (registry), director status
+addRepertoire(PANEL.section, CHAR_BASE + 'assets/registry-live.json', () => {
+  const st = editor ? editor.status() : null; if (!st) return null;
+  if (st.mode === 'walk' || st.mode === 'turn') return 'walk';
+  if (st.seat?.startsWith('desk')) return 'desk'; if (st.seat?.startsWith('bench')) return 'bench';
+  return st.mode === 'idle' ? 'spot' : null;
+});
+let lastWorld = null;
+addDirectorStatus(PANEL.section, () => ({ net, world: lastWorld, now: live ? live.now() : Date.now() }));
+live = connectLive(RELAY, (w) => { lastWorld = w; if (editor) editor.apply(w, live.now()); else pending = w; }, (s) => { net = s; showWho(); }, { weather: applyWeather, blinds: (b) => applyBlinds(b, true) });
 
 function tvNews(on) {
   if (!tvMat || !tvOrig) return;
@@ -314,7 +334,7 @@ function step(dt, draw = true) {
       if (roll >= 1) roll = -1;
     }
   }
-  if (editor) editor.update(dt, live.now());
+  if (editor) editor.update(dt, window.__simNow ?? live.now());   // __simNow: automated checks run on their own clock
   if (!draw) return;
   L.update(dt, editor && editor.moving() && QL.level.live, SC.enabled); ctl.update(); SC.render();
   cpuMs += (performance.now() - t0 - cpuMs) * 0.1;

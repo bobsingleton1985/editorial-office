@@ -1,6 +1,8 @@
-// Settings panel ("hamburger"): light sources, shadows, picture, scene. Saved per browser in localStorage.
+// Settings panel ("hamburger"): collapsible sections — light, lamps, picture, shadows, scene, plus sections added by other modules
+// (animation chains, director). Values and open sections are saved per browser in localStorage.
 const KEY = 'editorial.settings.v1';
 const clonePreset = (p) => JSON.parse(JSON.stringify(p));
+// room light for each state of the weather outside (the weather is shared: see main.js)
 export const PRESETS = {
   evening: { sky: 'night', sunLight: 0, beams: 1, ambient: 0.3, windowLight: 0.35, env: 0.25, exposure: 1.1, desk: 1, floor: 1, warmth: 0.65, lamps: { A: true, B: true, C: true, floor: true } },
   sun: { sky: 'sun', sunLight: 8, beams: 1.5, ambient: 0.3, windowLight: 0.4, env: 0.32, exposure: 1.08, desk: 0.6, floor: 0.6, warmth: 0.45, lamps: { A: false, B: false, C: false, floor: false } },
@@ -8,6 +10,8 @@ export const PRESETS = {
   rain: { sky: 'rain', sunLight: 0, beams: 1, ambient: 0.6, windowLight: 0.9, env: 0.35, exposure: 1.1, desk: 0.85, floor: 0.7, warmth: 0.6, lamps: { A: true, B: true, C: true, floor: true } },
   snow: { sky: 'snow', sunLight: 0, beams: 1, ambient: 0.95, windowLight: 1.7, env: 0.46, exposure: 1.0, desk: 0.7, floor: 0.6, warmth: 0.55, lamps: { A: true, B: true, C: true, floor: false } },
 };
+// room light for what is outside: night → evening lamps, day → the weather's preset
+export const presetFor = (sky) => clonePreset(PRESETS[sky === 'night' || !PRESETS[sky] ? 'evening' : sky]);
 export const DEFAULTS = {
   ...PRESETS.evening,
   lamps: { A: true, B: true, C: true, floor: true }, tvGlow: true,
@@ -15,8 +19,9 @@ export const DEFAULTS = {
   autoTTY: true, showFps: true, quality: 'auto',
 };
 const clone = (o) => JSON.parse(JSON.stringify(o));
-// room light for what is outside: night → evening lamps, day → the weather's preset
-export const presetFor = (sky) => clonePreset(PRESETS[sky === 'night' || !PRESETS[sky] ? 'evening' : sky]);
+const OPEN_KEY = 'editorial.sections.v1';
+const openSet = (() => { try { return new Set(JSON.parse(localStorage.getItem(OPEN_KEY) || '["windows"]')); } catch (e) { return new Set(['windows']); } })();   // the windows section starts open
+function saveOpen() { try { localStorage.setItem(OPEN_KEY, JSON.stringify([...openSet])); } catch (e) { /* ignore */ } }
 
 export function loadSettings() {
   let s = clone(DEFAULTS);
@@ -29,10 +34,10 @@ const SLIDERS = [
   ['Свет', [
     ['ambient', 'Общий свет', 0, 2, 0.05],
     ['windowLight', 'Свет из окон', 0, 3, 0.05],
-    ['sunLight', 'Солнце в окнах (в ясный день)', 0, 14, 0.1],
-    ['beams', 'Лучи и пылинки в воздухе', 0, 3, 0.05],
     ['env', 'Отражения', 0, 1, 0.05],
     ['exposure', 'Яркость картинки', 0.5, 2, 0.05],
+    ['sunLight', 'Солнце в окнах (в ясный день)', 0, 14, 0.1],
+    ['beams', 'Лучи и пылинки в воздухе', 0, 3, 0.05],
   ]],
   ['Лампы', [
     ['desk', 'Настольные лампы', 0, 3, 0.05],
@@ -55,13 +60,24 @@ export function buildPanel(state, onChange, opts = {}) {
 
   const inputs = [];
   const commit = () => { save(state); onChange(state); };
-  const h = (t) => { const e = document.createElement('h2'); e.textContent = t; panel.append(e); };
+  const tail = document.createElement('div'); tail.className = 'btns';
+  // a collapsible section; everything added after it goes inside until the next section
+  let cur = panel;
+  const section = (t, id = t, into = true) => {
+    const d = document.createElement('details'); d.className = 'sec'; d.open = openSet.has(id);
+    const sm = document.createElement('summary'); sm.textContent = t; d.append(sm);
+    d.addEventListener('toggle', () => { if (d.open) openSet.add(id); else openSet.delete(id); saveOpen(); d.dispatchEvent(new CustomEvent('sectionopen')); });
+    panel.insertBefore(d, tail); if (into) cur = d; return d;
+  };
+  const h = (t) => section(t);
   const row = (label, input, out) => {
     const l = document.createElement('label'); l.className = 'row';
     const sp = document.createElement('span'); sp.textContent = label; l.append(sp);
-    if (out) l.append(out); l.append(input); panel.append(l);
+    if (out) l.append(out); l.append(input); cur.append(l);
   };
-  const outside = document.createElement('div'); outside.className = 'outside'; panel.append(outside);   // filled by the page: shared weather
+  panel.append(tail);
+  // shared for everyone: weather outside and the blinds (filled by the page)
+  const outside = document.createElement('div'); outside.className = 'outside'; section('Окна — меняются у всех', 'windows', false).append(outside);
   for (const [title, list] of SLIDERS) {
     h(title);
     if (title === 'Лампы') for (const [p, label] of TOGGLES) {
@@ -95,7 +111,6 @@ export function buildPanel(state, onChange, opts = {}) {
     i.addEventListener('change', () => { state[k] = i.checked; commit(); });
     inputs.push(() => { i.checked = state[k]; }); row(label, i);
   }
-  const tail = document.createElement('div'); tail.className = 'btns';
   const reset = document.createElement('button'); reset.textContent = 'Сбросить';
   reset.addEventListener('click', () => { Object.assign(state, clone(DEFAULTS), opts.resetTo ? opts.resetTo() : {}); sync(); commit(); });
   const copy = document.createElement('button'); copy.textContent = 'Скопировать настройки';
@@ -109,5 +124,5 @@ export function buildPanel(state, onChange, opts = {}) {
   tail.append(reset, copy); panel.append(tail);
   const sync = () => inputs.forEach((f) => f());
   sync();
-  return { toggle, sync, outside };
+  return { toggle, sync, outside, section: (t, id) => section(t, id, false) };
 }
