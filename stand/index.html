@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Стенд редакции</title>
+<style>
+  :root { --bg:#f4efe6; --panel:#fffaf1; --ink:#2b2520; --muted:#7a6e62; --line:#e2d8c8; --accent:#9c4a1c; --good:#3f7d4e; --bad:#b0392f;
+          --editor:#8a5a2b; --reporter:#2f6f8f; --columnist:#7b3f8c; --heroine:#c0392b; }
+  * { box-sizing:border-box; }
+  body { margin:0; font:13px/1.35 -apple-system, "Helvetica Neue", Arial, sans-serif; color:var(--ink); background:var(--bg); }
+  header { display:flex; flex-wrap:wrap; gap:10px 16px; align-items:center; padding:8px 14px; background:#2b2520; color:#f4efe6; position:sticky; top:0; z-index:5; }
+  .modes { display:flex; gap:4px; } .modes > * { padding:5px 10px; border:1px solid #5a4d40; border-radius:8px; color:#f4efe6; text-decoration:none; font-weight:600; } .modes b { background:#e8a33c33; border-color:#e8a33c; }
+  header .clock { font:600 18px/1 ui-monospace, Menlo, monospace; min-width:150px; }
+  header button, .btn { background:#f4efe6; color:#2b2520; border:0; border-radius:6px; padding:6px 10px; font:inherit; cursor:pointer; }
+  header button.primary { background:#e8a33c; }
+  header .muted { color:#c9bba7; }
+  header input[type=range] { width:180px; vertical-align:middle; }
+  header input[type=number] { width:64px; }
+  .warn { color:#ffb4a8; font-weight:600; }
+  main { display:grid; grid-template-columns: 330px minmax(420px,1fr) 380px; gap:10px; padding:10px; height:calc(100vh - 52px); }
+  section { background:var(--panel); border:1px solid var(--line); border-radius:10px; overflow:auto; }
+  .tabs { display:flex; flex-wrap:wrap; gap:4px; padding:8px; border-bottom:1px solid var(--line); position:sticky; top:0; background:var(--panel); z-index:2; }
+  .tabs button { border:1px solid var(--line); background:#fff; border-radius:14px; padding:3px 9px; cursor:pointer; font:inherit; }
+  .tabs button.on { background:var(--ink); color:#fff; border-color:var(--ink); }
+  .pane { padding:8px 12px 16px; }
+  .pane h3 { font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:14px 0 6px; }
+  .row { display:grid; grid-template-columns: 118px 1fr 38px; gap:6px; align-items:center; margin:3px 0; }
+  .row input[type=range] { width:100%; }
+  .row output { text-align:right; font-variant-numeric:tabular-nums; }
+  textarea, input[type=text] { width:100%; font:inherit; border:1px solid var(--line); border-radius:6px; padding:5px; background:#fff; }
+  textarea { height:92px; resize:vertical; }
+  .note { color:var(--muted); font-size:12px; margin:4px 0; }
+  .center { display:flex; flex-direction:column; gap:10px; overflow:auto; }
+  .center > section { overflow:visible; }
+  canvas { display:block; width:100%; }
+  .events { display:flex; flex-wrap:wrap; gap:6px; padding:8px; align-items:center; border-top:1px solid var(--line); }
+  .events input { flex:1 1 200px; }
+  .events .btn { border:1px solid var(--line); background:#fff; }
+  .legend { display:flex; flex-wrap:wrap; gap:4px 10px; padding:6px 10px; font-size:12px; }
+  .legend label { display:flex; gap:4px; align-items:center; cursor:pointer; }
+  .legend i { width:12px; height:3px; display:inline-block; border-radius:2px; }
+  table { border-collapse:collapse; width:100%; font-variant-numeric:tabular-nums; }
+  td, th { padding:4px 6px; border-bottom:1px solid var(--line); text-align:right; }
+  th:first-child, td:first-child { text-align:left; }
+  .journal { font-size:12px; }
+  .jrow { padding:4px 10px; border-bottom:1px solid #efe6d8; }
+  .jrow .t { color:var(--muted); font-family:ui-monospace, Menlo, monospace; margin-right:6px; }
+  .jrow.event { background:#fbf4e6; }
+  .jrow .alt { color:var(--muted); display:block; margin-left:48px; }
+  .dot { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:4px; vertical-align:middle; }
+  .stat { padding:6px 10px; color:var(--muted); font-size:12px; border-bottom:1px solid var(--line); }
+  .online { color:var(--good); font-size:11px; } .plan { color:var(--muted); font-size:11px; }
+  select { font:inherit; }
+  @media (max-width: 1150px) { main { grid-template-columns: 1fr; height:auto; } section { max-height:none; } #settings { max-height:420px; } .journal { max-height:600px; } }
+</style>
+</head>
+<body>
+<header>
+  <nav class="modes"><a href="https://bobsingleton1985.github.io/editorial-office/">Редакция</a><b>Стенд симуляций</b></nav>
+  <span class="clock" id="clock">—</span>
+  <button id="play" class="primary">▶ Пуск</button>
+  <span>Скорость <input type="range" id="speed" min="0" max="1000" value="0"> <b id="speedLabel">1×</b></span>
+  <span class="muted">факт: <b id="realSpeed">—</b></span>
+  <span>Jev: <b id="calls">0</b> / <input type="number" id="cap" min="1" max="2000" value="150"></span>
+  <span id="thinking" class="muted"></span>
+  <span id="status" class="warn"></span>
+  <span style="flex:1"></span>
+  <button id="restart">⟲ Новый прогон</button>
+  <button id="saveCfg">💾 Настройки</button>
+  <button id="saveLog">📜 Журнал</button>
+</header>
+<main>
+  <section id="settings"><div class="tabs" id="tabs"></div><div class="pane" id="pane"></div></section>
+  <div class="center">
+    <section>
+      <canvas id="office" height="360"></canvas>
+      <div class="events">
+        <input type="text" id="msg" placeholder="Текст поста в канале или запроса Арчи">
+        <button class="btn" id="evPhone">📞 Пост в канал</button>
+        <button class="btn" id="evArchie">🎬 Запрос Арчи</button>
+        <button class="btn" id="evHeroine">💃 Героиня пришла</button>
+        <button class="btn" id="evTape">🗞️ Лента</button>
+      </div>
+    </section>
+    <section>
+      <div class="legend"><select id="graphChar"></select><span id="graphSeries"></span></div>
+      <canvas id="graph" height="200"></canvas>
+    </section>
+    <section><div class="pane"><h3 style="margin-top:4px">Отношения (кто → к кому): симпатия · влечение · ревность</h3><div id="rel"></div></div></section>
+  </div>
+  <section class="journal">
+    <div class="tabs"><select id="jFilter"><option value="all">Всё</option><option value="decision">Решения Jev</option><option value="event">События и результаты</option></select><select id="jChar"><option value="">Все персонажи</option></select></div>
+    <div class="stat" id="rate"></div>
+    <div id="journal"></div>
+  </section>
+</main>
+<script type="module" src="ui.js"></script>
+</body>
+</html>

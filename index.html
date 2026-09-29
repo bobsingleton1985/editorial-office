@@ -59,6 +59,10 @@
   #settings .rep table { width:100%; border-collapse:collapse; font-size:12px; }
   #settings .rep td { padding:4px 2px; border-top:1px solid var(--line); vertical-align:top; }
   #settings .rep td.n { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  #settings .modes { display:flex; gap:6px; margin:10px 0 4px; }
+  #settings .modes > * { flex:1; text-align:center; padding:7px 8px; border:1px solid var(--line); border-radius:8px; color:var(--ink); text-decoration:none; font-weight:600; }
+  #settings .modes b { background:rgba(224,145,58,.18); border-color:var(--accent); }
+  #settings .modes a:hover { border-color:var(--accent); }
   .hint { color:var(--muted); font:12px -apple-system, "Segoe UI", Roboto, sans-serif; margin-top:4px; }
 </style>
 </head>
@@ -78,6 +82,6 @@
   <span id="fps">…</span>
 </div>
 <noscript><div class="panel" style="top:auto;bottom:16px">Для офиса нужен JavaScript.</div></noscript>
-<script src="app.js?v=50" defer></script>
+<script src="app.js?v=51" defer></script>
 </body>
 </html>
