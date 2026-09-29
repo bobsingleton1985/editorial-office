@@ -155,6 +155,10 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {   /
   const deskFrame = {};
   for (const [k, D] of Object.entries(DESKS)) { const M = new THREE.Matrix4().makeRotationY(D.th).setPosition(D.x, 0, D.z).multiply(new THREE.Matrix4().makeScale(S, S, S));
     deskFrame[k] = { inv: M.clone().invert(), dir: new THREE.Matrix3().setFromMatrix4(M) }; }
+  // the long table in front of the bench (measured on office v29c: top 1.185, near edge x −1.18, z 0.45…3.65), as a pack table
+  // frame facing +x: its near edge 0.14 m ahead of the frame, like the desks — the same "keep the hands off the top" works there
+  const benchFrame = (() => { const M = new THREE.Matrix4().makeRotationY(Math.PI / 2).setPosition(-1.18 - 0.14 * S, 0, 2.05).multiply(new THREE.Matrix4().makeScale(S, S, S));
+    return { inv: M.clone().invert(), dir: new THREE.Matrix3().setFromMatrix4(M) }; })();
   if (extra.smoke) {
     try { smoking = createSmoking({ scene, root, B: Bn, mixer, U: S, addon: extra.smoke, strip: stripClip, camera: extra.camera, renderer: extra.renderer });
       smoking.setSitBase(CL.sit_idle.clip); }
@@ -179,8 +183,8 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {   /
   }
   const smokeWant = () => {
     const act = cur?.activity; if (act !== 'smoke' && act !== 'smoke_coffee') return null;
-    if (ch.mode === 'seated' && ch.seat) { const d = SEATS[ch.seat].desk;                      // at a desk, or on the bench (no desk top to keep the hands off)
-      return { mode: 'sit', desk: d ? deskFrame[d] : null, seq: cur.seq, drink: act === 'smoke_coffee' && !!d && !!mugL[d] }; }
+    if (ch.mode === 'seated' && ch.seat) { const d = SEATS[ch.seat].desk;                      // at a desk, or on the bench (hands kept off its long table)
+      return { mode: 'sit', desk: d ? deskFrame[d] : benchFrame, seq: cur.seq, drink: act === 'smoke_coffee' && !!d && !!mugL[d] }; }
     if (act === 'smoke' && ch.mode === 'idle' && !ch.seat) return { mode: 'stand', seq: cur.seq };
     return null;
   };
