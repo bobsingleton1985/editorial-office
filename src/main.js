@@ -20,11 +20,13 @@ import { createSunbeams } from './sunbeams.js';
 const Q = new URLSearchParams(location.search);
 const GLB = Q.get('m') || 'assets/office-v29c.glb', GLB_SIZE = 3880516;
 const RELAY_URL = 'https://135-106-229-50.sslip.io';     // shared newsroom: relay on the VPS (also hosts the character files)
-const RELAY = ((r) => (r === '/' ? '/' : r.replace(/\/$/, '')))(Q.get('relay') ?? RELAY_URL);   // '/' = same origin (local test)
+const DEMO = window.__DEMO || Q.get('demo') || '';            // a scripted newsroom without the director (review pages)
+const RELAY = ((r) => (r === '/' ? '/' : r.replace(/\/$/, '')))(DEMO ? '' : Q.get('relay') ?? RELAY_URL);   // '/' = same origin (local test)
 const CHAR_BASE = Q.get('charbase') ?? (RELAY && RELAY !== '/' ? RELAY + '/' : '');
 const CHAR = Q.get('char') ?? CHAR_BASE + 'assets/editor2A-web-v01.glb';
 const CHAR_TYPE = CHAR_BASE + 'assets/editor2A-type-v13.glb';          // add-on: rig + typing clip (editor2A v13, approved page «Редактор в офисе»)
 const TYPEWRITER = 'assets/typewriter-v01.glb';                          // compact flat typewriter, pack table frame
+const SMOKE = Q.get('smoke') ?? CHAR_BASE + 'assets/editor2A-smoke-web-v01.glb';   // add-on: cigarette, lighter, the clips of one cigarette
 const $ = (id) => document.getElementById(id);
 const status = $('status'), bar = $('bar'), fpsEl = $('fps'), who = $('who');
 document.body.classList.add('js');
@@ -257,15 +259,16 @@ async function loadEditor(office) {
     showWho();
     const get = (u) => fetch(u).then((r) => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); });
     const opt = (u) => get(u).catch(() => null);                          // add-ons are optional: without them he just sits
-    const [buf, tracks, tbuf, wbuf] = await Promise.all([get(CHAR), fetch(CHAR_BASE + 'assets/chair-tracks-v30.json').then((r) => r.json()), opt(CHAR_TYPE), opt(TYPEWRITER)]);
+    const [buf, tracks, tbuf, wbuf, sbuf] = await Promise.all([get(CHAR), fetch(CHAR_BASE + 'assets/chair-tracks-v30.json').then((r) => r.json()), opt(CHAR_TYPE), opt(TYPEWRITER), SMOKE ? opt(SMOKE) : null]);
     const ld = () => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
     const gltf = await ld().parseAsync(buf, '');
     const extra = {};
     if (tbuf) extra.typeClip = (await ld().parseAsync(tbuf, '')).animations[0];
     if (wbuf) { typewriters = createTypewriters(sc, await ld().parseAsync(wbuf, ''), DESKS, PACK_S);
       for (const g of typewriters.groups) L.attach(g); for (const g of typewriters.groups) SC.addDynamic(g); SC.markDirty(); extra.typewriters = typewriters; }
+    if (sbuf) { extra.smoke = await ld().parseAsync(sbuf, '').catch(() => null); extra.camera = cam; extra.renderer = r; }   // without the add-on he simply does not smoke
     editor = createEditor(sc, office, gltf, tracks, extra);
-    L.attach(editor.holder); SC.addDynamic(editor.holder);
+    L.attach(editor.holder); SC.addDynamic(editor.holder); if (editor.fx) SC.addDynamic(editor.fx);
     window.__editor = editor; window.__tw = typewriters; window.__look = (pos, tgt) => { const c = new THREE.PerspectiveCamera(35, innerWidth / innerHeight, 0.05, 100); c.position.copy(B(...pos)); c.lookAt(B(...tgt)); c.layers.enableAll(); r.render(sc, c); return r.domElement.toDataURL('image/jpeg', 0.85); };
     if (pending) { editor.apply(pending, live.now()); pending = null; }
     showWho(); setInterval(showWho, 1000);
@@ -281,6 +284,16 @@ addRepertoire(PANEL.section, CHAR_BASE + 'assets/registry-live.json', () => {
 let lastWorld = null;
 addDirectorStatus(PANEL.section, () => ({ net, world: lastWorld, now: live ? live.now() : Date.now() }));
 live = connectLive(RELAY, (w) => { lastWorld = w; if (editor) editor.apply(w, live.now()); else pending = w; }, (s) => { net = s; showWho(); }, { weather: applyWeather, blinds: (b) => applyBlinds(b, true) });
+
+if (DEMO === 'smoke') {   // review: at the desk → a cigarette at the desk → a cigarette at the window → back to work, round and round
+  const CH = { A: 0, B: 0.1174, C: 0.1174 }, T = { A: -0.25, B: 0.1174, C: 0.1174 };
+  const script = [[{ seat: 'deskA' }, null, 'work', 'работает за столом A', CH, 12], [{ seat: 'deskA' }, null, 'smoke', 'курит за столом A', CH, 58],
+    [{ seat: 'deskA' }, { spot: 'window' }, 'smoke', 'курит у окна', CH, 62], [{ spot: 'window' }, { seat: 'deskA' }, 'work', 'работает за столом A', T, 16]];
+  let seq = 0, i = 0;
+  const next = () => { const [from, cmd, activity, label, chairs, sec] = script[i % script.length]; i++; seq++;
+    const w = { seq, chairs, editor: { from, cmd, at: live.now(), label, activity, source: 'demo' } }; if (editor) editor.apply(w, live.now()); else pending = w; setTimeout(next, sec * 1000); };
+  net = { online: true, viewers: 0 }; next();
+}
 
 function tvNews(on) {
   if (!tvMat || !tvOrig) return;

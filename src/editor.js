@@ -6,6 +6,7 @@ import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js
 import { createNav } from './nav.js';
 import { GRID } from './navgrid.js';
 import { S, DESKS, BENCH, SPOTS, RADIUS, chairBox, CHAIR_REST, CHAIR_TUCKED, CHAIR_NODE } from './layout.js';
+import { createSmoking } from './smoke.js';
 
 const FPS = 30, FADE = 0.3, LEAD = 0.9;
 const smooth = (t) => { t = Math.min(1, Math.max(0, t)); return t * t * (3 - 2 * t); };
@@ -17,7 +18,7 @@ const fwd = (T) => [Math.sin(T.th), Math.cos(T.th)];
 const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const deg = THREE.MathUtils.degToRad;
 
-export function createEditor(scene, office, gltf, chairTracks, extra = {}) {
+export function createEditor(scene, office, gltf, chairTracks, extra = {}) {   // extra: { smoke: add-on gltf, camera, renderer }
   const root = gltf.scene, Bn = {};
   const holder = new THREE.Group(), body = new THREE.Group(); body.scale.setScalar(S);
   holder.add(body); body.add(root); scene.add(holder); holder.name = 'EDITOR2A';
@@ -143,6 +144,26 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {
     for (const k in W) A[k].setEffectiveWeight(sum > 0 ? W[k].cur / sum : 0); }
   function snapWeights() { for (const k in W) W[k].cur = W[k].target; stepWeights(0); }
 
+  // ---------- smoking (director's activity 'smoke'): standing at a spot, or seated at a desk
+  let smoking = null;
+  const deskFrame = {};
+  for (const [k, D] of Object.entries(DESKS)) { const M = new THREE.Matrix4().makeRotationY(D.th).setPosition(D.x, 0, D.z).multiply(new THREE.Matrix4().makeScale(S, S, S));
+    deskFrame[k] = { inv: M.clone().invert(), dir: new THREE.Matrix3().setFromMatrix4(M) }; }
+  if (extra.smoke) {
+    try { smoking = createSmoking({ scene, root, B: Bn, mixer, U: S, addon: extra.smoke, strip: stripClip, camera: extra.camera, renderer: extra.renderer });
+      smoking.setSitBase(CL.sit_idle.clip); }
+    catch (e) { console.warn('smoking unavailable:', e); smoking = null; }
+  }
+  const smokeWant = () => {
+    if (cur?.activity !== 'smoke') return null;
+    if (ch.mode === 'seated' && ch.seat?.startsWith('desk')) return { mode: 'sit', desk: deskFrame[SEATS[ch.seat].desk], seq: cur.seq };
+    if (ch.mode === 'idle' && !ch.seat) return { mode: 'stand', seq: cur.seq };
+    return null;
+  };
+  // hand IK on top of the mixer: put the arms back to the clean animated pose before each update (the mixer skips unchanged values)
+  const ARMS = ['upperarm_r', 'lowerarm_r', 'hand_r', 'upperarm_l', 'lowerarm_l', 'hand_l'].map((n) => Bn[n]), armQ = ARMS.map((b) => b.quaternion.clone());
+  const armRestore = () => ARMS.forEach((b, i) => b.quaternion.copy(armQ[i])), armSave = () => ARMS.forEach((b, i) => armQ[i].copy(b.quaternion));
+
   // ---------- behaviour (as the seating page v6)
   const tw = extra.typewriters || null;
   // activities that need a free desk: the typewriter on that desk is taken away (none of them is live yet)
@@ -261,9 +282,13 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {
   const placeKey = (g) => (g ? g.seat || g.spot || null : null);
   function frame(dt, ff) {
     updateChar(dt); stepWeights(dt);
+    if (smoking) smoking.pre(dt, smokeWant(), A);
     if (!ff) {
       const t0 = A.type ? A.type.time : 0;
-      mixer.update(dt); lidFrame(dt);
+      if (smoking) armRestore();
+      mixer.update(dt);
+      if (smoking) { holder.updateMatrixWorld(true); armSave(); smoking.post(dt); }
+      lidFrame(dt);
       if (A.type && tw && ch.seat && SEATS[ch.seat].desk && W.type.cur > 0.6) {     // a letter on every fingertip strike
         const t1 = A.type.time, d = CL.type.clip.duration;
         for (const k of TYPE_KEYS) if ((t1 >= t0 && k > t0 && k <= t1) || (t1 < t0 && (k > t0 || k <= t1))) tw.key(SEATS[ch.seat].desk);
@@ -275,7 +300,7 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {
     for (let i = 0; i < n; i++) frame(1 / FPS, true);
     simT += sec;
     if (ch.mode === 'trans') A[ch.trans.clip].time = ch.trans.t;
-    snapWeights(); mixer.update(0);
+    snapWeights(); if (smoking) smoking.pre(0, smokeWant(), A); mixer.update(0); if (smoking) { holder.updateMatrixWorld(true); armSave(); }
   }
   function apply(w, serverNow) {                      // w = {seq, editor: {from, cmd, at}, chairs}
     if (!w?.editor || (cur && cur.seq === w.seq)) return;
@@ -288,7 +313,7 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {
     const dest = cur ? placeKey(cur.cmd || cur.from) : null;
     const cont = cur && dest === placeKey(e.from) && elapsed < 3;
     if (!cont) place(e.from, w.chairs);
-    cur = { seq: w.seq, at: e.at, from: e.from, cmd: e.cmd, label: e.label || '', source: e.source || '' }; simT = 0;
+    cur = { seq: w.seq, at: e.at, from: e.from, cmd: e.cmd, label: e.label || '', source: e.source || '', activity: e.activity || '' }; simT = 0;
     const g = goalOf(e.cmd); if (g) command(g);
     if (!cont && elapsed > 0.05) fastForward(elapsed);
   }
@@ -298,9 +323,9 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {
   }
   place({ seat: 'deskA' }, null);
   return {
-    apply, update, holder, SEATS, nav, chairs,
-    moving: () => ch.mode === 'walk' || ch.mode === 'turn' || ch.mode === 'trans' || !!ch.chairTail,
-    status: () => ({ label: cur?.label || '', motion: ch.motion, mode: ch.mode, seat: ch.seat, source: cur?.source || '' }),
-    debug: { ch, CL, A, W, mixer, SEATS, comp, trajAt, setHolder, snapWeights, command: (g) => command(goalOf(g) || g), place, entryOptions, exitOptions, holderPose, NATIVE: () => NATIVE },
+    apply, update, holder, SEATS, nav, chairs, fx: smoking ? smoking.fx : null,
+    moving: () => ch.mode === 'walk' || ch.mode === 'turn' || ch.mode === 'trans' || !!ch.chairTail || !!smoking?.active(),
+    status: () => ({ label: cur?.label || '', motion: ch.motion, mode: ch.mode, seat: ch.seat, source: cur?.source || '', smoke: smoking ? smoking.status() : null }),
+    debug: { ch, CL, A, W, mixer, SEATS, comp, trajAt, setHolder, snapWeights, command: (g) => command(goalOf(g) || g), place, entryOptions, exitOptions, holderPose, NATIVE: () => NATIVE, smoking },
   };
 }
