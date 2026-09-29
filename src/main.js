@@ -9,8 +9,7 @@ import { createEditor } from './editor.js';
 import { connectLive } from './live.js';
 import { createQuality } from './quality.js';
 import { createStaticCache } from './cache.js';
-import { CHAIR_NODE, DESKS, S as PACK_S } from './layout.js';
-import { createTypewriters } from './typewriter.js';
+import { CHAIR_NODE } from './layout.js';
 import { createWeather } from './weather.js';
 
 const Q = new URLSearchParams(location.search);
@@ -19,8 +18,6 @@ const RELAY_URL = 'https://135-106-229-50.sslip.io';     // shared newsroom: rel
 const RELAY = ((r) => (r === '/' ? '/' : r.replace(/\/$/, '')))(Q.get('relay') ?? RELAY_URL);   // '/' = same origin (local test)
 const CHAR_BASE = Q.get('charbase') ?? (RELAY && RELAY !== '/' ? RELAY + '/' : '');
 const CHAR = Q.get('char') ?? CHAR_BASE + 'assets/editor2A-web-v01.glb';
-const CHAR_TYPE = CHAR_BASE + 'assets/editor2A-type-v13.glb';          // add-on: rig + typing clip (editor2A v13, approved page «Редактор в офисе»)
-const TYPEWRITER = 'assets/typewriter-v01.glb';                          // compact flat typewriter, pack table frame
 const $ = (id) => document.getElementById(id);
 const status = $('status'), bar = $('bar'), fpsEl = $('fps'), who = $('who');
 document.body.classList.add('js');
@@ -52,10 +49,11 @@ window.__set = (p) => { Object.assign(S, p); L.apply(eff(S)); applyScene(S); WX?
 
 // ---------- weather: one for everyone, the real weather of the owner's city (the relay looks outside every 10 min)
 const FORCE = Q.get('sky');                                // ?sky=snow — for checks only
-const CITY = { nyc: 'Нью-Йорк', msk: 'Москва' };
-let wx = null, litSky = null, PANEL = null;              // wx: {city, name, day, sky, fall, ground, desc, temp, utc}
+const CHOICES = [['nyc', 'Нью-Йорк — настоящая погода'], ['msk', 'Москва — настоящая погода'], ['sun', '☀️ Солнце'], ['cloudy', '⛅ Облачно'],
+  ['rain', '🌧 Дождь'], ['snow', '❄️ Снег'], ['night', '🌙 Ночь']];
+let wx = null, litSky = null, PANEL = null;              // wx: {choice, city, name, day, sky, fall, ground, desc, temp, utc, manual}
 const outside = () => (FORCE ? { sky: FORCE } : wx ? { sky: wx.sky, fall: wx.fall, ground: wx.ground } : { sky: 'night', fall: null, ground: false });
-let ownerToken = null;                                     // the owner opens the site once with #owner=… and may then pick the city
+let ownerToken = null;                                     // later, when testing ends: only the owner (opened the site with #owner=…) may change it
 try { const m = location.hash.match(/owner=([\w-]{24,})/); if (m) { ownerToken = m[1]; history.replaceState(null, '', location.pathname + location.search); localStorage.setItem('editorial.owner', m[1]); }
   ownerToken = ownerToken || localStorage.getItem('editorial.owner'); } catch (e) { /* private mode: key lives until the tab closes */ }
 function applyWeather(w) {
@@ -70,25 +68,29 @@ function showOutside(note) {
   const box = PANEL?.outside; if (!box) return;
   box.textContent = '';
   const p = document.createElement('div'); p.className = 'hint';
-  p.textContent = wx ? `${wx.fall ? ICON[wx.fall] : wx.day ? ICON[wx.sky] : '🌙'} За окном — ${wx.name}: ${wx.day ? 'день' : 'ночь'}, ${wx.desc}, ${wx.temp > 0 ? '+' : ''}${wx.temp}°`
-    : 'За окном вечер. Настоящая погода появится, когда будет связь с редакцией.';
+  const t = wx && Number.isFinite(wx.temp) ? `, ${wx.temp > 0 ? '+' : ''}${wx.temp}°` : '';
+  p.textContent = !wx ? 'За окном вечер. Настоящая погода появится, когда будет связь с редакцией.'
+    : wx.manual ? `${ICON[wx.sky] || '🌙'} За окном: ${wx.desc} (выбрано вручную, для всех)`
+    : `${wx.fall ? ICON[wx.fall] : wx.day ? ICON[wx.sky] : '🌙'} За окном — ${wx.name}: ${wx.day ? 'день' : 'ночь'}, ${wx.desc}${t}`;
   box.append(p);
-  if (!ownerToken || !RELAY) return;
+  if (!RELAY) return;
   const l = document.createElement('label'); l.className = 'row';
-  const sp = document.createElement('span'); sp.textContent = 'Погода по городу (видят все)'; l.append(sp);
+  const sp = document.createElement('span'); sp.textContent = 'Погода за окном (меняется у всех)'; l.append(sp);
   const sel = document.createElement('select');
-  for (const [v, t] of Object.entries(CITY)) { const op = document.createElement('option'); op.value = v; op.textContent = t; sel.append(op); }
-  sel.value = wx?.city || 'nyc';
-  sel.addEventListener('change', () => setCity(sel.value));
+  for (const [v, tx] of CHOICES) { const op = document.createElement('option'); op.value = v; op.textContent = tx; sel.append(op); }
+  sel.value = wx?.choice || 'nyc';
+  sel.addEventListener('change', () => choose(sel.value));
   l.append(sel); box.append(l);
   if (note) { const n = document.createElement('div'); n.className = 'hint'; n.textContent = note; box.append(n); }
 }
-async function setCity(city) {
+async function choose(choice) {
   try {
-    const res = await fetch((RELAY === '/' ? '' : RELAY) + '/owner/settings', { method: 'POST', headers: { Authorization: 'Bearer ' + ownerToken, 'Content-Type': 'application/json' }, body: JSON.stringify({ city }) });
-    if (res.status === 401) { ownerToken = null; try { localStorage.removeItem('editorial.owner'); } catch (e) { /* ignore */ } return showOutside(); }
+    const res = await fetch((RELAY === '/' ? '' : RELAY) + '/settings/weather', { method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(ownerToken ? { Authorization: 'Bearer ' + ownerToken } : {}) }, body: JSON.stringify({ choice }) });
+    if (res.status === 403) return showOutside('Менять погоду может только владелец.');
+    if (res.status === 429) return showOutside('Слишком часто, попробуйте через пару секунд.');
     const j = await res.json(); applyWeather(j.weather);
-  } catch (e) { showOutside('Не удалось сменить город: нет связи с редакцией.'); }
+  } catch (e) { showOutside('Не удалось сменить погоду: нет связи с редакцией.'); }
 }
 window.__cam = (pos, tgt, zoom = 1) => { cam.position.copy(B(...pos)); ctl.target.copy(B(...tgt)); cam.zoom = zoom; cam.updateProjectionMatrix(); ctl.update(); SC?.markDirty(); };
 L.apply(eff(S));
@@ -193,7 +195,7 @@ function setup(g) {
 }
 
 // ---------- the first character: editor2A, driven by the shared director
-let editor = null, live = null, pending = null, net = { online: false }, typewriters = null;
+let editor = null, live = null, pending = null, net = { online: false };
 const PLACE = { deskA: 'за столом A', deskB: 'за столом B', deskC: 'за столом C', benchS: 'на скамье', benchM: 'на скамье', benchN: 'на скамье', window: 'у окна', teletype: 'у телетайпа' };
 function showWho() {
   if (!who) return;
@@ -207,18 +209,12 @@ function showWho() {
 async function loadEditor(office) {
   try {
     showWho();
-    const get = (u) => fetch(u).then((r) => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); });
-    const opt = (u) => get(u).catch(() => null);                          // add-ons are optional: without them he just sits
-    const [buf, tracks, tbuf, wbuf] = await Promise.all([get(CHAR), fetch(CHAR_BASE + 'assets/chair-tracks-v30.json').then((r) => r.json()), opt(CHAR_TYPE), opt(TYPEWRITER)]);
-    const ld = () => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
-    const gltf = await ld().parseAsync(buf, '');
-    const extra = {};
-    if (tbuf) extra.typeClip = (await ld().parseAsync(tbuf, '')).animations[0];
-    if (wbuf) { typewriters = createTypewriters(sc, await ld().parseAsync(wbuf, ''), DESKS, PACK_S);
-      for (const g of typewriters.groups) L.attach(g); for (const g of typewriters.groups) SC.addDynamic(g); SC.markDirty(); extra.typewriters = typewriters; }
-    editor = createEditor(sc, office, gltf, tracks, extra);
+    const [buf, tracks] = await Promise.all([fetch(CHAR).then((r) => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); }),
+      fetch(CHAR_BASE + 'assets/chair-tracks-v30.json').then((r) => r.json())]);
+    const gltf = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).parseAsync(buf, '');
+    editor = createEditor(sc, office, gltf, tracks);
     L.attach(editor.holder); SC.addDynamic(editor.holder);
-    window.__editor = editor; window.__tw = typewriters; window.__look = (pos, tgt) => { const c = new THREE.PerspectiveCamera(35, innerWidth / innerHeight, 0.05, 100); c.position.copy(B(...pos)); c.lookAt(B(...tgt)); c.layers.enableAll(); r.render(sc, c); return r.domElement.toDataURL('image/jpeg', 0.85); };
+    window.__editor = editor;
     if (pending) { editor.apply(pending, live.now()); pending = null; }
     showWho(); setInterval(showWho, 1000);
   } catch (e) { if (who) who.textContent = '👤 Редактор не загрузился: ' + e.message; window.__err = String(e); }
@@ -277,7 +273,7 @@ function step(dt, draw = true) {
       if (roll >= 1) roll = -1;
     }
   }
-  if (editor) editor.update(dt, window.__simNow ?? live.now());   // __simNow: automated checks run on their own clock
+  if (editor) editor.update(dt, live.now());
   if (!draw) return;
   L.update(dt, editor && editor.moving() && QL.level.live); ctl.update(); SC.render();
   cpuMs += (performance.now() - t0 - cpuMs) * 0.1;
