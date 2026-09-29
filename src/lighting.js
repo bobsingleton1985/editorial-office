@@ -13,7 +13,7 @@ export function tint(warmth) {
 }
 
 // desk lamps: centre of the green shade (Blender coords); the chair side of each desk is +y
-const DESK = { A: [-3.52, 1.766], B: [1.08, 2.67], C: [4.58, 2.666] };
+const DESK = { A: [-3.492, 1.8], B: [1.108, 2.704], C: [4.608, 2.7] };   // v31 banker lamps (office-v31c)
 const DESK_I = 5.0, FLOOR_I = 22.0, TV_I = 0.6, NEON_I = 24;
 // light from the windows and the sky dome for each state of the weather: [window, hemisphere sky, hemisphere ground]
 const SKY_LIGHT = { night: [0xb9c7ff, 0xffe9d0, 0x2a2420], sun: [0xfff0d8, 0xe4ecf8, 0x5a4a3c], cloudy: [0xe2e8f0, 0xdfe4ea, 0x4a4440],
@@ -57,7 +57,7 @@ export function createLighting(sc, r) {
   const lamps = {};
   // banker lamps sit at the back-right corner of each desk: aim into the desk (−x, +y), cut the light off before the floor
   for (const [k, [x, y]] of Object.entries(DESK)) {
-    const l = spot(B(x - 0.02, y + 0.05, 1.675), B(x - 0.45, y + 0.35, 1.18), 0.8, 0.9, 0.03);
+    const l = spot(B(x - 0.02, y + 0.05, 1.645), B(x - 0.45, y + 0.35, 1.18), 0.8, 0.9, 0.03);   // below the glass lip (z 1.653)
     l.distance = 1.5; lamps[k] = l;
   }
   lamps.floor = spot(B(4.88, -5.62, 2.2), B(4.88, -5.62, 0), 1.15, 0.85, 0.05);
@@ -76,7 +76,8 @@ export function createLighting(sc, r) {
       o.receiveShadow = !city;
       o.castShadow = !city && !lampItself && !ms.some((m) => m.transparent);
       for (const m of ms) {
-        const d = m.name.match(/^OFFICE \| lamp underside ([ABC])$/); if (d) mats.desk[d[1]] = m;
+        const d = m.name.match(/^(?:OFFICE \| lamp underside|LAMP v31 \| (?:green glass|glass edge|opal inside)) ([ABC])$/);
+        if (d) (mats.desk[d[1]] ||= new Set()).add(m);   // the glass glows with its lamp: all go dark together
         if (m.name === 'LAMP | amber glass') mats.amber = m;
         if (m.name === 'LAMP | bulb') mats.bulb = m;
         if (m.name === 'TV | screen image') tvMat = m;
@@ -107,8 +108,7 @@ export function createLighting(sc, r) {
       l.intensity = (k === 'floor' ? FLOOR_I * s.floor : DESK_I * s.desk);
       l.castShadow = s.shadows;
       if (l.shadow.mapSize.x !== size) { l.shadow.mapSize.set(size, size); l.shadow.map?.dispose(); l.shadow.map = null; }
-      const m = k === 'floor' ? mats.amber : mats.desk[k];
-      if (m) m.emissiveIntensity = on ? base.get(m) : base.get(m) * (k === 'floor' ? 0.15 : 0);
+      for (const m of k === 'floor' ? [mats.amber] : mats.desk[k] || []) if (m) m.emissiveIntensity = on ? base.get(m) : base.get(m) * (k === 'floor' ? 0.15 : 0);
     }
     if (mats.bulb) mats.bulb.emissiveIntensity = s.lamps.floor ? base.get(mats.bulb) : 0;
     tv.visible = s.tvGlow;

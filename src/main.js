@@ -23,7 +23,7 @@ import { createTvSchedule } from './tv-schedule.js';
 import { createBulletin, BULLETIN_SEC } from './tv-bulletin.js';
 
 const Q = new URLSearchParams(location.search);
-const GLB = Q.get('m') || 'assets/office-v30c.glb', GLB_SIZE = 3880888;   // v30: the table by the bench moved 8.5 cm towards it (lunch clips fit)
+const GLB = Q.get('m') || 'assets/office-v31c.glb', GLB_SIZE = 3909868;   // v31: banker lamps (green glass, glow baked to a texture); v30: the lunch table
 const RELAY_URL = 'https://135-106-229-50.sslip.io';     // shared newsroom: relay on the VPS (also hosts the character files)
 const DEMO = window.__DEMO || Q.get('demo') || '';            // a scripted newsroom without the director (review pages)
 const RELAY = ((r) => (r === '/' ? '/' : r.replace(/\/$/, '')))(DEMO ? '' : Q.get('relay') ?? RELAY_URL);   // '/' = same origin (local test)
