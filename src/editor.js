@@ -7,6 +7,7 @@ import { createNav } from './nav.js';
 import { GRID } from './navgrid.js';
 import { S, DESKS, BENCH, SPOTS, RADIUS, chairBox, CHAIR_REST, CHAIR_TUCKED, CHAIR_NODE } from './layout.js';
 import { createSmoking } from './smoke.js';
+import { createCoffee, SIP } from './coffee.js';
 
 const FPS = 30, FADE = 0.3, LEAD = 0.9;
 const smooth = (t) => { t = Math.min(1, Math.max(0, t)); return t * t * (3 - 2 * t); };
@@ -18,7 +19,7 @@ const fwd = (T) => [Math.sin(T.th), Math.cos(T.th)];
 const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const deg = THREE.MathUtils.degToRad;
 
-export function createEditor(scene, office, gltf, chairTracks, extra = {}) {   // extra: { smoke: add-on gltf, camera, renderer }
+export function createEditor(scene, office, gltf, chairTracks, extra = {}) {   // extra: { smoke, coffee: add-on gltfs, typeClip, typewriters, camera, renderer }
   const root = gltf.scene, Bn = {};
   const holder = new THREE.Group(), body = new THREE.Group(); body.scale.setScalar(S);
   holder.add(body); body.add(root); scene.add(holder); holder.name = 'EDITOR2A';
@@ -93,6 +94,10 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {   /
   // typing (MC Seated SitChairTablePC_01_Type, clip from editor2A v13 as on the approved page): the actor sits 4.5 cm nearer the desk; the chair stays put
   const TYPE_KEYS = [8, 25, 30, 34, 38, 42, 46, 51, 56, 60, 65, 69, 73, 76, 81, 89, 93, 103].map((f) => (f - 1) / FPS);   // fingertip strikes (type-contacts.json)
   if (extra.typeClip) CL.type = stripClip('type', extra.typeClip, seatBase);
+  // coffee (director's activity 'coffee', seated at a desk): a mug stands on every desk, sips of the approved DrinkR clip
+  let coffee = null;
+  if (extra.coffee) { try { coffee = createCoffee({ scene, addon: extra.coffee, DESKS, S }); CL.drink = stripClip('drink', coffee.bodyClip, seatBase); }
+    catch (e) { console.warn('coffee unavailable:', e); coffee = null; } }
 
   // ---------- seats in the office
   const SEATS = {};
@@ -139,6 +144,7 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {   /
   function layer(name, clip, loop = true) { const a = mixer.clipAction(clip); a.setLoop(loop ? THREE.LoopRepeat : THREE.LoopOnce); a.clampWhenFinished = true; a.play(); a.setEffectiveWeight(0); A[name] = a; W[name] = { cur: 0, target: 0, rate: 1 / FADE }; }
   layer('walk', walkClip); layer('stand_idle', CL.stand_idle.clip); layer('sit_idle', CL.sit_idle.clip); if (CL.type) layer('type', CL.type.clip);
   for (const n of Object.keys(CL)) if (n.startsWith('desk_') || n.startsWith('booth_')) layer(n, CL[n].clip, false);
+  if (CL.drink) { layer('drink', CL.drink.clip, false); A.drink.paused = true; }
   function fadeTo(name, t = FADE) { for (const k in W) W[k].target = k === name ? 1 : 0; W[name].rate = 1 / t; }
   function stepWeights(dt) { let sum = 0; for (const k in W) { const w = W[k]; w.cur += Math.sign(w.target - w.cur) * Math.min(Math.abs(w.target - w.cur), dt * (w.rate || 3)); sum += w.cur; }
     for (const k in W) A[k].setEffectiveWeight(sum > 0 ? W[k].cur / sum : 0); }
@@ -171,11 +177,14 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {   /
   let freeDesk = null;
   const typing = () => !!(CL.type && ch.work && ch.seat && SEATS[ch.seat].desk);
   const seatedLoop = () => (typing() ? 'type' : 'sit_idle');
-  const ch = { work: false, title: '', mode: 'idle', seat: null, speed: 0, vis: 0, err: 0, path: null, cursor: 0, after: null, trans: null, queue: null, chairTail: null, blendIn: 0, motion: 'стоит' };
+  // a sip: starts only while he is having coffee at a desk (by the coffee clock), once started it is drunk to the end
+  const sipping = () => ch.sip !== null;
+  const ch = { sip: null, coffeeT: 0, work: false, title: '', mode: 'idle', seat: null, speed: 0, vis: 0, err: 0, path: null, cursor: 0, after: null, trans: null, queue: null, chairTail: null, blendIn: 0, motion: 'стоит' };
   function command(goal) {
     if (ch.mode === 'trans' || ch.mode === 'settle') { ch.queue = goal; return; }
     if (ch.seat) {
       if (goal.seat === ch.seat) return;
+      if (ch.mode === 'seated' && sipping()) { ch.queue = goal; ch.mode = 'settle'; ch.motion = 'допивает'; return; }
       if (ch.mode === 'seated' && W.type && W.type.cur > 0.05) { ch.queue = goal; ch.mode = 'settle'; fadeTo('sit_idle', 0.6); W.type.rate = 1 / 0.6; ch.motion = 'откладывает работу'; return; }
       const opts = exitOptions(ch.seat, goal), pick = opts.filter((o) => o.cost < Infinity).sort((a, b) => a.cost - b.cost)[0] || opts[0];
       ch.queue = goal; startTrans(pick.clip, pick.anc, 'stand'); ch.motion = 'встаёт'; return;
@@ -215,17 +224,34 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {   /
   }
   function updateChar(dt) {
     // settle: hands go back from the keys to the desk, then he may stand up
-    if (ch.mode === 'settle') { if (W.type.cur <= 0.02) { ch.mode = 'seated'; const q = ch.queue; ch.queue = null; if (q) command(q); } }
+    if (ch.mode === 'settle') { if ((!W.type || W.type.cur <= 0.02) && !sipping()) { ch.mode = 'seated'; const q = ch.queue; ch.queue = null; if (q) command(q); } }
     if (ch.mode === 'seated' && W.type) {                              // switch between typing and resting without standing up
       const want = seatedLoop();
       if (W[want].target < 1) { if (want === 'type') { A.type.reset(); A.type.play(); } fadeTo(want, 0.9); }
       ch.motion = want === 'type' ? 'печатает' : 'сидит';
+    }
+    if (coffee) {
+      const desk = ch.seat && SEATS[ch.seat].desk, D = coffee.duration;
+      const on = !!desk && ch.mode === 'seated' && ch.activity === 'coffee';
+      if (on) { const u = ch.coffeeT - SIP.wait, c = D + SIP.rest; ch.coffeeT += dt;
+        if (!sipping() && u >= 0 && u % c < D - 0.2) ch.sip = u % c; }
+      else ch.coffeeT = 0;
+      if (sipping()) {
+        if (!desk || ch.mode === 'walk' || ch.mode === 'trans' || ch.mode === 'idle' || ch.mode === 'turn') ch.sip = null;   // placed elsewhere: nothing in hand
+        else { ch.sip += dt; if (ch.sip >= D) ch.sip = null; }
+      }
+      const t = sipping() ? ch.sip : 0, w = sipping() ? smooth(t / SIP.fade) * (1 - smooth((t - (D - SIP.fade)) / SIP.fade)) : 0;
+      A.drink.time = Math.min(t, D - 1e-4);
+      if (desk) { coffee.set(desk, t); }
+      if (sipping()) { for (const k in W) { W[k].target = W[k].cur = 0; } W.drink.target = W.drink.cur = w; W.sit_idle.target = W.sit_idle.cur = 1 - w; ch.motion = 'пьёт кофе'; }
+      else if (W.drink.cur > 0) { W.drink.target = W.drink.cur = 0; if (ch.mode === 'seated' || ch.mode === 'settle') { W.sit_idle.target = W.sit_idle.cur = 1; } }
     }
     if (tw) {                                                           // typewriters stay on the desks; an activity that needs the desk clears it
       if (FREE_DESK.has(ch.activity)) freeDesk = ch.goalDesk || freeDesk;          // hidden as soon as he sets off towards that desk
       else if (freeDesk && !(ch.seat && SEATS[ch.seat].desk === freeDesk) && ch.mode !== 'settle') freeDesk = null;   // back once he has got up and left
       tw.clear(freeDesk);
     }
+    if (coffee) for (const k of Object.keys(DESKS)) coffee.show(k, !tw || freeDesk === k);   // the mug takes the typewriter's place (they would overlap)
     if (ch.chairTail) { const tr = ch.chairTail; tr.t += dt; updateChair(tr); if (tr.t > tr.c.clip.duration) ch.chairTail = null; }
     if (ch.mode === 'walk') {
       const pts = ch.path; let rest = 0; const p = holderPose();
@@ -272,7 +298,7 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {   /
   // ---------- playing the director's commands
   const goalOf = (g) => (!g ? null : g.seat ? { seat: g.seat } : g.spot ? { point: SPOTS[g.spot] } : null);
   function place(from, chairState) {
-    ch.mode = 'idle'; ch.seat = null; ch.trans = null; ch.queue = null; ch.chairTail = null; ch.path = null; ch.after = null; ch.speed = 0; ch.vis = 0;
+    ch.mode = 'idle'; ch.seat = null; ch.trans = null; ch.sip = null; ch.queue = null; ch.chairTail = null; ch.path = null; ch.after = null; ch.speed = 0; ch.vis = 0;
     for (const k of Object.keys(chairs)) { const v = chairState?.[k] ?? CHAIR_REST; setChair(k, v); chairs[k].plan = v; }
     if (from?.seat && SEATS[from.seat]) { const s = SEATS[from.seat]; setHolder(s.pose); ch.seat = from.seat; ch.mode = 'seated'; ch.motion = 'сидит'; fadeTo(seatedLoop()); if (s.desk) { setChair(s.desk, 0); chairs[s.desk].plan = 0; } }
     else { const p = (from?.spot && SPOTS[from.spot]) || SPOTS.window; setHolder(p); ch.motion = 'стоит'; fadeTo('stand_idle'); }
@@ -307,7 +333,7 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {   /
     const e = w.editor, elapsed = Math.max(0, (serverNow - e.at) / 1000);
     ch.work = e.activity ? e.activity === 'work' : /^(работает|правит)/.test(e.label || '');
     ch.title = (/«(.+)»/.exec(e.label || '') || [])[1] || '';
-    ch.activity = e.activity || (ch.work ? 'work' : '');
+    ch.activity = e.activity || (ch.work ? 'work' : ''); ch.coffeeT = 0;   // every decision starts its own coffee clock (live and late viewers alike)
     { const g = e.cmd?.seat || e.from?.seat; ch.goalDesk = g && SEATS[g] ? SEATS[g].desk : null; }
     // live viewer: he is already there (or on his way there) — go on from here; otherwise rebuild the start and catch up
     const dest = cur ? placeKey(cur.cmd || cur.from) : null;
@@ -324,8 +350,9 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {   /
   place({ seat: 'deskA' }, null);
   return {
     apply, update, holder, SEATS, nav, chairs, fx: smoking ? smoking.fx : null,
-    moving: () => ch.mode === 'walk' || ch.mode === 'turn' || ch.mode === 'trans' || !!ch.chairTail || !!smoking?.active(),
-    status: () => ({ label: cur?.label || '', motion: ch.motion, mode: ch.mode, seat: ch.seat, source: cur?.source || '', smoke: smoking ? smoking.status() : null }),
+    mugs: coffee ? coffee.groups : [],
+    moving: () => ch.mode === 'walk' || ch.mode === 'turn' || ch.mode === 'trans' || !!ch.chairTail || !!smoking?.active() || sipping(),
+    status: () => ({ label: cur?.label || '', motion: ch.motion, mode: ch.mode, seat: ch.seat, source: cur?.source || '', smoke: smoking ? smoking.status() : null, coffee: coffee ? { t: +ch.coffeeT.toFixed(2), sip: ch.sip === null ? null : +ch.sip.toFixed(2), w: W.drink ? +W.drink.cur.toFixed(2) : 0 } : null }),
     debug: { ch, CL, A, W, mixer, SEATS, comp, trajAt, setHolder, snapWeights, command: (g) => command(goalOf(g) || g), place, entryOptions, exitOptions, holderPose, NATIVE: () => NATIVE, smoking },
   };
 }
