@@ -19,6 +19,7 @@ import { createSunbeams } from './sunbeams.js';
 import { createNeon } from './neon.js';
 import { createTvScreen, loadVideoTexture } from './tv-crt.js';
 import { createTvSchedule } from './tv-schedule.js';
+import { createBulletin, BULLETIN_SEC } from './tv-bulletin.js';
 
 const Q = new URLSearchParams(location.search);
 const GLB = Q.get('m') || 'assets/office-v29c.glb', GLB_SIZE = 3880516;
@@ -196,7 +197,7 @@ async function fetchGLB(url) {
   return { buffer: buf.buffer, got };
 }
 
-let mixer = null, typebox = null, paperMat = null, tvMat = null, newsTex = null, tv = null, sched = null;
+let mixer = null, typebox = null, paperMat = null, tvMat = null, newsTex = null, tv = null, sched = null, bulletinTV = null;
 const clockPivots = [], tty = [];
 let paperTarget = 0, lastX = null, returning = false, ttyBusy = false;
 
@@ -241,7 +242,9 @@ function setup(g) {
     if (screen) {
       tv = createTvScreen(screen, { flipY: false });             // the CHANNEL 7 test card from the GLB stays in tv.testcard
       sched = createTvSchedule(tv, loadVideoTexture, { base: 'assets/tv/', cityHour: () => cityTime().h, night: 'jazz', now: () => (live ? live.now() : Date.now()) });
-      window.__tv = () => ({ ch: sched.current, t: tv.uniforms.map.value?.userData?.video?.currentTime ?? null, snow: tv.uniforms.snow.value });
+      bulletinTV = createBulletin({ fallback: () => newsTex?.image });   // NEWS BULLETIN: rendered clip + the story's headline
+      window.__bulletin = (en = 'TEST BULLETIN') => { bulletinTV.start(en, 0); sched.bulletin(bulletinTV.texture, BULLETIN_SEC); };   // for checks
+      window.__tv = () => ({ bulletin: bulletinTV.active, ch: sched.current, t: tv.uniforms.map.value?.userData?.video?.currentTime ?? null, snow: tv.uniforms.snow.value });
     }
   }
   new THREE.TextureLoader().load('assets/tv_news.jpg', (t) => { t.flipY = false; t.colorSpace = THREE.SRGBColorSpace; newsTex = t; });
@@ -310,11 +313,12 @@ if (DEMO === 'smoke') {   // review: at the desk → a cigarette at the desk →
 // NEWS BULLETIN on the TV for 20 s when the editor takes a new story off the wire (director's teletype tasks)
 const stories = new Set();
 function bulletinFrom(w) {
-  const m = /правит «(.+?)»/.exec(w?.editor?.label || ''); const story = m ? m[1] : null;
-  if (!story || stories.has(story)) return; stories.add(story);    // only the first time he takes this story
-  if (!sched || !newsTex || !Number.isFinite(w.editor.at)) return;
-  const left = Math.min(20, 20 - (live.now() - w.editor.at) / 1000);   // a late viewer gets only the rest of it
-  if (left > 1) sched.bulletin(newsTex, left);
+  const e = w?.editor, m = /правит «(.+?)»/.exec(e?.label || '');
+  const key = e?.story?.id || (m ? m[1] : null);                  // the director names the story; old worlds: from the label
+  if (!key || stories.has(key)) return; stories.add(key);          // only the first time he takes this story
+  if (!sched || !bulletinTV || !Number.isFinite(e.at)) return;
+  const since = Math.max(0, (live.now() - e.at) / 1000);           // a late viewer gets only the rest of it
+  if (BULLETIN_SEC - since > 1) { bulletinTV.start(e.story?.en || '', since); sched.bulletin(bulletinTV.texture, BULLETIN_SEC - since); }
 }
 // the teletype clacks when a story really comes in on the director's wire (3-4 an hour), for every viewer at once
 let ttySeen = null;
@@ -364,7 +368,7 @@ function step(dt, draw = true) {
     const o = paperMat.map.offset; o.y += (paperTarget - o.y) * Math.min(1, dt * 12);
   }
   if (tv) {                                                     // flicker and snow live in tv-crt.js; the room glow follows the screen
-    sched.update(); tv.update(dt);
+    sched.update(); bulletinTV?.update(dt); tv.update(dt);
     if (tvMat) tvMat.emissiveIntensity = 1 + tv.uniforms.flicker.value - 0.5 * tv.uniforms.snow.value;
   }
   if (editor) editor.update(dt, window.__simNow ?? live.now());   // __simNow: automated checks run on their own clock
