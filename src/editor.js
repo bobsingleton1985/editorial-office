@@ -85,13 +85,25 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {   /
     return { clip: c, traj, frames: n, cutEnd, cutUp: Math.min(cutEnd, up / FPS) };
   }
   const raw = {}; for (const c of gltf.animations) raw[c.name] = c;
-  const walkClip = raw.walk.clone(); walkClip.tracks = walkClip.tracks.filter((t) => !t.name.startsWith(rig.name + '.'));
-  let NATIVE = 1.9;
-  { const a = smix.clipAction(raw.walk); a.play(); smix.setTime(0); sg.updateMatrixWorld(true); const p0 = sam.pelvis.getWorldPosition(new THREE.Vector3());
-    const d = raw.walk.duration - 1e-4; smix.setTime(d); sg.updateMatrixWorld(true); const p1 = sam.pelvis.getWorldPosition(new THREE.Vector3());
-    NATIVE = Math.hypot(p1.x - p0.x, p1.z - p0.z) / d; a.stop(); smix.uncacheAction(raw.walk); }
-  { const t = walkClip.tracks.find((t) => t.name === 'pelvis.position'), v = t.values, T = t.times, n = T.length, d = [v[(n - 1) * 3] - v[0], v[(n - 1) * 3 + 1] - v[1], v[(n - 1) * 3 + 2] - v[2]];
-    for (let i = 0; i < n; i++) { const k = (T[i] - T[0]) / (T[n - 1] - T[0]); for (let j = 0; j < 3; j++) v[i * 3 + j] -= d[j] * k; } }
+  // walks: the add-on editor2A-walks-web brings Mixamo Walking1 (the editor's walk, tempo "как сейчас", approved 29.09) and the drunk walk;
+  // without it the pack walk stays and he never staggers
+  const addWalk = (n) => extra.walks?.animations.find((a) => a.name === n);
+  if (addWalk('walk')) raw.walk = addWalk('walk');
+  function prepWalk(clip) {                           // native speed from the pelvis travel, then the drift is taken out (the holder moves him)
+    const c = clip.clone(); c.tracks = c.tracks.filter((t) => !t.name.startsWith(rig.name + '.'));
+    const a = smix.clipAction(clip); a.play(); smix.setTime(0); sg.updateMatrixWorld(true); const p0 = sam.pelvis.getWorldPosition(new THREE.Vector3());
+    const d = clip.duration - 1e-4; smix.setTime(d); sg.updateMatrixWorld(true); const p1 = sam.pelvis.getWorldPosition(new THREE.Vector3());
+    const native = Math.hypot(p1.x - p0.x, p1.z - p0.z) / d; a.stop(); smix.uncacheAction(clip);
+    const t = c.tracks.find((t) => t.name === 'pelvis.position'), v = t.values, T = t.times, n = T.length, dd = [v[(n - 1) * 3] - v[0], v[(n - 1) * 3 + 1] - v[1], v[(n - 1) * 3 + 2] - v[2]];
+    for (let i = 0; i < n; i++) { const k = (T[i] - T[0]) / (T[n - 1] - T[0]); for (let j = 0; j < 3; j++) v[i * 3 + j] -= dd[j] * k; }
+    return { clip: c, native };
+  }
+  const WK = prepWalk(raw.walk), walkClip = WK.clip, NATIVE = WK.native;
+  const DR = addWalk('drunk') ? prepWalk(addWalk('drunk')) : null, NATIVE_D = DR ? DR.native : NATIVE;
+  // drunk: the director's need 'drunk' (0–100, sent in world.state) at DRUNK_ON or more; ?drunk=1 / 0 forces it for a review
+  const DRUNK_ON = 40; let drunkSt = null;
+  const drunkNow = (now) => extra.drunk != null ? extra.drunk : !!drunkSt && drunkSt.v + drunkSt.rate * Math.max(0, (now - drunkSt.at) / 60000) >= DRUNK_ON;
+  const natNow = () => NATIVE + (NATIVE_D - NATIVE) * (DR ? ch.dk || 0 : 0);
   const CL = {};
   for (const [n, c] of Object.entries(raw)) if (n !== 'walk') CL[n] = stripClip(n, c, (n === 'stand_idle' || n === 'sit_idle') ? 'first' : 'traj');
   for (const [n, c] of Object.entries(CL)) { if (!/_stand_/.test(n)) continue; c.cutGo = c.cutUp;
@@ -157,7 +169,7 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {   /
   // ---------- animation layers
   const mixer = new THREE.AnimationMixer(root), A = {}, W = {};
   function layer(name, clip, loop = true) { const a = mixer.clipAction(clip); a.setLoop(loop ? THREE.LoopRepeat : THREE.LoopOnce); a.clampWhenFinished = true; a.play(); a.setEffectiveWeight(0); A[name] = a; W[name] = { cur: 0, target: 0, rate: 1 / FADE }; }
-  layer('walk', walkClip); layer('stand_idle', CL.stand_idle.clip); layer('sit_idle', CL.sit_idle.clip); if (CL.type) layer('type', CL.type.clip);
+  layer('walk', walkClip); if (DR) layer('walk_drunk', DR.clip); layer('stand_idle', CL.stand_idle.clip); layer('sit_idle', CL.sit_idle.clip); if (CL.type) layer('type', CL.type.clip);
   for (const n of Object.keys(CL)) if (n.startsWith('desk_') || n.startsWith('booth_')) layer(n, CL[n].clip, false);
   if (CL.drink) { layer('drink', CL.drink.clip, false); A.drink.paused = true; }
   // lunch (director's activity 'lunch', on the bench at the common table): the approved eating page, one dish per decision
@@ -322,7 +334,7 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {   /
     if (ch.mode === 'walk') {
       const pts = ch.path; let rest = 0; const p = holderPose();
       for (let i = ch.cursor + 1; i < pts.length; i++) rest += dist(i === ch.cursor + 1 ? p : pts[i - 1], pts[i]);
-      const acc = 3.2; ch.speed = Math.min(NATIVE, ch.speed + acc * dt, Math.sqrt(2 * acc * Math.max(0, rest)) + 0.02);
+      const acc = 3.2; ch.speed = Math.min(natNow(), ch.speed + acc * dt, Math.sqrt(2 * acc * Math.max(0, rest)) + 0.02);
       { const q = pts[Math.min(ch.cursor + 1, pts.length - 1)], hx = q.x - holder.position.x, hz = q.z - holder.position.z;
         ch.err = Math.hypot(hx, hz) > 0.05 ? Math.abs(wrap(Math.atan2(hx, hz) - holder.rotation.y)) : 0; }
       const align = ch.err > 0.8 ? Math.max(0.15, Math.cos(ch.err)) : 1; ch.vis = ch.speed * align;
@@ -355,9 +367,11 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {   /
       }
     }
     if (ch.mode === 'walk' || ch.mode === 'turn' || ch.mode === 'idle') {
-      const v = ch.mode === 'walk' ? ch.vis : ch.speed, wW = smooth((v / NATIVE - 0.06) / 0.25);
-      W.walk.target = wW; W.stand_idle.target = 1 - wW; for (const k in W) if (k !== 'walk' && k !== 'stand_idle') W[k].target = 0;
+      const v = ch.mode === 'walk' ? ch.vis : ch.speed, wW = smooth((v / natNow() - 0.06) / 0.25), dk = DR ? ch.dk || 0 : 0;
+      W.walk.target = wW * (1 - dk); if (DR) W.walk_drunk.target = wW * dk; W.stand_idle.target = 1 - wW;
+      for (const k in W) if (k !== 'walk' && k !== 'walk_drunk' && k !== 'stand_idle') W[k].target = 0;
       ch.blendIn = Math.max(0, ch.blendIn - dt); W.walk.rate = W.stand_idle.rate = ch.blendIn > 0 ? 3 : 6; A.walk.timeScale = Math.max(0.6, v / NATIVE);
+      if (DR) { W.walk_drunk.rate = W.walk.rate; A.walk_drunk.timeScale = Math.max(0.6, v / NATIVE_D); }
     }
     gestures();
   }
@@ -514,6 +528,7 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {   /
     snapWeights(); if (smoking) smoking.pre(0, smokeWant(), A); mixer.update(0); if (smoking || lunch || phones) { holder.updateMatrixWorld(true); armSave(); }
   }
   function apply(w, serverNow) {                      // w = {seq, editor: {from, cmd, at}, chairs}
+    { const dn = w?.state?.needs?.drunk; if (dn && Number.isFinite(w.state.at)) drunkSt = { v: +dn.v || 0, rate: +dn.rate || 0, at: w.state.at }; else if (w?.state) drunkSt = null; }
     if (!w?.editor || (cur && cur.seq === w.seq)) return;
     const e = w.editor, elapsed = Math.max(0, (serverNow - e.at) / 1000);
     ch.work = e.activity ? e.activity === 'work' : /^(работает|правит)/.test(e.label || '');
@@ -533,6 +548,7 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {   /
     if (!cont && elapsed > 0.05) fastForward(elapsed);
   }
   function update(dt, serverNow) {
+    { const t = drunkNow(serverNow || Date.now()) ? 1 : 0; ch.dk = (ch.dk || 0) + THREE.MathUtils.clamp(t - (ch.dk || 0), -dt / 1.5, dt / 1.5); }   // sobering / getting drunk: 1.5 s blend
     if (cur && serverNow) { const lag = (serverNow - cur.at) / 1000 - simT; if (lag > 1.5) fastForward(lag); }
     frame(dt, false); simT += dt;
   }

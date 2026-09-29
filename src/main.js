@@ -38,6 +38,7 @@ const GESTURES = CHAR_BASE + 'assets/editor2A-gestures-web-v01.glb';     // add-
 const PHONE = 'assets/phone-v02.glb';                                     // 1950s desk telephone (faceted, after the owner's reference), pack table frame
 const PHONE_CLIPS = CHAR_BASE + 'assets/editor2A-phoneL-web-v01.glb';    // add-on: taking the handset (left hand, the nearest), talking seated and standing, hanging up
 const LUNCH = Q.get('lunch') ?? CHAR_BASE + 'assets/editor2A-lunch-web-v02.glb';   // add-on: dishes, utensils, the eating clips
+const WALKS = Q.get('walks') ?? CHAR_BASE + 'assets/editor2A-walks-web-v01.glb';   // add-on: Mixamo Walking1 (his walk since 29.09) + the drunk walk
 const $ = (id) => document.getElementById(id);
 const status = $('status'), bar = $('bar'), fpsEl = $('fps'), who = $('who');
 document.body.classList.add('js');
@@ -275,7 +276,7 @@ async function loadEditor(office) {
     showWho();
     const get = (u) => fetch(u).then((r) => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); });
     const opt = (u) => get(u).catch(() => null);                          // add-ons are optional: without them he just sits
-    const [buf, tracks, tbuf, wbuf, sbuf, cbuf, dbuf, gbuf, lbuf, pbuf, pcbuf] = await Promise.all([get(CHAR), fetch(CHAR_BASE + 'assets/chair-tracks-v30.json').then((r) => r.json()), opt(CHAR_TYPE), opt(TYPEWRITER), SMOKE ? opt(SMOKE) : null, COFFEE ? opt(COFFEE) : null, opt(DRINK_L), opt(GESTURES), LUNCH ? opt(LUNCH) : null, opt(PHONE), opt(PHONE_CLIPS)]);
+    const [buf, tracks, tbuf, wbuf, sbuf, cbuf, dbuf, gbuf, lbuf, pbuf, pcbuf, wkbuf] = await Promise.all([get(CHAR), fetch(CHAR_BASE + 'assets/chair-tracks-v30.json').then((r) => r.json()), opt(CHAR_TYPE), opt(TYPEWRITER), SMOKE ? opt(SMOKE) : null, COFFEE ? opt(COFFEE) : null, opt(DRINK_L), opt(GESTURES), LUNCH ? opt(LUNCH) : null, opt(PHONE), opt(PHONE_CLIPS), WALKS ? opt(WALKS) : null]);
     const ld = () => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
     const gltf = await ld().parseAsync(buf, '');
     const extra = {};
@@ -287,6 +288,8 @@ async function loadEditor(office) {
     if (dbuf) extra.drinkL = await ld().parseAsync(dbuf, '').catch(() => null);          // without it he smokes over coffee without sipping
     if (gbuf) extra.gestures = await ld().parseAsync(gbuf, '').catch(() => null);        // without it he just keeps still in the pauses
     if (lbuf) extra.lunch = await ld().parseAsync(lbuf, '').catch(() => null);           // without it there is no lunch
+    if (wkbuf) extra.walks = await ld().parseAsync(wkbuf, '').catch(() => null);         // without it: the pack walk, never drunk
+    if (Q.has('drunk')) extra.drunk = Q.get('drunk') !== '0';                           // review: force the drunk walk on / off
     if (pbuf && pcbuf) { const ph = createPhones(sc, await ld().parseAsync(pbuf, ''), DESKS, PACK_S);     // phones on every desk; without the clips no phones
       for (const g of ph.groups) L.attach(g); for (const g of ph.groups) SC.addDynamic(g); SC.markDirty(); extra.phones = ph; window.__phones = ph;
       extra.phoneClips = await ld().parseAsync(pcbuf, '').catch(() => null); }
