@@ -52,9 +52,7 @@ const L = createLighting(sc, r);                          // lamps with shadows,
 let SC = null;                                             // static picture cache (weak devices), made once the camera exists
 let WX = null;                                             // what is outside the windows: evening or day with the weather
 const eff = (s) => (s.shadows && (QL.level.shadows || QL.level.cache) ? s : { ...s, shadows: false });   // cached levels: shadows drawn once with the room
-let ttyTimer = null;
 function applyScene(s) {
-  clearInterval(ttyTimer); ttyTimer = s.autoTTY ? setInterval(() => incoming(), 45000) : null;
   fpsEl.style.display = s.showFps ? '' : 'none';
 }
 window.__set = (p) => { Object.assign(S, p); L.apply(eff(S)); applyScene(S); SB?.set(S.sky === 'sun', S.beams); SC?.markDirty(); };
@@ -245,7 +243,6 @@ function setup(g) {
     }
   }
   new THREE.TextureLoader().load('assets/tv_news.jpg', (t) => { t.flipY = false; t.colorSpace = THREE.SRGBColorSpace; newsTex = t; });
-  if (S.autoTTY) setTimeout(incoming, 6000);
   applyScene(S);
   $('tty').disabled = false;
   if (CHAR) loadEditor(g.scene);
@@ -292,7 +289,7 @@ addRepertoire(PANEL.section, CHAR_BASE + 'assets/registry-live.json', () => {
 });
 let lastWorld = null;
 addDirectorStatus(PANEL.section, () => ({ net, world: lastWorld, now: live ? live.now() : Date.now() }));
-live = connectLive(RELAY, (w) => { lastWorld = w; bulletinFrom(w); if (editor) editor.apply(w, live.now()); else pending = w; }, (s) => { net = s; showWho(); }, { weather: applyWeather, blinds: (b) => applyBlinds(b, true) });
+live = connectLive(RELAY, (w) => { lastWorld = w; ttyFrom(w); bulletinFrom(w); if (editor) editor.apply(w, live.now()); else pending = w; }, (s) => { net = s; showWho(); }, { weather: applyWeather, blinds: (b) => applyBlinds(b, true) });
 
 if (DEMO === 'smoke') {   // review: at the desk → a cigarette at the desk → a cigarette at the window → back to work, round and round
   const CH = { A: 0, B: 0.1174, C: 0.1174 }, T = { A: -0.25, B: 0.1174, C: 0.1174 };
@@ -312,6 +309,13 @@ function bulletinFrom(w) {
   if (!sched || !newsTex || !Number.isFinite(w.editor.at)) return;
   const left = Math.min(20, 20 - (live.now() - w.editor.at) / 1000);   // a late viewer gets only the rest of it
   if (left > 1) sched.bulletin(newsTex, left);
+}
+// the teletype clacks when a story really comes in on the director's wire (3-4 an hour), for every viewer at once
+let ttySeen = null;
+function ttyFrom(w) {
+  const t = w?.teletype; if (!t?.id || t.id === ttySeen) return;
+  const first = ttySeen === null; ttySeen = t.id;
+  if (!first || (live.now() - t.at) < 10000) incoming();          // a viewer who opens the page later does not hear an old story
 }
 function incoming() {
   if (ttyBusy || !tty.length) return;
