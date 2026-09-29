@@ -22,7 +22,7 @@ import { createTvSchedule } from './tv-schedule.js';
 import { createBulletin, BULLETIN_SEC } from './tv-bulletin.js';
 
 const Q = new URLSearchParams(location.search);
-const GLB = Q.get('m') || 'assets/office-v29c.glb', GLB_SIZE = 3880516;
+const GLB = Q.get('m') || 'assets/office-v30c.glb', GLB_SIZE = 3880888;   // v30: the table by the bench moved 8.5 cm towards it (lunch clips fit)
 const RELAY_URL = 'https://135-106-229-50.sslip.io';     // shared newsroom: relay on the VPS (also hosts the character files)
 const DEMO = window.__DEMO || Q.get('demo') || '';            // a scripted newsroom without the director (review pages)
 const RELAY = ((r) => (r === '/' ? '/' : r.replace(/\/$/, '')))(DEMO ? '' : Q.get('relay') ?? RELAY_URL);   // '/' = same origin (local test)
@@ -32,8 +32,9 @@ const CHAR_TYPE = CHAR_BASE + 'assets/editor2A-type-v13.glb';          // add-on
 const TYPEWRITER = 'assets/typewriter-v01.glb';                          // compact flat typewriter, pack table frame
 const SMOKE = Q.get('smoke') ?? CHAR_BASE + 'assets/editor2A-smoke-web-v01.glb';
 const COFFEE = Q.get('coffee') ?? CHAR_BASE + 'assets/editor2A-coffee-web-v01.glb';
-const DRINK_L = CHAR_BASE + 'assets/editor2A-drinkL-web-v01.glb';   // add-on: coffee with the left hand while smoking («Курилка» v8)   // add-on: mugs on the desks, the clip of one sip   // add-on: cigarette, lighter, the clips of one cigarette
+const DRINK_L = CHAR_BASE + 'assets/editor2A-drinkL-web-v01.glb';   // add-on: coffee with the left hand while smoking («Курилка» v8)
 const GESTURES = CHAR_BASE + 'assets/editor2A-gestures-web-v01.glb';     // add-on: small gestures in the pauses (MC Seated / MC Idles)
+const LUNCH = Q.get('lunch') ?? CHAR_BASE + 'assets/editor2A-lunch-web-v02.glb';   // add-on: dishes, utensils, the eating clips
 const $ = (id) => document.getElementById(id);
 const status = $('status'), bar = $('bar'), fpsEl = $('fps'), who = $('who');
 document.body.classList.add('js');
@@ -271,7 +272,7 @@ async function loadEditor(office) {
     showWho();
     const get = (u) => fetch(u).then((r) => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); });
     const opt = (u) => get(u).catch(() => null);                          // add-ons are optional: without them he just sits
-    const [buf, tracks, tbuf, wbuf, sbuf, cbuf, lbuf, gbuf] = await Promise.all([get(CHAR), fetch(CHAR_BASE + 'assets/chair-tracks-v30.json').then((r) => r.json()), opt(CHAR_TYPE), opt(TYPEWRITER), SMOKE ? opt(SMOKE) : null, COFFEE ? opt(COFFEE) : null, opt(DRINK_L), opt(GESTURES)]);
+    const [buf, tracks, tbuf, wbuf, sbuf, cbuf, dbuf, gbuf, lbuf] = await Promise.all([get(CHAR), fetch(CHAR_BASE + 'assets/chair-tracks-v30.json').then((r) => r.json()), opt(CHAR_TYPE), opt(TYPEWRITER), SMOKE ? opt(SMOKE) : null, COFFEE ? opt(COFFEE) : null, opt(DRINK_L), opt(GESTURES), LUNCH ? opt(LUNCH) : null]);
     const ld = () => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
     const gltf = await ld().parseAsync(buf, '');
     const extra = {};
@@ -279,11 +280,12 @@ async function loadEditor(office) {
     if (wbuf) { typewriters = createTypewriters(sc, await ld().parseAsync(wbuf, ''), DESKS, PACK_S);
       for (const g of typewriters.groups) L.attach(g); for (const g of typewriters.groups) SC.addDynamic(g); SC.markDirty(); extra.typewriters = typewriters; }
     if (sbuf) { extra.smoke = await ld().parseAsync(sbuf, '').catch(() => null); extra.camera = cam; extra.renderer = r; }   // without the add-on he simply does not smoke
-    if (cbuf) extra.coffee = await ld().parseAsync(cbuf, '').catch(() => null);
-    if (lbuf) extra.drinkL = await ld().parseAsync(lbuf, '').catch(() => null);         // without it he smokes over coffee without sipping          // without it there is no coffee
-    if (gbuf) extra.gestures = await ld().parseAsync(gbuf, '').catch(() => null);       // without it he just keeps still in the pauses
+    if (cbuf) extra.coffee = await ld().parseAsync(cbuf, '').catch(() => null);          // without it there is no coffee
+    if (dbuf) extra.drinkL = await ld().parseAsync(dbuf, '').catch(() => null);          // without it he smokes over coffee without sipping
+    if (gbuf) extra.gestures = await ld().parseAsync(gbuf, '').catch(() => null);        // without it he just keeps still in the pauses
+    if (lbuf) extra.lunch = await ld().parseAsync(lbuf, '').catch(() => null);           // without it there is no lunch
     editor = createEditor(sc, office, gltf, tracks, extra);
-    for (const g of editor.mugs) { L.attach(g); SC.addDynamic(g); } if (editor.mugs.length) SC.markDirty();
+    for (const g of editor.mugs) { L.attach(g); SC.addDynamic(g); } if (editor.lunchGroup) { L.attach(editor.lunchGroup); SC.addDynamic(editor.lunchGroup); } if (editor.mugs.length) SC.markDirty();
     L.attach(editor.holder); SC.addDynamic(editor.holder); if (editor.fx) SC.addDynamic(editor.fx);
     window.__editor = editor; window.__tw = typewriters; window.__look = (pos, tgt) => { const c = new THREE.PerspectiveCamera(35, innerWidth / innerHeight, 0.05, 100); c.position.copy(B(...pos)); c.lookAt(B(...tgt)); c.layers.enableAll(); r.render(sc, c); return r.domElement.toDataURL('image/jpeg', 0.85); };
     if (pending) { editor.apply(pending, live.now()); pending = null; }
@@ -302,6 +304,19 @@ addDirectorStatus(PANEL.section, () => ({ net, world: lastWorld, now: live ? liv
   RELAY ? () => fetch((RELAY === '/' ? '' : RELAY) + '/journal?n=150', { cache: 'no-store' }).then((r) => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }) : null);
 live = connectLive(RELAY, (w) => { lastWorld = w; ttyFrom(w); bulletinFrom(w); if (editor) editor.apply(w, live.now()); else pending = w; }, (s) => { net = s; showWho(); }, { weather: applyWeather, blinds: (b) => applyBlinds(b, true) });
 
+if (DEMO === 'lunch') {   // review: at the desk → lunch on the bench, all six dishes one after another → back to work, round and round
+  const CH = { A: 0, B: 0.1174, C: 0.1174 }, T = { A: -0.25, B: 0.1174, C: 0.1174 }, R = { A: 0.1174, B: 0.1174, C: 0.1174 };
+  // the dish is chosen by the decision number (seq % 6): soup, steak, noodles, burger, sandwich, sweets
+  const DISH_T = { 36: 22, 37: 17, 38: 42, 39: 27, 40: 27, 41: 35 };      // seq % 6: soup, steak, noodles, burger, sandwich, sweets
+  const dishes = (Q.get('dishes') || window.__DISHES || '36,37,38,39,40,41').split(',').map((x) => [+x, DISH_T[+x] || 30]);   // a review page may show only some
+  const script = [[{ seat: 'deskA' }, null, 'work', 'работает за столом A', CH, 8, 30],
+    ...dishes.map(([sq, sec], i) => [i ? { seat: 'benchM' } : { seat: 'deskA' }, i ? null : { seat: 'benchM' }, 'lunch', 'обедает за общим столом', i ? R : CH, sec + (i ? 0 : 14), sq]),
+    [{ seat: 'benchM' }, { seat: 'deskA' }, 'work', 'работает за столом A', T, 14, 42]];
+  let i = 0, round = 0;
+  const next = () => { const [from, cmd, activity, label, chairs, sec, sq] = script[i % script.length]; if (i && i % script.length === 0) round++; i++;
+    const w = { seq: sq + round * 60, chairs, editor: { from, cmd, at: live.now(), label, activity, source: 'demo' } }; if (editor) editor.apply(w, live.now()); else pending = w; setTimeout(next, sec * 1000); };
+  net = { online: true, viewers: 0 }; next();
+}
 if (DEMO === 'smoke') {   // review: at the desk → a cigarette at the desk → a cigarette at the window → back to work, round and round
   const CH = { A: 0, B: 0.1174, C: 0.1174 }, T = { A: -0.25, B: 0.1174, C: 0.1174 };
   const script = [[{ seat: 'deskA' }, null, 'work', 'работает за столом A', CH, 12], [{ seat: 'deskA' }, null, 'smoke', 'курит за столом A', CH, 58],
