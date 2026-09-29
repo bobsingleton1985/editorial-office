@@ -48,6 +48,38 @@ function openJournal(load) {
   }).catch(() => { list.replaceChildren(el('div', 'hint', 'Журнал не загрузился: нет связи с редакцией.')); });
 }
 
+// needs scales: whatever needs the director sends in world.state (today only fatigue; new needs appear here by themselves).
+// The director sends values with their rate per minute at the moment of the decision; between decisions the page runs them on.
+const NEED = { fatigue: 'Усталость', boredom: 'Скука', social: 'Общение', recognition: 'Признание', fun: 'Развлечение',
+  coffee: 'Кофе', nicotine: 'Никотин', alcohol: 'Алкоголь', stress: 'Стресс', drunk: 'Опьянение', hunger: 'Голод' };
+let needsCss = false;
+function scales(state, now) {
+  if (!needsCss) { needsCss = true; const st = document.createElement('style'); st.textContent = `
+    #settings .needs { margin:6px 0 10px; } #settings .nd { display:grid; grid-template-columns:1fr auto; gap:3px 8px; margin:8px 0; font-size:13px; }
+    #settings .nd .nv { color:var(--muted); font-variant-numeric:tabular-nums; font-size:12px; }
+    #settings .nd .nb { grid-column:1 / -1; height:7px; border-radius:4px; background:rgba(255,255,255,.09); overflow:hidden; }
+    #settings .nd .nb i { display:block; height:100%; border-radius:4px; background:linear-gradient(90deg,#7fa36b,#e0913a); }
+    #settings .nd.hi .nb i { background:linear-gradient(90deg,#e0913a,#d9483b); }
+    #settings .nd.task .nb i { background:#8aa7c9; }`; document.head.append(st); }
+  const box = el('div', 'needs'), mins = Math.max(0, (now - state.at) / 60000);
+  for (const [k, n] of Object.entries(state.needs || {})) {
+    const v = Math.max(0, Math.min(100, (n.v ?? 0) + (n.rate ?? 0) * mins)), r = n.rate ?? 0;
+    const trend = r > 0 ? ` ↑ +${r}/мин` : r < 0 ? ` ↓ ${r}/мин` : '';
+    const row = el('div', 'nd' + (v >= 70 ? ' hi' : '')), bar = el('div', 'nb'), fill = el('i');
+    fill.style.width = v.toFixed(1) + '%'; bar.append(fill);
+    row.append(el('span', null, NEED[k] || k), el('span', 'nv', `${Math.round(v)} из 100${trend}`), bar); box.append(row);
+  }
+  const t = state.task;
+  if (t) {
+    const run = t.working ? Math.max(0, (now - Math.max(state.at, t.from || state.at)) / 60000) : 0, done = Math.min(t.need, t.done + run);
+    const row = el('div', 'nd task'), bar = el('div', 'nb'), fill = el('i');
+    fill.style.width = (100 * done / t.need).toFixed(1) + '%'; bar.append(fill);
+    row.append(el('span', null, `Правка «${t.title}»`), el('span', 'nv', `${done.toFixed(1).replace('.', ',')} из ${t.need} мин${t.working ? '' : ' · отложена'}`), bar); box.append(row);
+  }
+  box.append(el('div', 'hint', t ? `В очереди ещё ${state.queue ?? 0} ${['сообщение', 'сообщения', 'сообщений'][(q => q % 10 === 1 && q % 100 !== 11 ? 0 : [2, 3, 4].includes(q % 10) && ![12, 13, 14].includes(q % 100) ? 1 : 2)(state.queue ?? 0)]} с ленты.` : 'Сообщений с ленты в работе нет.'));
+  return box;
+}
+
 export function addDirectorStatus(section, get, loadJournal) {
   if (!section) return;
   const sec = section('🧠 Режиссёр (Jev)', 'director'), box = el('div', 'rep'); sec.append(box);
@@ -65,7 +97,9 @@ export function addDirectorStatus(section, get, loadJournal) {
       rows.push(['Jev сейчас', e.source === 'jev' ? '✅ работает' : e.source === 'rule' ? '⚠️ не отвечает, решает правило' : 'ждёт первого решения']);
     } else rows.push(['Последнее решение', 'ещё не получено']);
     const tb = el('table'); for (const [k, v] of rows) { const tr = el('tr'); tr.append(el('td', 'dim', k), el('td', null, v)); tb.append(tr); }
-    box.replaceChildren(tb, el('div', 'hint', 'Jev думает, только пока редакцию кто-то смотрит.'));
+    const st = world?.state, sub = el('div', 'sub', 'Шкалы потребностей');
+    const needs = st && typeof st.at === 'number' ? scales(st, now) : el('div', 'hint', 'Шкалы появятся после следующего решения режиссёра.');
+    box.replaceChildren(sub, needs, tb, el('div', 'hint', 'Jev думает, только пока редакцию кто-то смотрит. Время редакции (и шкалы) идёт тоже только при зрителях.'));
   }
   setInterval(() => { if (sec.open) render(); }, 1000);
   sec.addEventListener('toggle', () => { if (sec.open) render(); });
