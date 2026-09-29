@@ -5,13 +5,12 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { createLighting } from './lighting.js';
 import { loadSettings, buildPanel } from './settings.js';
-import { addRepertoire } from './repertoire.js';
-import { addDirectorStatus } from './director-status.js';
 import { createEditor } from './editor.js';
 import { connectLive } from './live.js';
 import { createQuality } from './quality.js';
 import { createStaticCache } from './cache.js';
 import { CHAIR_NODE } from './layout.js';
+import { createWeather } from './weather.js';
 
 const Q = new URLSearchParams(location.search);
 const GLB = Q.get('m') || 'assets/office-v29c.glb', GLB_SIZE = 3880516;
@@ -39,18 +38,19 @@ const pm = new THREE.PMREMGenerator(r);
 sc.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture;
 const L = createLighting(sc, r);                          // lamps with shadows, ambient, window light
 let SC = null;                                             // static picture cache (weak devices), made once the camera exists
+let WX = null;                                             // what is outside the windows: evening or day with the weather
 const eff = (s) => (s.shadows && QL.level.shadows ? s : { ...s, shadows: false });   // the quality level may switch shadows off
 let ttyTimer = null;
 function applyScene(s) {
   clearInterval(ttyTimer); ttyTimer = s.autoTTY ? setInterval(() => incoming(), 45000) : null;
   fpsEl.style.display = s.showFps ? '' : 'none';
 }
-window.__set = (p) => { Object.assign(S, p); L.apply(eff(S)); applyScene(S); };
+window.__set = (p) => { Object.assign(S, p); L.apply(eff(S)); applyScene(S); WX?.apply(S.sky); SC?.markDirty(); };
 window.__cam = (pos, tgt, zoom = 1) => { cam.position.copy(B(...pos)); ctl.target.copy(B(...tgt)); cam.zoom = zoom; cam.updateProjectionMatrix(); ctl.update(); SC?.markDirty(); };
 L.apply(eff(S));
 let qMode = S.quality;
-const PANEL = buildPanel(S, (s) => { if (s.quality !== qMode) { qMode = s.quality; QL.set(s.quality); applyQuality(); } L.apply(eff(s)); applyScene(s); SC?.markDirty(); });
-const diag = { textContent: '' }; window.__diag = diag;   // technical line (GPU, frame time): console only — window.__diag.textContent
+buildPanel(S, (s) => { if (s.quality !== qMode) { qMode = s.quality; QL.set(s.quality); applyQuality(); } L.apply(eff(s)); applyScene(s); WX?.apply(s.sky); SC?.markDirty(); });
+const diag = document.createElement('div'); diag.className = 'hint'; document.getElementById('settings')?.append(diag);
 const gpuName = (() => { try { const gl = r.getContext(), e = gl.getExtension('WEBGL_debug_renderer_info'); return e ? gl.getParameter(e.UNMASKED_RENDERER_WEBGL) : ''; } catch (e) { return ''; } })();
 function applyQuality() { r.setPixelRatio(QL.pixelRatio()); fit(); L.apply(eff(S)); if (SC) { SC.enabled = QL.level.cache; SC.roomScale = QL.roomScale(); SC.markDirty(); } }
 window.__quality = () => ({ level: QL.level.id, auto: QL.auto, tv: QL.tv, ratio: r.getPixelRatio(), aa: QL.antialias, cache: !!SC?.enabled, calls: r.info.render.calls, cpu_ms: +cpuMs.toFixed(1) });
@@ -131,6 +131,10 @@ function setup(g) {
     for (const n of Object.values(CHAIR_NODE)) { const o = g.scene.getObjectByName(n); if (o) dyn.add(o); }
     dyn.forEach((o) => SC.addDynamic(o)); SC.lightsEverywhere(); window.__dynCount = dyn.size;
   }
+  WX = createWeather(sc, g.scene, r);
+  WX.onDynamic = (o) => SC.addDynamic(o);                     // rain and snow move every frame
+  WX.onReady = () => SC.markDirty();                          // day facades arrived: redraw the cached room
+  WX.apply(S.sky); SC.markDirty();
   if (paperMat && paperMat.map) paperTarget = paperMat.map.offset.y;
   if (tvMat) tvOrig = { map: tvMat.map, emissiveMap: tvMat.emissiveMap };
   new THREE.TextureLoader().load('assets/tv_news.jpg', (t) => {
@@ -167,16 +171,7 @@ async function loadEditor(office) {
     showWho(); setInterval(showWho, 1000);
   } catch (e) { if (who) who.textContent = '👤 Редактор не загрузился: ' + e.message; window.__err = String(e); }
 }
-// ☰ panel: animation chains and clips (registry), director status
-addRepertoire(PANEL.section, CHAR_BASE + 'assets/registry-live.json', () => {
-  const st = editor ? editor.status() : null; if (!st) return null;
-  if (st.mode === 'walk' || st.mode === 'turn') return 'walk';
-  if (st.seat?.startsWith('desk')) return 'desk'; if (st.seat?.startsWith('bench')) return 'bench';
-  return st.mode === 'idle' ? 'spot' : null;
-});
-let lastWorld = null;
-addDirectorStatus(PANEL.section, () => ({ net, world: lastWorld, now: live ? live.now() : Date.now() }));
-live = connectLive(RELAY, (w) => { lastWorld = w; if (editor) editor.apply(w, live.now()); else pending = w; }, (s) => { net = s; showWho(); });
+live = connectLive(RELAY, (w) => { if (editor) editor.apply(w, live.now()); else pending = w; }, (s) => { net = s; showWho(); });
 
 function tvNews(on) {
   if (!tvMat || !tvOrig) return;
@@ -205,6 +200,7 @@ window.__step = (dt, n = 1) => { for (let i = 0; i < n; i++) step(dt, i === n - 
 function step(dt, draw = true) {
   const t0 = performance.now();
   if (mixer) mixer.update(dt);
+  WX?.update(dt);
   const d = new Date(), h = d.getHours(), m = d.getMinutes(), s = d.getSeconds();
   const ang = { hour: ((h % 12) + m / 60) * Math.PI / 6, minute: (m + s / 60) * Math.PI / 30, second: s * Math.PI / 30 };
   for (const p of clockPivots) p.o.rotation.set(0, 0, p.sign * ang[p.kind]);

@@ -1,9 +1,12 @@
-// Settings panel ("hamburger"): collapsible sections — light, lamps, picture, shadows, scene, plus sections added by other modules
-// (animation chains, director). Values and open sections are saved per browser in localStorage.
+// Settings panel ("hamburger"): light sources, shadows, picture, scene. Saved per browser in localStorage.
 const KEY = 'editorial.settings.v1';
+const clonePreset = (p) => JSON.parse(JSON.stringify(p));
 export const PRESETS = {
-  evening: { ambient: 0.3, windowLight: 0.35, env: 0.25, exposure: 1.1, desk: 1, floor: 1, warmth: 0.65 },
-  bright: { ambient: 1.1, windowLight: 1.6, env: 0.45, exposure: 1.0, desk: 0.6, floor: 0.6, warmth: 0.45 },
+  evening: { sky: 'night', ambient: 0.3, windowLight: 0.35, env: 0.25, exposure: 1.1, desk: 1, floor: 1, warmth: 0.65, lamps: { A: true, B: true, C: true, floor: true } },
+  sun: { sky: 'sun', ambient: 1.0, windowLight: 2.4, env: 0.5, exposure: 1.0, desk: 0.6, floor: 0.6, warmth: 0.45, lamps: { A: false, B: false, C: false, floor: false } },
+  cloudy: { sky: 'cloudy', ambient: 0.85, windowLight: 1.3, env: 0.42, exposure: 1.05, desk: 0.7, floor: 0.6, warmth: 0.55, lamps: { A: true, B: true, C: true, floor: false } },
+  rain: { sky: 'rain', ambient: 0.6, windowLight: 0.9, env: 0.35, exposure: 1.1, desk: 0.85, floor: 0.7, warmth: 0.6, lamps: { A: true, B: true, C: true, floor: true } },
+  snow: { sky: 'snow', ambient: 0.95, windowLight: 1.7, env: 0.46, exposure: 1.0, desk: 0.7, floor: 0.6, warmth: 0.55, lamps: { A: true, B: true, C: true, floor: false } },
 };
 export const DEFAULTS = {
   ...PRESETS.evening,
@@ -12,9 +15,6 @@ export const DEFAULTS = {
   autoTTY: true, showFps: true, quality: 'auto',
 };
 const clone = (o) => JSON.parse(JSON.stringify(o));
-const OPEN_KEY = 'editorial.sections.v1';
-const openSet = (() => { try { return new Set(JSON.parse(localStorage.getItem(OPEN_KEY) || '[]')); } catch (e) { return new Set(); } })();
-function saveOpen() { try { localStorage.setItem(OPEN_KEY, JSON.stringify([...openSet])); } catch (e) { /* ignore */ } }
 
 export function loadSettings() {
   let s = clone(DEFAULTS);
@@ -51,28 +51,23 @@ export function buildPanel(state, onChange) {
 
   const inputs = [];
   const commit = () => { save(state); onChange(state); };
-  const tail = document.createElement('div'); tail.className = 'btns';
-  // a collapsible section; everything added after it goes inside until the next section
-  let cur = panel;
-  const section = (t, id = t, into = true) => {
-    const d = document.createElement('details'); d.className = 'sec'; d.open = openSet.has(id);
-    const sm = document.createElement('summary'); sm.textContent = t; d.append(sm);
-    d.addEventListener('toggle', () => { if (d.open) openSet.add(id); else openSet.delete(id); saveOpen(); d.dispatchEvent(new CustomEvent('sectionopen')); });
-    panel.insertBefore(d, tail); if (into) cur = d; return d;
-  };
-  const h = (t) => section(t);
+  const h = (t) => { const e = document.createElement('h2'); e.textContent = t; panel.append(e); };
   const row = (label, input, out) => {
     const l = document.createElement('label'); l.className = 'row';
     const sp = document.createElement('span'); sp.textContent = label; l.append(sp);
-    if (out) l.append(out); l.append(input); cur.append(l);
+    if (out) l.append(out); l.append(input); panel.append(l);
   };
   const presetRow = document.createElement('div'); presetRow.className = 'btns';
-  for (const [k, t] of [['evening', '🌙 Вечер'], ['bright', '☀️ Светло']]) {
+  for (const [k, t] of [['evening', '🌙 Вечер'], ['sun', '☀️ Солнце'], ['cloudy', '⛅ Облачно'], ['rain', '🌧 Дождь'], ['snow', '❄️ Снег']]) {
     const b = document.createElement('button'); b.textContent = t;
-    b.addEventListener('click', () => { Object.assign(state, PRESETS[k]); sync(); commit(); });
+    b.addEventListener('click', () => { Object.assign(state, clonePreset(PRESETS[k])); sync(); commit(); });
     presetRow.append(b);
   }
-  panel.append(presetRow, tail);
+  panel.append(presetRow);
+  { const sel = document.createElement('select');
+    for (const [v, t] of [['night', 'Вечер, огни города'], ['sun', 'День, солнце'], ['cloudy', 'День, облачно'], ['rain', 'День, дождь'], ['snow', 'День, снег']]) { const o = document.createElement('option'); o.value = v; o.textContent = t; sel.append(o); }
+    sel.addEventListener('change', () => { state.sky = sel.value; commit(); });
+    inputs.push(() => { sel.value = state.sky || 'night'; }); row('За окном', sel); }
   for (const [title, list] of SLIDERS) {
     h(title);
     if (title === 'Лампы') for (const [p, label] of TOGGLES) {
@@ -106,6 +101,7 @@ export function buildPanel(state, onChange) {
     i.addEventListener('change', () => { state[k] = i.checked; commit(); });
     inputs.push(() => { i.checked = state[k]; }); row(label, i);
   }
+  const tail = document.createElement('div'); tail.className = 'btns';
   const reset = document.createElement('button'); reset.textContent = 'Сбросить';
   reset.addEventListener('click', () => { Object.assign(state, clone(DEFAULTS)); sync(); commit(); });
   const copy = document.createElement('button'); copy.textContent = 'Скопировать настройки';
@@ -119,5 +115,5 @@ export function buildPanel(state, onChange) {
   tail.append(reset, copy); panel.append(tail);
   const sync = () => inputs.forEach((f) => f());
   sync();
-  return { toggle, section: (t, id) => section(t, id, false) };
+  return { toggle };
 }

@@ -44,21 +44,6 @@
   #settings select { background:#2a221c; color:var(--ink); border:1px solid var(--line); border-radius:8px; padding:6px; }
   #settings .btns { display:flex; gap:8px; flex-wrap:wrap; margin:12px 0 4px; }
   #settings .btns button { font-size:13px; padding:7px 12px; }
-  #settings details.sec { border-top:1px solid var(--line); }
-  #settings details.sec > summary { list-style:none; cursor:pointer; padding:12px 0; font:600 11px/1 -apple-system, "Segoe UI", Roboto, sans-serif;
-    letter-spacing:.12em; text-transform:uppercase; color:var(--muted); display:flex; justify-content:space-between; }
-  #settings details.sec > summary::-webkit-details-marker { display:none; }
-  #settings details.sec > summary::after { content:'▸'; transition:transform .15s; }
-  #settings details.sec[open] > summary::after { transform:rotate(90deg); }
-  #settings details.sec[open] > summary { color:var(--ink); }
-  #settings details.sec > :last-child { margin-bottom:10px; }
-  #settings .rep .rc { margin:6px 0; padding:6px 8px; border:1px solid var(--line); border-radius:8px; }
-  #settings .rep .rc.now { border-color:var(--accent); background:rgba(224,145,58,.12); }
-  #settings .rep b { font-weight:600; } #settings .rep .dim, #settings .rep tr.dim td { color:var(--muted); }
-  #settings .rep .sub { margin:12px 0 4px; font-weight:600; }
-  #settings .rep table { width:100%; border-collapse:collapse; font-size:12px; }
-  #settings .rep td { padding:4px 2px; border-top:1px solid var(--line); vertical-align:top; }
-  #settings .rep td.n { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
   .hint { color:var(--muted); font:12px -apple-system, "Segoe UI", Roboto, sans-serif; margin-top:4px; }
 </style>
 </head>
@@ -78,6 +63,6 @@
   <span id="fps">…</span>
 </div>
 <noscript><div class="panel" style="top:auto;bottom:16px">Для офиса нужен JavaScript.</div></noscript>
-<script src="app.js?v=36" defer></script>
+<script src="app.js?v=35" defer></script>
 </body>
 </html>

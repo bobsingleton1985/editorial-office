@@ -14,6 +14,9 @@ export function tint(warmth) {
 // desk lamps: centre of the green shade (Blender coords); the chair side of each desk is +y
 const DESK = { A: [-3.52, 1.766], B: [1.08, 2.67], C: [4.58, 2.666] };
 const DESK_I = 5.0, FLOOR_I = 22.0, TV_I = 0.6;
+// light from the windows and the sky dome for each state of the weather: [window, hemisphere sky, hemisphere ground]
+const SKY_LIGHT = { night: [0xb9c7ff, 0xffe9d0, 0x2a2420], sun: [0xfff0d8, 0xe4ecf8, 0x5a4a3c], cloudy: [0xe2e8f0, 0xdfe4ea, 0x4a4440],
+  rain: [0xc8d2de, 0xcfd6de, 0x3a3634], snow: [0xeef2fb, 0xedf1f8, 0x6a6660] };
 
 export function createLighting(sc, r) {
   r.shadowMap.enabled = true;
@@ -67,6 +70,8 @@ export function createLighting(sc, r) {
   function apply(s) {
     cur = s;
     hemi.intensity = s.ambient; win.intensity = s.windowLight;
+    const sl = SKY_LIGHT[s.sky] || SKY_LIGHT.night;
+    win.color.setHex(sl[0]); hemi.color.setHex(sl[1]); hemi.groundColor.setHex(sl[2]);
     sc.environmentIntensity = s.env; r.toneMappingExposure = s.exposure;
     const col = tint(s.warmth), size = { low: 512, medium: 1024, high: 2048 }[s.shadowQ] || 1024;
     for (const k of ['A', 'B', 'C', 'floor']) {
