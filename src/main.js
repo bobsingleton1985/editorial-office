@@ -291,7 +291,8 @@ addRepertoire(PANEL.section, CHAR_BASE + 'assets/registry-live.json', () => {
   return st.mode === 'idle' ? 'spot' : null;
 });
 let lastWorld = null;
-addDirectorStatus(PANEL.section, () => ({ net, world: lastWorld, now: live ? live.now() : Date.now() }));
+addDirectorStatus(PANEL.section, () => ({ net, world: lastWorld, now: live ? live.now() : Date.now() }),
+  RELAY ? () => fetch((RELAY === '/' ? '' : RELAY) + '/journal?n=150', { cache: 'no-store' }).then((r) => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }) : null);
 live = connectLive(RELAY, (w) => { lastWorld = w; ttyFrom(w); bulletinFrom(w); if (editor) editor.apply(w, live.now()); else pending = w; }, (s) => { net = s; showWho(); }, { weather: applyWeather, blinds: (b) => applyBlinds(b, true) });
 
 if (DEMO === 'smoke') {   // review: at the desk → a cigarette at the desk → a cigarette at the window → back to work, round and round
