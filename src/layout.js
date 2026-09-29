@@ -31,5 +31,6 @@ export const BENCH = {
 export const SPOTS = {
   window: { x: -4.55, z: 2.5, th: -Math.PI / 2, label: 'у окна' },
   teletype: { x: 3.85, z: -0.9, th: Math.PI / 2, label: 'у телетайпа' },
+  phoneA: { x: -3.0, z: -2.40, th: -Math.PI / 2, label: 'у телефона стола A' },  // in the aisle beside desk A, facing it: the phone (left front corner) at his left hand
 };
 export const RADIUS = 0.2 * S;                        // body radius for walking around furniture

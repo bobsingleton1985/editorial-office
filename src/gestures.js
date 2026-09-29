@@ -42,17 +42,35 @@ export function sample(g, u) {
     if (u < a.s || u >= a.s + a.d) continue;
     let k = i === 0 ? 1 : sm(Math.min(1, (u - a.s) / X));
     if (b && u >= b.s) k *= 1 - sm(Math.min(1, (u - b.s) / X));
-    const p = w[a.n]; w[a.n] = [(p ? p[0] : 0) + k * sm(e), a.loop ? (u - a.s) % a.loop : Math.min(u - a.s, a.d - 1e-3)]; }
+    const p = w[a.n], o = a.o || 0; w[a.n] = [(p ? p[0] : 0) + k * sm(e), a.loop ? (u - a.s) % a.loop : o + Math.min(u - a.s, a.d - 1e-3)]; }   // o: the clip starts that far in
   return { e: sm(e), w };
 }
 
-// cut a running gesture short (he is about to get up): a sequence goes straight to its way out, a single clip fades out
+// cut a running gesture short (he is about to get up, or the call is over): a sequence goes straight to its way out (from its
+// first *_stop clip to the end), a single clip fades out
 export function wrapUp(g, u) {
-  const last = g.segs[g.segs.length - 1];
-  if (g.segs.length > 1 && /_stop$/.test(last.n)) {
-    if (u >= last.s) return g;
-    const cur = g.segs.find((a) => u >= a.s && u < a.s + a.d) || g.segs[0];
-    return { ...g, segs: [{ ...cur, d: u - cur.s + X }, { n: last.n, s: u, d: last.d }], T: u + last.d };
+  const i = g.segs.findIndex((a, j) => j > 0 && /_stop$/.test(a.n));
+  if (i > 0) {
+    if (u >= g.segs[i].s) return g;
+    const cur = g.segs.find((a) => u >= a.s && u < a.s + a.d) || g.segs[0], out = []; let s = u;
+    for (const a of g.segs.slice(i)) { out.push({ ...a, s }); s += a.d - X; }
+    return { ...g, segs: [{ ...cur, d: u - cur.s + X }, ...out], T: s + X };
   }
   return { ...g, T: Math.min(g.T, u + ENV) };
+}
+
+// a phone call: take the handset, talk (the talk clips one after another, for as long as the call lasts), put it back.
+// Seated at the desk he reaches for it at once and sits back while lifting it (the pack's clips are "on a chair"); standing he talks where he is.
+export const PHONE = {
+  desk: { start: ['phone_start'], talk: ['phone_01', 'phone_02', 'phone_03'], end: ['phone_stop', 'chair_to_tbl'] },   // straight from the desk to the handset (no hands-on-knees first)
+  stand: { start: ['stand_phone_start'], talk: ['stand_phone_01', 'stand_phone_02', 'stand_phone_03'], end: ['stand_phone_stop'] },
+};
+const SKIP = 8 / 30;                                               // at the desk the start clip is entered after its idle opening
+export function phonePlan(kind, t0, dur, minutes = 20) {
+  const P = PHONE[kind], names = [...P.start]; let talk = 0;
+  while (talk < minutes * 60) for (const n of P.talk) { names.push(n); talk += dur(n) || 5; }
+  names.push(...P.end);
+  const segs = []; let s = 0;
+  for (const n of names) { const o = n === 'phone_start' && kind === 'desk' ? SKIP : 0, d = dur(n) - o; if (!(d > 0)) return null; segs.push({ n, s, d, o }); s += d - X; }
+  return { t0, segs, T: s + X, kind, phone: true };
 }

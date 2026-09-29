@@ -13,6 +13,7 @@ import { createQuality } from './quality.js';
 import { createStaticCache } from './cache.js';
 import { CHAIR_NODE, DESKS, S as PACK_S } from './layout.js';
 import { createTypewriters } from './typewriter.js';
+import { createPhones } from './phone.js';
 import { createWeather } from './weather.js';
 import { createBlinds } from './blinds.js';
 import { createSunbeams } from './sunbeams.js';
@@ -34,6 +35,8 @@ const SMOKE = Q.get('smoke') ?? CHAR_BASE + 'assets/editor2A-smoke-web-v01.glb';
 const COFFEE = Q.get('coffee') ?? CHAR_BASE + 'assets/editor2A-coffee-web-v01.glb';
 const DRINK_L = CHAR_BASE + 'assets/editor2A-drinkL-web-v01.glb';   // add-on: coffee with the left hand while smoking («Курилка» v8)
 const GESTURES = CHAR_BASE + 'assets/editor2A-gestures-web-v01.glb';     // add-on: small gestures in the pauses (MC Seated / MC Idles)
+const PHONE = 'assets/phone-v02.glb';                                     // 1950s desk telephone (faceted, after the owner's reference), pack table frame
+const PHONE_CLIPS = CHAR_BASE + 'assets/editor2A-phoneL-web-v01.glb';    // add-on: taking the handset (left hand, the nearest), talking seated and standing, hanging up
 const LUNCH = Q.get('lunch') ?? CHAR_BASE + 'assets/editor2A-lunch-web-v02.glb';   // add-on: dishes, utensils, the eating clips
 const $ = (id) => document.getElementById(id);
 const status = $('status'), bar = $('bar'), fpsEl = $('fps'), who = $('who');
@@ -272,7 +275,7 @@ async function loadEditor(office) {
     showWho();
     const get = (u) => fetch(u).then((r) => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); });
     const opt = (u) => get(u).catch(() => null);                          // add-ons are optional: without them he just sits
-    const [buf, tracks, tbuf, wbuf, sbuf, cbuf, dbuf, gbuf, lbuf] = await Promise.all([get(CHAR), fetch(CHAR_BASE + 'assets/chair-tracks-v30.json').then((r) => r.json()), opt(CHAR_TYPE), opt(TYPEWRITER), SMOKE ? opt(SMOKE) : null, COFFEE ? opt(COFFEE) : null, opt(DRINK_L), opt(GESTURES), LUNCH ? opt(LUNCH) : null]);
+    const [buf, tracks, tbuf, wbuf, sbuf, cbuf, dbuf, gbuf, lbuf, pbuf, pcbuf] = await Promise.all([get(CHAR), fetch(CHAR_BASE + 'assets/chair-tracks-v30.json').then((r) => r.json()), opt(CHAR_TYPE), opt(TYPEWRITER), SMOKE ? opt(SMOKE) : null, COFFEE ? opt(COFFEE) : null, opt(DRINK_L), opt(GESTURES), LUNCH ? opt(LUNCH) : null, opt(PHONE), opt(PHONE_CLIPS)]);
     const ld = () => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
     const gltf = await ld().parseAsync(buf, '');
     const extra = {};
@@ -284,6 +287,9 @@ async function loadEditor(office) {
     if (dbuf) extra.drinkL = await ld().parseAsync(dbuf, '').catch(() => null);          // without it he smokes over coffee without sipping
     if (gbuf) extra.gestures = await ld().parseAsync(gbuf, '').catch(() => null);        // without it he just keeps still in the pauses
     if (lbuf) extra.lunch = await ld().parseAsync(lbuf, '').catch(() => null);           // without it there is no lunch
+    if (pbuf && pcbuf) { const ph = createPhones(sc, await ld().parseAsync(pbuf, ''), DESKS, PACK_S);     // phones on every desk; without the clips no phones
+      for (const g of ph.groups) L.attach(g); for (const g of ph.groups) SC.addDynamic(g); SC.markDirty(); extra.phones = ph; window.__phones = ph;
+      extra.phoneClips = await ld().parseAsync(pcbuf, '').catch(() => null); }
     editor = createEditor(sc, office, gltf, tracks, extra);
     for (const g of editor.mugs) { L.attach(g); SC.addDynamic(g); } if (editor.lunchGroup) { L.attach(editor.lunchGroup); SC.addDynamic(editor.lunchGroup); } if (editor.mugs.length) SC.markDirty();
     L.attach(editor.holder); SC.addDynamic(editor.holder); if (editor.fx) SC.addDynamic(editor.fx);
@@ -336,6 +342,31 @@ if (DEMO === 'gestures') {   // review: small gestures in the pauses — resting
   const next = () => { const [seq, from, cmd, activity, label, fatigue, chairs, sec] = script[i % script.length]; i++;
     const w = { seq, chairs, editor: { from, cmd, at: live.now(), label, activity, fatigue, source: 'demo' } }; if (editor) editor.apply(w, live.now()); else pending = w; setTimeout(next, sec * 1000); };
   net = { online: true, viewers: 0 }; next();
+}
+if (DEMO === 'phone') {   // review: the owner calls (button «Позвонить»): at the desk he answers seated; standing at the window he walks to the phone
+  const CH = { A: 0, B: 0.1174, C: 0.1174 }, T = { A: -0.25, B: 0.1174, C: 0.1174 };
+  let seq = 100, place = { seat: 'deskA' }, timer = 0;
+  const send = (from, cmd, activity, label, chairs) => { seq++; const w = { seq, chairs, editor: { from, cmd, at: live.now(), label, activity, source: 'demo' } };
+    if (editor) editor.apply(w, live.now()); else pending = w; };
+  const btn = document.createElement('button'); btn.id = 'call'; btn.textContent = '☎️ Позвонить';
+  btn.style.cssText = 'position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:20;padding:10px 18px;font-size:16px';
+  document.body.appendChild(btn);
+  const mv = document.createElement('button'); mv.id = 'where'; mv.textContent = '🚶 К окну';
+  mv.style.cssText = 'position:fixed;left:50%;bottom:64px;transform:translateX(-50%);z-index:20;padding:8px 14px;font-size:14px';
+  document.body.appendChild(mv);
+  let inCall = false;
+  const idle = () => { inCall = false; btn.textContent = '☎️ Позвонить';
+    if (place.seat) send(place, null, 'rest_desk', 'отдыхает за столом A', CH); else send(place, null, 'wait', 'стоит у окна', T); };
+  mv.onclick = () => { if (inCall) return; const to = place.seat ? { spot: 'window' } : { seat: 'deskA' };
+    send(place, to, to.seat ? 'rest_desk' : 'wait', to.seat ? 'отдыхает за столом A' : 'стоит у окна', place.seat ? CH : T); place = to; mv.textContent = to.seat ? '🚶 К окну' : '🪑 За стол'; };
+  btn.onclick = () => { clearTimeout(timer);
+    if (inCall) { idle(); return; }                                 // «Положить трубку»: the call is over
+    inCall = true; btn.textContent = '📴 Положить трубку';
+    if (place.seat) send(place, null, 'phone', 'говорит по телефону за столом A', CH);
+    else { send(place, { spot: 'phoneA' }, 'phone', 'подходит к телефону', T); place = { spot: 'phoneA' }; mv.textContent = '🪑 За стол'; }
+    timer = setTimeout(idle, 60000); };
+  window.__call = () => btn.onclick(); window.__where = () => mv.onclick();
+  net = { online: true, viewers: 0 }; send(place, null, 'rest_desk', 'отдыхает за столом A', CH);
 }
 
 // NEWS BULLETIN on the TV for 20 s when the editor takes a new story off the wire (director's teletype tasks)

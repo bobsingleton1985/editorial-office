@@ -9,9 +9,16 @@ import { S, DESKS, BENCH, SPOTS, RADIUS, chairBox, CHAIR_REST, CHAIR_TUCKED, CHA
 import { createSmoking } from './smoke.js';
 import { createCoffee, SIP } from './coffee.js';
 import { createLunch, DISHES, DISH_NAME } from './lunch.js';
-import { plan as gPlan, sample as gSample, wrapUp as gWrap, SEATED as G_SEATED, POOLS as G_POOLS } from './gestures.js';
+import { plan as gPlan, sample as gSample, wrapUp as gWrap, SEATED as G_SEATED, POOLS as G_POOLS, phonePlan } from './gestures.js';
 
 const FPS = 30, FADE = 0.3, LEAD = 0.9;
+// the left hand's fingers holding the mug (drink_l, «Курилка» v8, mid-sip): the same grip holds the phone's handset
+const GRIP_L = { index_01_l: [0.0227, -0.1689, 0.264, 0.9493], index_02_l: [0.0694, 0.0584, 0.6368, 0.7657], index_03_l: [-0.0001, 0.0154, 0.1767, 0.9841],
+  middle_01_l: [-0.0183, -0.1142, 0.5858, 0.8021], middle_02_l: [0.0002, -0.0327, 0.6381, 0.7693], middle_03_l: [-0.0019, -0.0195, 0.4861, 0.8737],
+  ring_01_l: [-0.0176, -0.1271, 0.5486, 0.8262], ring_02_l: [-0.0126, -0.1683, 0.6617, 0.7305], ring_03_l: [-0.0002, -0.0667, 0.3212, 0.9447],
+  pinky_01_l: [-0.0327, -0.1437, 0.4467, 0.8824], pinky_02_l: [0.0508, -0.3101, 0.6643, 0.6782], pinky_03_l: [-0.1115, -0.1455, 0.4056, 0.8955],
+  thumb_01_l: [0.7449, 0.2419, -0.0452, 0.6201], thumb_02_l: [-0.1084, 0.0484, 0.1403, 0.983], thumb_03_l: [-0.0009, -0.0103, 0.313, 0.9497] };
+const _qg = new THREE.Quaternion();
 const smooth = (t) => { t = Math.min(1, Math.max(0, t)); return t * t * (3 - 2 * t); };
 const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 const P = (x, z, th = 0) => ({ x, z, th });
@@ -101,6 +108,9 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {   /
   // small gestures in the pauses (add-on editor2A-gestures-web-v01.glb): seated ones in the seat frame, standing ones in place
   const GEST = {};
   if (extra.gestures) for (const c of extra.gestures.animations) { try { GEST[c.name] = stripClip('g_' + c.name, c, G_SEATED.has(c.name) ? seatBase : 'first'); } catch (e) { console.warn('gesture', c.name, e); } }
+  // the phone (add-on editor2A-phone-web-v01.glb): seated clips in the seat frame, the standing ones (stand_*) in place
+  if (extra.phoneClips) for (const c of extra.phoneClips.animations) { try { GEST[c.name] = stripClip('g_' + c.name, c, /^stand_/.test(c.name) ? 'first' : seatBase); } catch (e) { console.warn('phone clip', c.name, e); } }
+  const phones = extra.phones || null;
   if (extra.coffee) { try { coffee = createCoffee({ scene, addon: extra.coffee, DESKS, S }); CL.drink = stripClip('drink', coffee.bodyClip, seatBase); }
     catch (e) { console.warn('coffee unavailable:', e); coffee = null; } }
 
@@ -205,7 +215,7 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {   /
     return null;
   };
   // hand IK on top of the mixer: put the arms back to the clean animated pose before each update (the mixer skips unchanged values)
-  const ARMS = ['upperarm_r', 'lowerarm_r', 'hand_r', 'upperarm_l', 'lowerarm_l', 'hand_l'].map((n) => Bn[n]), armQ = ARMS.map((b) => b.quaternion.clone());
+  const ARMS = ['upperarm_r', 'lowerarm_r', 'hand_r', 'upperarm_l', 'lowerarm_l', 'hand_l', ...(extra.phones ? [...Object.keys(GRIP_L), 'neck_01', 'head'] : [])].map((n) => Bn[n]).filter(Boolean), armQ = ARMS.map((b) => b.quaternion.clone());
   const armRestore = () => ARMS.forEach((b, i) => b.quaternion.copy(armQ[i])), armSave = () => ARMS.forEach((b, i) => armQ[i].copy(b.quaternion));
 
   // ---------- behaviour (as the seating page v6)
@@ -222,6 +232,7 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {   /
   function command(goal) {
     if (ch.mode === 'trans' || ch.mode === 'settle') { ch.queue = goal; return; }
     if (ch.mode === 'seated' && ch.g) { ch.queue = goal; ch.mode = 'settle'; ch.g = gWrap(ch.g, ch.clk - ch.g.t0); ch.motion = 'сидит'; return; }   // lifts his head first
+    if (ch.mode === 'idle' && ch.g?.phone) { ch.queue = goal; if (!ch.g.wrapped) { ch.g = { ...gWrap(ch.g, ch.clk - ch.g.t0), wrapped: true }; } ch.hold = true; return; }   // standing: puts the handset back first
     if (ch.seat) {
       if (goal.seat === ch.seat) return;
       if (ch.mode === 'seated' && sipping()) { ch.queue = goal; ch.mode = 'settle'; ch.motion = 'допивает'; return; }
@@ -351,22 +362,105 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {   /
     gestures();
   }
   // ---------- small gestures in the pauses: only while he just sits or just stands (gestures.js keeps the schedule)
-  const G_BUSY = new Set(['work', 'coffee', 'smoke', 'smoke_coffee', 'lunch']);
+  const G_BUSY = new Set(['work', 'coffee', 'smoke', 'smoke_coffee', 'lunch', 'phone']);
   const G_LABEL = { sit_lookat: 'оглядывается', sit_papers: 'просматривает бумаги', sit_lean: 'облокотился на стол', sit_doze: 'дремлет', stand_look: 'оглядывается',
     stand_watch: 'смотрит на часы', stand_yawn: 'зевает', stand_scratch: 'чешет затылок', stand_neck: 'разминает шею' };
   const gDur = (n) => GEST[n] && GEST[n].clip.duration;
+  // ---------- the phone: the owner's calls ring on desk A (the editor's phone); whoever is there answers — seated if he sits at
+  // that desk, otherwise standing next to it (the director sends him to the spot 'phoneA'). Clock: time since the decision.
+  const PHONE_DESK = 'A', RING_MIN = 1.5;
+  let ringing = false;
+  function phoneCall() {
+    const want = !!phones && ch.activity === 'phone';
+    if (ch.g?.phone && !want && !ch.g.wrapped) { ch.g = { ...gWrap(ch.g, ch.clk - ch.g.t0), wrapped: true }; }   // the call is over: hang up
+    ringing = want && !ch.g?.phone;
+    if (phones) phones.ring(PHONE_DESK, ringing ? ch.clk : -1);
+    if (!want || ch.g || ch.clk < RING_MIN) return;
+    const atDesk = ch.mode === 'seated' && ch.seat && SEATS[ch.seat].desk === PHONE_DESK && (!W.type || W.type.cur < 0.05) && !sipping() && !eating() && !smoking?.active();
+    const P = SPOTS.phoneA, hp = holderPose();
+    const standing = ch.mode === 'idle' && !ch.seat && ch.speed === 0 && P && Math.hypot(hp.x - P.x, hp.z - P.z) < 0.35;
+    if (atDesk || standing) ch.g = phonePlan(atDesk ? 'desk' : 'stand', ch.clk, gDur);
+  }
+  // after the mixer: the left hand (the nearest one) takes the handset from the cradle and puts it back (two-bone IK on a hump, the start and stop
+  // clips' pocket reach turned into a reach to the cradle), the handset goes from the cradle to the ear and back
+  const hump = (f, a, b, c, d) => (f < a || f > d ? 0 : f < b ? smooth((f - a) / (b - a)) : f <= c ? 1 : 1 - smooth((f - c) / (d - c)));
+  const EAR_H = new THREE.Vector3(4.5, 0.5, 7.5), MOUTH_H = new THREE.Vector3(0.5, -16.5, 0);   // head bone frame (cm): an ear, a point 3-4 cm in front of the mouth
+  let earSide = 0;
+  const LOOK = 0.6;                                   // how far towards the phone he turns his head (0..1 of the full turn)
+  const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _c = new THREE.Vector3(), _t = new THREE.Vector3(), _qh = new THREE.Quaternion();
+  function rotateWorld(bone, q) { const pq = bone.parent.getWorldQuaternion(new THREE.Quaternion()), wq = bone.getWorldQuaternion(new THREE.Quaternion()); bone.quaternion.copy(pq.invert().multiply(q.multiply(wq))); bone.updateMatrixWorld(true); }
+  function reach(target, w, side = 'r') {              // a hand towards target (world), weight w; the hand keeps its world orientation
+    if (w <= 0) return;
+    const U = Bn['upperarm_' + side], L = Bn['lowerarm_' + side], H = Bn['hand_' + side]; H.getWorldQuaternion(_qh);
+    U.getWorldPosition(_a); L.getWorldPosition(_b); H.getWorldPosition(_c); _t.copy(_c).lerp(target, w);
+    const lab = _a.distanceTo(_b), lcb = _b.distanceTo(_c), lat = THREE.MathUtils.clamp(_a.distanceTo(_t), 1e-4, lab + lcb - 1e-4);
+    const cl = (x) => Math.min(1, Math.max(-1, x));
+    const ab0 = Math.acos(cl(_c.clone().sub(_a).normalize().dot(_b.clone().sub(_a).normalize()))), bc0 = Math.acos(cl(_a.clone().sub(_b).normalize().dot(_c.clone().sub(_b).normalize())));
+    const ab1 = Math.acos(cl((lcb * lcb - lab * lab - lat * lat) / (-2 * lab * lat))), bc1 = Math.acos(cl((lat * lat - lab * lab - lcb * lcb) / (-2 * lab * lcb)));
+    const axis = _c.clone().sub(_a).cross(_b.clone().sub(_a)).normalize(); if (axis.lengthSq() < 1e-8) return;
+    rotateWorld(U, new THREE.Quaternion().setFromAxisAngle(axis, ab1 - ab0)); rotateWorld(L, new THREE.Quaternion().setFromAxisAngle(axis, bc1 - bc0));
+    U.getWorldPosition(_a); H.getWorldPosition(_c);
+    rotateWorld(U, new THREE.Quaternion().setFromUnitVectors(_c.clone().sub(_a).normalize(), _t.clone().sub(_a).normalize()));
+    const pq = H.parent.getWorldQuaternion(new THREE.Quaternion()); H.quaternion.copy(pq.invert().multiply(_qh)); H.updateMatrixWorld(true);
+  }
+  function phonePost() {
+    if (!phones) return;
+    const g = ch.g && ch.g.phone ? ch.g : null;
+    if (!g) { phones.hold(PHONE_DESK, 0); return; }
+    const u = ch.clk - g.t0, fr = (re) => { const a = g.segs.find((x) => re.test(x.n) && u >= x.s && u < x.s + x.d); return a ? (u - a.s + (a.o || 0)) * FPS + 1 : null; };
+    const st = g.segs.find((x) => /phone_start$/.test(x.n)), sp = g.segs.find((x) => /phone_stop$/.test(x.n));
+    const fs = fr(/phone_start$/), fe = fr(/phone_stop$/);
+    let w = 0, p = 0;
+    if (fs !== null) { w = st.o ? hump(fs, 9, 20, 30, 40) : hump(fs, 12, 22, 30, 40); p = fs < 26 ? 0 : smooth((fs - 26) / 44); }   // entered late: the hand leaves the desk at once
+    else if (fe !== null) { w = hump(fe, 20, 28, 36, 44); p = fe >= 32 ? 0 : 1 - smooth((fe - 10) / 22); }
+    else if (st && u >= st.s + st.d && (!sp || u < sp.s)) p = 1;
+    if (p > 0) w = 1;                                   // while the handset is off the cradle it is in his hand
+    const env = gSample(g, u).e; w *= env;
+    holder.updateMatrixWorld(true);
+    const head = Bn.head; head.updateMatrixWorld(true);
+    // he glances at the phone while he reaches for the handset and while he puts it back (neck and head, a partial turn)
+    const wl = LOOK * env * (fs !== null ? hump(fs, 5, 14, 30, 50) : fe !== null ? hump(fe, 6, 16, 34, 50) : 0);
+    if (wl > 0) { const T = phones.grip(PHONE_DESK);
+      for (const [b, k] of [[Bn.neck_01, 0.4], [head, 1]]) { if (!b) continue; b.updateMatrixWorld(true);
+        const hp = head.getWorldPosition(new THREE.Vector3()), f = new THREE.Vector3(0, -1, 0).applyQuaternion(head.getWorldQuaternion(new THREE.Quaternion())).normalize();
+        const q = new THREE.Quaternion().setFromUnitVectors(f, T.clone().sub(hp).normalize());
+        rotateWorld(b, new THREE.Quaternion().slerp(q, wl * k)); }
+      head.updateMatrixWorld(true); }
+    if (!earSide) { const hp = head.getWorldPosition(new THREE.Vector3()), T = holderPose(), right = new THREE.Vector3(-Math.cos(T.th), 0, Math.sin(T.th));
+      earSide = EAR_H.clone().applyMatrix4(head.matrixWorld).sub(hp).dot(right) > 0 ? 1 : -1; }
+    const E = new THREE.Vector3(EAR_H.x, EAR_H.y, -EAR_H.z * earSide).applyMatrix4(head.matrixWorld), Mo = MOUTH_H.clone().applyMatrix4(head.matrixWorld);   // the left ear
+    const R = E.clone().sub(new THREE.Vector3(EAR_H.x, EAR_H.y, 0).applyMatrix4(head.matrixWorld)).normalize();
+    phones.hold(PHONE_DESK, p, E, Mo, R);
+    if (w > 0) {                                        // the nearest hand (the phone stands on the left): the palm goes to the handset's grip,
+      const H = Bn.hand_l, K = Bn.middle_01_l || H, I = Bn.index_01_l, P = Bn.pinky_01_l, G = phones.grip(PHONE_DESK), F = phones.frame(PHONE_DESK);
+      // the hand is fixed on the handset (as a hand holds a thing): the palm onto its outer side (−Y), the knuckles along it with the
+      // index at the ear cup, the fingers round it (−Z) — on the cradle palm down, fingers away from him; at the ear palm to the cheek, fingers forward
+      const kT = F.X.clone().negate(), nT = F.Y.clone().negate(), fT = new THREE.Vector3().crossVectors(nT, kT);
+      const Bt = new THREE.Matrix4().makeBasis(kT, fT, nT);
+      for (let it = 0; it < 2; it++) {
+        if (I && P) { const wr = H.getWorldPosition(new THREE.Vector3()), k = P.getWorldPosition(new THREE.Vector3()).sub(I.getWorldPosition(new THREE.Vector3())).normalize();
+          const f = K.getWorldPosition(new THREE.Vector3()).sub(wr); f.addScaledVector(k, -f.dot(k)).normalize(); const n = new THREE.Vector3().crossVectors(k, f).normalize();   // the left palm's normal
+          const Bc = new THREE.Matrix4().makeBasis(k, new THREE.Vector3().crossVectors(n, k), n);
+          const q = new THREE.Quaternion().setFromRotationMatrix(Bt.clone().multiply(Bc.clone().transpose())).slerp(new THREE.Quaternion(), 1 - w);
+          rotateWorld(H, q); }
+        const wr = H.getWorldPosition(new THREE.Vector3()), palm = wr.clone().lerp(K.getWorldPosition(new THREE.Vector3()), 0.75);
+        reach(G.clone().sub(palm.sub(wr)), w, 'l'); }
+      for (const n in GRIP_L) { const b = Bn[n]; if (b) b.quaternion.slerp(_qg.fromArray(GRIP_L[n]), w); }   // the fingers close round it as round a cup handle
+      Bn.hand_l.updateMatrixWorld(true); }
+  }
   function gestures() {
     if (!Object.keys(GEST).length) return;
+    phoneCall();
     const calmSeat = ch.mode === 'seated' && ch.seat && !typing() && !sipping() && !eating() && !smoking?.active() && !G_BUSY.has(ch.activity);
     const kind = calmSeat ? (SEATS[ch.seat].desk ? 'desk' : 'bench')
       : ch.mode === 'idle' && !ch.seat && ch.speed === 0 && !smoking?.active() && ch.activity !== 'smoke' ? 'stand' : null;
-    if (ch.g && !(kind === ch.g.kind || (ch.mode === 'settle' && ch.g.kind !== 'stand'))) ch.g = null;   // something else took over: let it fade out
+    if (ch.g && !ch.g.phone && !(kind === ch.g.kind || (ch.mode === 'settle' && ch.g.kind !== 'stand'))) ch.g = null;   // something else took over: let it fade out
     if (!ch.g && kind && cur) {
       const slot = Math.floor(ch.clk / G_POOLS[kind].P), key = kind + '|' + cur.seq + '|' + slot;
       if (key !== ch.gKey) { const g = gPlan(kind, cur.seq, slot, ch.fatigue, gDur);
         if (g && ch.clk >= g.t0 && ch.clk < g.t0 + 0.5) { ch.g = g; ch.gKey = key; } }
     }
-    if (ch.g && ch.clk - ch.g.t0 >= ch.g.T) ch.g = null;
+    if (ch.g && ch.clk - ch.g.t0 >= ch.g.T) { ch.g = null; if (ch.hold) { ch.hold = false; const q = ch.queue; ch.queue = null; if (q) command(q); } }
     const base = ch.g && (ch.g.kind === 'stand' ? 'stand_idle' : 'sit_idle');
     const { e, w } = ch.g ? gSample(ch.g, ch.clk - ch.g.t0) : { e: 0, w: {} };
     for (const n in GEST) { const k = 'g_' + n, v = w[n];
@@ -375,7 +469,9 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {   /
     if (ch.g) { for (const k in W) if (!k.startsWith('g_') && k !== base) W[k].target = W[k].cur = 0;
       W[base].target = W[base].cur = 1 - e;
       const main = ch.g.segs.find((a) => !/_(start|stop)$/.test(a.n)) || ch.g.segs[0], lab = G_LABEL[main.n.replace(/_\d+$|_0\d$/, '')];
-      if (lab && ch.mode !== 'settle') ch.motion = lab; }
+      if (lab && ch.mode !== 'settle') ch.motion = lab; if (ch.g.phone) ch.motion = 'говорит по телефону'; }
+    else if (ringing) ch.motion = ch.mode === 'walk' ? 'идёт к телефону' : 'звонит телефон';
+    else if (/телефон/.test(ch.motion) && (ch.mode === 'seated' || ch.mode === 'idle')) ch.motion = ch.mode === 'seated' ? 'сидит' : 'стоит';   // the call is over
   }
 
   // ---------- playing the director's commands
@@ -397,9 +493,10 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {   /
         if (Math.abs(t - M.t) > 1e-6) { M.t = t; M.a.time = Math.min(t, M.D); M.m.update(0); } } }
     if (!ff) {
       const t0 = A.type ? A.type.time : 0;
-      if (smoking || lunch) armRestore();
+      if (smoking || lunch || phones) armRestore();
       mixer.update(dt);
-      if (smoking || lunch) { holder.updateMatrixWorld(true); armSave(); } if (smoking) smoking.post(dt);
+      if (smoking || lunch || phones) { holder.updateMatrixWorld(true); armSave(); } if (smoking) smoking.post(dt);
+      phonePost();
       if (lunch && lunch.active()) lunch.post(ch.lunchT, dt);
       lidFrame(dt);
       if (A.type && tw && ch.seat && SEATS[ch.seat].desk && W.type.cur > 0.6) {     // a letter on every fingertip strike
@@ -414,7 +511,7 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {   /
     for (let i = 0; i < n; i++) frame(1 / FPS, true);
     simT += sec;
     if (ch.mode === 'trans') A[ch.trans.clip].time = ch.trans.t;
-    snapWeights(); if (smoking) smoking.pre(0, smokeWant(), A); mixer.update(0); if (smoking || lunch) { holder.updateMatrixWorld(true); armSave(); }
+    snapWeights(); if (smoking) smoking.pre(0, smokeWant(), A); mixer.update(0); if (smoking || lunch || phones) { holder.updateMatrixWorld(true); armSave(); }
   }
   function apply(w, serverNow) {                      // w = {seq, editor: {from, cmd, at}, chairs}
     if (!w?.editor || (cur && cur.seq === w.seq)) return;
@@ -443,7 +540,7 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {   /
   return {
     apply, update, holder, SEATS, nav, chairs, fx: smoking ? smoking.fx : null,
     mugs: coffee ? coffee.groups : [], lunchGroup: lunch ? lunch.group : null,
-    moving: () => ch.mode === 'walk' || ch.mode === 'turn' || ch.mode === 'trans' || !!ch.chairTail || !!smoking?.active() || sipping() || eating() || !!ch.g,
+    moving: () => ch.mode === 'walk' || ch.mode === 'turn' || ch.mode === 'trans' || !!ch.chairTail || !!smoking?.active() || sipping() || eating() || !!ch.g || ringing,
     status: () => ({ label: cur?.label || '', motion: ch.motion, gesture: ch.g ? ch.g.segs.map((a) => a.n).join('+') : null, mode: ch.mode, seat: ch.seat, source: cur?.source || '', smoke: smoking ? smoking.status() : null, lunch: lunch ? { dish: lunch.dish(), seat: lunch.seat(), t: +ch.lunchT.toFixed(2) } : null, coffee: coffee ? { t: +ch.coffeeT.toFixed(2), sip: ch.sip === null ? null : +ch.sip.toFixed(2), w: W.drink ? +W.drink.cur.toFixed(2) : 0 } : null }),
     debug: { ch, CL, A, W, mixer, SEATS, comp, trajAt, setHolder, snapWeights, command: (g) => command(goalOf(g) || g), place, entryOptions, exitOptions, holderPose, NATIVE: () => NATIVE, smoking, lunch },
   };
