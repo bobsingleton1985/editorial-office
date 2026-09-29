@@ -28,17 +28,18 @@ async function api(path, body) {
   return { ok: r.ok, status: r.status, data };
 }
 async function boot() {
+  buildTabs(); buildGraphControls(); buildJournalControls();
+  requestAnimationFrame(frame);
+  if (API) setStatus('Подключаюсь к серверу стенда на Mac… Если браузер спросит про доступ к локальной сети — разрешите.');
   let saved;
   try { saved = await api('/api/stand-config'); }
-  catch { setStatus('Стенд работает только на Mac владельца: сервер стенда (порт 8781) недоступен.'); buildTabs(); buildGraphControls(); buildJournalControls(); requestAnimationFrame(frame); return; }
-  if (saved.ok && saved.data.config) config = mergeDefaults(saved.data.config);
-  world = new World(config);
+  catch { setStatus('Стенд работает только на Mac владельца: сервер стенда (порт 8781) недоступен.'); return; }
+  setStatus('');
+  if (saved.ok && saved.data.config) { config = mergeDefaults(saved.data.config); world = new World(config); buildTabs(); buildGraphControls(); buildJournalControls(); }
   $('cap').value = config.jevCallCap;
   await api('/api/stand-run', { cap: config.jevCallCap });
   const st = await api('/api/stand-status');
   if (!st.data.configured) setStatus('Нет ключа Jev: ' + (st.data.key_error || ''));
-  buildTabs(); buildGraphControls(); buildJournalControls();
-  requestAnimationFrame(frame);
 }
 function mergeDefaults(c) {
   const d = defaultConfig();
