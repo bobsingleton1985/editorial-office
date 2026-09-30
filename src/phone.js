@@ -5,7 +5,7 @@ import * as THREE from 'three';
 
 const RING_ON = 2.0, RING_OFF = 4.0;                                  // US ring cadence: 2 s on, 4 s off
 
-export function createPhones(scene, gltf, desks, S) {
+export function createPhones(scene, gltf, desks, S, sound = null) {   // sound: sound.js (the ring you hear)
   const M = {};
   for (const [k, D] of Object.entries(desks)) {
     const g = new THREE.Group(); g.name = 'PHONE ' + k; g.scale.setScalar(S); g.position.set(D.x, 0, D.z); g.rotation.y = D.th;
@@ -31,7 +31,7 @@ export function createPhones(scene, gltf, desks, S) {
   const _v = new THREE.Vector3(), _q = new THREE.Quaternion(), _s = new THREE.Vector3();
   // ringing: the handset jumps a little on the cradle (t = seconds since the call came)
   function ring(k, t) {
-    const m = M[k]; if (!m || m.up) return;
+    const m = M[k]; sound?.phone(k, m && !m.up ? t : -1, RING_ON, RING_ON + RING_OFF); if (!m || m.up) return;
     const on = t >= 0 && (t % (RING_ON + RING_OFF)) < RING_ON;
     m.holder.matrix.copy(m.rest);
     if (on) { const a = 0.012 * Math.sin(t * 2 * Math.PI * 18), b = 0.004 * Math.abs(Math.sin(t * 2 * Math.PI * 11));

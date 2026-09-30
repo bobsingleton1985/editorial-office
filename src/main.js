@@ -17,6 +17,7 @@ import { createCrowd } from './crowd.js';
 import { GRID } from './navgrid.js';
 import { createTypewriters } from './typewriter.js';
 import { createPhones } from './phone.js';
+import { createSound } from './sound.js';
 import { createWeather } from './weather.js';
 import { createBlinds } from './blinds.js';
 import { createSunbeams } from './sunbeams.js';
@@ -156,6 +157,10 @@ PANEL = buildPanel(S, (s) => { if (s.quality !== qMode) { qMode = s.quality; QL.
   { resetTo: () => presetFor(outside().sky) });
 { wxBox = document.createElement('div'); const bb = document.createElement('div');
   PANEL.outside.append(wxBox, bb); blindsUI = buildBlindsUI(bb); }
+const sound = createSound();                                   // ☰ → «Звук»: the phone ring (off until the viewer switches it on)
+{ const d = PANEL.section('Звук', 'sound'), l = document.createElement('label'), cb = document.createElement('input'), sp = document.createElement('span');
+  l.className = 'row'; cb.type = 'checkbox'; cb.id = 'sound-phone'; cb.checked = sound.on; sp.textContent = '🔔 Звонок телефона';
+  cb.addEventListener('change', () => sound.set(cb.checked)); l.append(sp, cb); d.append(l); window.__sound = sound; }
 applyWeather();
 const diag = { textContent: '' }; window.__diag = diag;   // technical line (GPU, frame time): console only — window.__diag.textContent
 const gpuName = (() => { try { const gl = r.getContext(), e = gl.getExtension('WEBGL_debug_renderer_info'); return e ? gl.getParameter(e.UNMASKED_RENDERER_WEBGL) : ''; } catch (e) { return ''; } })();
@@ -290,7 +295,7 @@ async function loadShared(office) {                                   // once: t
   if (wbuf) { typewriters = createTypewriters(sc, await ld().parseAsync(wbuf, ''), DESKS, PACK_S);
     for (const g of typewriters.groups) L.attach(g); for (const g of typewriters.groups) SC.addDynamic(g); }
   let phones = null;
-  if (pbuf && pcbuf) { phones = createPhones(sc, await ld().parseAsync(pbuf, ''), DESKS, PACK_S);     // phones on every desk; without the clips no phones
+  if (pbuf && pcbuf) { phones = createPhones(sc, await ld().parseAsync(pbuf, ''), DESKS, PACK_S, sound);     // phones on every desk; without the clips no phones
     for (const g of phones.groups) L.attach(g); for (const g of phones.groups) SC.addDynamic(g); window.__phones = phones; B.phoneClips = await parse(pcbuf); }
   let crowd = null;                                                              // walking together (Recast crowd); ?crowd=0 — the old one-person paths
   if (Q.get('crowd') !== '0') { try { crowd = await createCrowd(GRID, Object.keys(DESKS).map((k) => chairBox(k, CHAIR_REST)), RADIUS); window.__crowd = crowd; } catch (e) { console.warn('crowd unavailable:', e); } }
