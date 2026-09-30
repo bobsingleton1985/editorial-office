@@ -52,6 +52,7 @@ const QL = createQuality(Q.get('q') || S.quality || 'auto');   // weak devices (
 const r = new THREE.WebGLRenderer({ antialias: QL.antialias });
 r.setPixelRatio(QL.pixelRatio());
 r.toneMapping = THREE.ACESFilmicToneMapping;
+r.localClippingEnabled = true;                               // the typewriter sheets: the part still inside the machine is cut off
 r.outputColorSpace = THREE.SRGBColorSpace;
 $('view').appendChild(r.domElement);
 const sc = new THREE.Scene();
@@ -380,6 +381,16 @@ if (DEMO === 'smoke') {   // review: at the desk → a cigarette at the desk →
   net = { online: true, viewers: 0 }; next();
 }
 
+if (DEMO === 'smokecoffee') {   // review stand: ?scn=desk — at desk A a cigarette with coffee (a sip after every drag); ?scn=window — a cigarette standing at the window; ?scn=type — typing (the paper feeds out)
+  const CH = { A: 0, B: 0.1174, C: 0.1174 }, scn = window.__SCN || Q.get('scn') || 'desk';
+  const script = scn === 'window' ? [[{ spot: 'window' }, null, 'smoke', 'курит у окна', CH, 58], [{ spot: 'window' }, null, 'wait', 'стоит у окна', CH, 5]]
+    : scn === 'type' ? [[{ seat: 'deskA' }, null, 'work', 'печатает за столом A', CH, 600]]
+    : [[{ seat: 'deskA' }, null, 'work', 'работает за столом A', CH, 5], [{ seat: 'deskA' }, null, 'smoke_coffee', 'курит и пьёт кофе за столом A', CH, 49]];
+  let seq = 0, i = 0;
+  const next = () => { const [from, cmd, activity, label, chairs, sec] = script[i % script.length]; i++; seq++;
+    const w = { seq, chairs, editor: { from, cmd, at: live.now(), label, activity, source: 'demo' } }; onWorld(w); setTimeout(next, sec * 1000); };
+  net = { online: true, viewers: 0 }; next();
+}
 if (DEMO === 'gestures') {   // review: small gestures in the pauses — resting at the desk (the machine is cleared away), standing at the window; fresh, then tired
   const CH = { A: 0, B: 0.1174, C: 0.1174 }, T = { A: -0.25, B: 0.1174, C: 0.1174 };
   const script = [[12, { seat: 'deskA' }, null, 'work', 'работает за столом A', 30, CH, 10], [374, { seat: 'deskA' }, null, 'rest_desk', 'отдыхает за столом A', 30, CH, 50],
@@ -479,6 +490,7 @@ function step(dt, draw = true) {
     if (tvMat) tvMat.emissiveIntensity = 1 + tv.uniforms.flicker.value - 0.5 * tv.uniforms.snow.value;
   }
   { const now = window.__simNow ?? live.now(); eachPerson((ed) => ed.update(dt, now)); shared?.applyProps(); }   // __simNow: automated checks run on their own clock
+  typewriters?.update(dt);                                      // paper feed of the desk typewriters
   if (!draw) return;
   let moving = false; eachPerson((ed) => { moving = moving || ed.moving(); });
   L.update(dt, moving && QL.level.live, SC.enabled); ctl.update(); SC.render();

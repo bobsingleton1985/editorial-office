@@ -44,10 +44,11 @@ export function createShared({ scene, office, typewriters = null, phones = null,
       const mugClip = new THREE.AnimationClip('drink_l_mug', dc.duration, dc.tracks.filter((t) => nodeOf(t) === slot.name));
       for (const [k, D] of Object.entries(DESKS)) {
         const g = new THREE.Group(); g.name = 'COFFEE L ' + k; g.matrixAutoUpdate = false; g.matrix.makeRotationY(D.th).setPosition(D.x, 0, D.z).multiply(new THREE.Matrix4().makeScale(S, S, S));
-        const s = slot.clone(true); s.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } }); g.add(s); g.visible = false; scene.add(g);
+        const s = slot.clone(true); s.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+        const off = new THREE.Group(); off.add(s); g.add(off); g.visible = false; scene.add(g);      // off: the person's shift of the baked path (editor.js, mugOffset)
         const m = new THREE.AnimationMixer(s), a = m.clipAction(mugClip); a.setLoop(THREE.LoopOnce, 1); a.clampWhenFinished = true; a.play(); a.paused = true; a.time = 0; m.update(0);
-        mugL[k] = { g, m, a, t: 0, D: dc.duration }; }
-      drinkL = { clip: dc, slotName: slot.name };
+        mugL[k] = { g, off, m, a, t: 0, D: dc.duration }; }
+      drinkL = { clip: dc, slotName: slot.name, slot, mugClip };
     } catch (e) { console.warn('coffee with a cigarette unavailable:', e); }
   }
   const claims = {};                                    // id → {desk, kind}

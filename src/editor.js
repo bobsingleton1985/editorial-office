@@ -204,13 +204,43 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {
     catch (e) { console.warn('smoking unavailable:', e); smoking = null; }
   }
   // «курит и пьёт кофе» (smoke_coffee, approved «Курилка» v8): the left hand drinks from a mug on the left while the right one holds the cigarette
-  const mugL = SH.mugL;
+  const mugL = SH.mugL; let mugOffset = () => new THREE.Vector3(), handFix = () => null;
   if (smoking && SH.drinkL) {
-    try { const dc = SH.drinkL.clip, nodeOf = (t) => THREE.PropertyBinding.parseTrackName(t.name).nodeName, slot = { name: SH.drinkL.slotName };
+    try { const dc = SH.drinkL.clip, nodeOf = (t) => THREE.PropertyBinding.parseTrackName(t.name).nodeName, slot = SH.drinkL.slot;
       const body = stripClip('drink_l', new THREE.AnimationClip('drink_l', dc.duration, dc.tracks.filter((t) => nodeOf(t) !== slot.name)), seatBase).clip;
       const armR = new Set(), armL = new Set(); Bn.clavicle_r.traverse((o) => { if (o.isBone) armR.add(o.name); }); Bn.clavicle_l.traverse((o) => { if (o.isBone) armL.add(o.name); });
-      const part = (keep, sfx) => new THREE.AnimationClip('drink_l' + sfx, body.duration, body.tracks.filter((t) => keep(nodeOf(t))));
-      smoking.setDrinkL(part((b) => !armR.has(b) && !armL.has(b), '_core'), part((b) => armL.has(b), '_L'));
+      const upper = new Set(); Bn.spine_01.traverse((o) => { if (o.isBone && !armR.has(o.name) && !armL.has(o.name)) upper.add(o.name); });
+      const part = (c, keep, sfx) => new THREE.AnimationClip('drink_l' + sfx, c.duration, c.tracks.filter((t) => keep(nodeOf(t))).map((t) => t.clone()));
+      // DrinkL is the mirror of the whole DrinkR body: hips 2.4 cm and feet 6 cm to the other side, 5° of turn. Taken whole, at every sip the
+      // hips and legs jumped sideways — to the eye the chair moved (owner 29.09). Now the hips and legs stay in the seated idle; the sip adds
+      // only the bend of the spine, neck and head (additive, from its own first frame), the left arm is the sip's own
+      const up = part(body, (b) => upper.has(b), '_up'); THREE.AnimationUtils.makeClipAdditive(up, 0);
+      smoking.setDrinkL(up, part(body, (b) => armL.has(b), '_L'));
+      const mugClip = SH.drinkL.mugClip;
+      // the hand now moves a few cm off the baked mug path (the chest sits where the idle's does): measured once on the scratch skeleton —
+      // hand (idle hips + the sip) minus hand (the sip whole), per frame, in pack units; the mug follows that difference while it is in the hand
+      const handOn = (acts) => { smix.stopAllAction(); for (const [c, t, add] of acts) { const a = smix.clipAction(c); a.blendMode = add ? THREE.AdditiveAnimationBlendMode : THREE.NormalAnimationBlendMode; a.reset().play(); a.time = t; a.setEffectiveWeight(1); }
+        smix.update(0); sg.updateMatrixWorld(true); return sclone.getObjectByName('hand_l').getWorldPosition(new THREE.Vector3()); };
+      const rawBody = new THREE.AnimationClip('dl_raw', dc.duration, dc.tracks.filter((t) => nodeOf(t) !== slot.name)), rawUp = part(rawBody, (b) => upper.has(b), '_rawUp'); THREE.AnimationUtils.makeClipAdditive(rawUp, 0);
+      const rawL = part(rawBody, (b) => armL.has(b), '_rawL'), rawSit = part(raw.sit_idle, (b) => !armL.has(b), '_rawSit');
+      const NF = Math.round(dc.duration * FPS) + 1, dH = [];
+      for (let f = 0; f < NF; f++) { const t = Math.min(f / FPS, dc.duration - 1e-4);
+        dH.push(handOn([[rawSit, 0], [rawUp, t, true], [rawL, t]]).sub(handOn([[rawBody, t]])).multiplyScalar(1 / S)); }
+      smix.stopAllAction(); [rawBody, rawUp, rawL, rawSit].forEach((c) => smix.uncacheClip(c));
+      // grab and release: where the baked mug starts and stops moving
+      const mp = (() => { const probe = slot.clone(true), pm = new THREE.AnimationMixer(probe), pa = pm.clipAction(mugClip); pa.play();   // the mug's centre in the table frame
+        return (t) => { pa.time = Math.min(t, dc.duration - 1e-4); pm.update(0); probe.updateMatrixWorld(true); return new THREE.Box3().setFromObject(probe).getCenter(new THREE.Vector3()); }; })();
+      const p0 = mp(0), p1 = mp(dc.duration); let fG = 0, fR = NF - 1;
+      while (fG < NF - 1 && mp(fG / FPS).distanceTo(p0) < 1e-3) fG++; while (fR > 0 && mp(fR / FPS).distanceTo(p1) < 1e-3) fR--; fG = Math.max(0, fG - 1); fR = Math.min(NF - 1, fR + 1);
+      const dAt = (f) => { const i = Math.max(0, Math.min(NF - 1, Math.floor(f))), j = Math.min(NF - 1, i + 1), k = f - Math.floor(f); return dH[i].clone().lerp(dH[j], Math.max(0, Math.min(1, k))); };
+      // the mug never moves on the table by itself (owner 30.09): it is always put down where it was picked up. The baked put-down spot
+      // is C away from the pick-up spot, so over the last 20 frames before letting go the left hand carries the mug C further (IK),
+      // and after letting go the hand eases back in 0.3 s
+      const C = p0.clone().add(dH[fG]).sub(p1.clone().add(dH[fR])), PUT = 20;
+      const wPut = (f) => (f <= fR ? smooth((f - (fR - PUT)) / PUT) : 1 - smooth((f - fR) / 9));
+      mugOffset = (t) => { const f = t * FPS; if (f < fG) return dH[fG].clone(); if (f > fR) return dH[fR].clone().add(C); return dAt(f).addScaledVector(C, smooth((f - (fR - PUT)) / PUT)); };
+      handFix = (t) => { const f = t * FPS; return f < fG || f > fR + 9 ? null : C.clone().multiplyScalar(wPut(f)); };
+      for (const k in mugL) mugL[k].off.position.copy(mugOffset(0));   // the mugs themselves are shared (office-shared.js); here only where each one stands
     } catch (e) { console.warn('coffee with a cigarette unavailable:', e); }
   }
   const smokeWant = () => {
@@ -519,13 +549,16 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {
     ch.clk += dt; updateChar(dt); stepWeights(dt);
     if (smoking) smoking.pre(dt, smokeWant(), A);
     { const d = ch.seat && SEATS[ch.seat].desk, M = d && mugL[d];                      // the left-hand mug follows the sip; before the first sip it stands at frame 1, after it at the last
-      if (M && cur?.activity === 'smoke_coffee' && ch.mode === 'seated') { const s = smoking.sipTime(), t = s >= 0 ? s : smoking.clockT() >= smoking.holdStart() ? M.D : 0;
-        if (Math.abs(t - M.t) > 1e-6) { M.t = t; M.a.time = Math.min(t, M.D); M.m.update(0); } } }
+      if (M && cur?.activity === 'smoke_coffee' && ch.mode === 'seated') { const s = smoking.sipTime(), t = s >= 0 ? s : smoking.sipsBefore(smoking.clockT()) > 0 ? M.D : 0;
+        if (Math.abs(t - M.t) > 1e-6) { M.t = t; M.a.time = Math.min(t, M.D); M.m.update(0); M.off.position.copy(mugOffset(t)); } } }
     if (!ff) {
       const t0 = A.type ? A.type.time : 0;
       if (smoking || lunch || phones) armRestore();
       mixer.update(dt);
       if (smoking || lunch || phones) { holder.updateMatrixWorld(true); armSave(); } if (smoking) smoking.post(dt);
+      { const d = ch.seat && SEATS[ch.seat].desk, M = d && mugL[d], st = smoking ? smoking.sipTime() : -1;      // the hand takes the mug back to where it stood
+        const c = M && st >= 0 && cur?.activity === 'smoke_coffee' ? handFix(st) : null;
+        if (c) smoking.ikL(c.applyMatrix3(new THREE.Matrix3().setFromMatrix4(M.g.matrix)).multiplyScalar(smoking.sipW())); }
       phonePost();
       if (lunch && lunch.active()) lunch.post(ch.lunchT, dt);
       if (mouth0) nudgeSips();

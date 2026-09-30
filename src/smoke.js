@@ -2,8 +2,10 @@
 //  · standing (at a spot): the MoCap Central Idles series as is, full body over the standing idle;
 //  · seated at a desk: the body keeps the seated idle, the right arm comes from the series (the left one while lighting up),
 //    the hand is taken to the mouth and to the trouser pocket by two-bone IK on the fly and kept off the desk top.
-// One cigarette: take out → light → hold → drag → flick → drag → look round → drag → finish (the cigarette just disappears
-// from the fingers, owner's decision), a short pause, the next one — for as long as the director keeps him smoking.
+// One cigarette: take out → light → hold → drag → flick → drag → look round → drag → done. The Stop clip is not played any more
+// (owner 29.09: "не бросать сигарету на пол"): after the last drag the cigarette just disappears from the fingers; seated the arm
+// goes back to the seated idle (not below the desk), standing it eases into the Stop clip's calm ending (150–182).
+// A short pause, the next one — for as long as the director keeps him smoking.
 // Everything is driven by the smoking clock (seconds since he started), so every viewer — and a late one — sees the same.
 // Lengths in the approved page are pack metres; here the character is scaled by S, so every length is multiplied by U.
 import * as THREE from 'three';
@@ -12,11 +14,11 @@ import { W_MOUTH } from './smoke-data.js';
 const FPS = 30, XF = 0.35, IN = 0.4;
 const SEQ = ['smoke_start', 'smoke_light', 'smoke_hold', 'smoke_inhale1', 'smoke_flick', 'smoke_inhale2', 'smoke_look1', 'smoke_inhale3', 'smoke_stop'];
 const INFO = {
-  smoke_start: { inhale: [] }, smoke_light: { inhale: [[66, 111]], litFrom: 100 }, smoke_hold: { inhale: [] },
+  smoke_start: { inhale: [] }, smoke_light: { inhale: [[66, 111]], litFrom: 100, sipFrom: 176 }, smoke_hold: { inhale: [] },
   smoke_inhale1: { inhale: [[32, 84]] }, smoke_inhale2: { inhale: [[16, 66]] }, smoke_inhale3: { inhale: [[20, 69]] },
   smoke_flick: { inhale: [], ash: [16, 31] }, smoke_look1: { inhale: [] }, smoke_stop: { inhale: [], outAt: 71 }, smoke_stop_end: { inhale: [] },
 };
-const CIG_OUT = 71, STOP_CUT = 71, STOP_END = 150;          // Stop: the fingers open at 71 (cigarette gone); standing: from there into the clip's calm ending 150–182 (no stamping)
+const CIG_OUT = 71, STOP_CUT = 71, STOP_END = 150;          // Stop: the actor drops the cigarette at 71 — not shown any more; standing: 1–71 (legs, body) then the calm ending 150–182
 const REST = { stand: 2.5, sit: 3.5 };
 const TABLE = { x0: -0.91, x1: 0.91, z0: 0.14, z1: 0.90, top: 0.762, gap: 0.012 };   // pack table in its own frame (pack metres)
 const HAND_PTS = { r: ['hand_r', 'index_03_r', 'middle_03_r', 'ring_03_r', 'pinky_03_r', 'thumb_03_r', 'index_01_r', 'pinky_01_r'],
@@ -53,11 +55,29 @@ export function createSmoking({ scene, root, B, mixer, U, addon, strip, camera, 
     A['st_' + n] = act(strip('st_' + n, c, 'first').clip);
     A['ovR_' + n] = act(sub(c, (b) => armR.has(b), '_ovR')); A['ovL_' + n] = act(sub(c, (b) => armL.has(b), '_ovL'));
   }
-  { const e = THREE.AnimationUtils.subclip(raw.smoke_stop, 'smoke_stop_end', STOP_END - 1, 182, FPS); const c = clean(e); D.smoke_stop_end = c.duration; A.st_smoke_stop_end = act(strip('st_stop_end', c, 'first').clip); }
+  { const e = THREE.AnimationUtils.subclip(raw.smoke_stop, 'smoke_stop_end', STOP_END - 1, 182, FPS); const c = clean(e); D.smoke_stop_end = c.duration; A.st_smoke_stop_end = act(strip('st_stop_end', c, 'first').clip);
+    // standing, Stop 1–71 keeps its own step of the legs and body, but the right arm (the one that dropped the cigarette) is already
+    // the calm arm of the ending: the hand simply goes down, nothing is thrown (owner 29.09)
+    const body = strip('st_stop_body', clean(raw.smoke_stop), 'first').clip; A.st_stop_body = act(new THREE.AnimationClip('st_stop_body', body.duration, body.tracks.filter((t) => !armR.has(boneOf(t)))));
+    A.st_stop_armEnd = act(sub(c, (b) => armR.has(b), '_armEnd')); }
   let sitParts = null;                                            // the seated idle cut into body / right arm / left arm (set by the editor)
-  // «курит и пьёт» (approved «Курилка» v8): a sip with the left hand (mirrored DrinkL) at the start of each "hold" — the mouth is free there
-  let drinkL = null;
-  function setDrinkL(core, L) { drinkL = { core: act(core), L: act(L), D: core.duration }; }
+  // «курит и пьёт» (approved «Курилка» v8): a sip with the left hand (mirrored DrinkL) after every drag (owner 29.09: "пьёт кофе после
+  // каждой затяжки") — it starts SIP_AFTER s after the drag, when the exhale is mostly out; the mouth is free until the next drag
+  let drinkL = null, SIPS = [];
+  const SIP_AFTER = 0.6, SIP_IN = 0.4;
+  function setDrinkL(up, L) {                     // up: the sip's bend of spine, neck, head — additive over the seated idle (hips and legs stay put)
+    const u = mixer.clipAction(up); u.blendMode = THREE.AdditiveAnimationBlendMode; u.setLoop(THREE.LoopOnce, 1); u.clampWhenFinished = true; u.play(); u.paused = true; u.setEffectiveWeight(0);
+    drinkL = { core: u, L: act(L), D: up.duration }; SIPS = sipStarts(); }
+  function sipStarts() {                           // on the seated cigarette clock: the end of each drag + SIP_AFTER
+    const out = []; let s = 0;
+    for (const [n, d] of segs.sit) { for (const [, b] of INFO[n].inhale) out.push(s + Math.max((b - 1) / FPS + SIP_AFTER, (INFO[n].sipFrom || 0) / FPS)); s += d; }   // lighting up: only once the lighter is back in the pocket
+    return out;
+  }
+  function sipAt(t) {                              // → time inside the sip clip, or -1
+    const tc = t % (cig.sit + REST.sit);
+    for (const s0 of SIPS) if (tc >= s0 && tc < s0 + drinkL.D) return tc - s0;
+    return -1;
+  }
   function setSitBase(clip) { sitParts = { core: act(sub(clip, (b) => !armR.has(b) && !armL.has(b), '_core')), R: act(sub(clip, (b) => armR.has(b), '_R')), L: act(sub(clip, (b) => armL.has(b), '_L')) }; }
 
   // ---------- measured once from the standing clips (with their own prop tracks): pockets, lighter in the hand
@@ -182,7 +202,8 @@ export function createSmoking({ scene, root, B, mixer, U, addon, strip, camera, 
   const cigEnds = () => { if (!N.cig.visible) return []; const t = wpos(N.tip), c = wpos(N.cig); return [t, c.clone().multiplyScalar(2).sub(t)]; };
 
   // ---------- the smoking clock: which clip, at what time, with what cross-fade weight
-  const segs = { stand: [...SEQ.slice(0, -1).map((n) => [n, D[n]]), ['smoke_stop', STOP_CUT / FPS], ['smoke_stop_end', D.smoke_stop_end]], sit: SEQ.map((n) => [n, D[n]]) };
+  // [clip, length, cross-fade into it]; seated no Stop at all; standing Stop 1–71 with the ending's calm right arm, then the ending
+  const segs = { stand: [...SEQ.slice(0, -1).map((n) => [n, D[n]]), ['smoke_stop', STOP_CUT / FPS, 0.6], ['smoke_stop_end', D.smoke_stop_end]], sit: SEQ.slice(0, -1).map((n) => [n, D[n]]) };
   const cig = { stand: segs.stand.reduce((s, x) => s + x[1], 0), sit: segs.sit.reduce((s, x) => s + x[1], 0) };
   function at(mode, t) {                         // → { list: [{name, time, w}], cur, f, rest }
     const L = segs[mode], C = cig[mode] + REST[mode], tc = t % C, cyc = Math.floor(t / C);
@@ -191,7 +212,8 @@ export function createSmoking({ scene, root, B, mixer, U, addon, strip, camera, 
     for (let i = 0; i < L.length; i++) { const [n, d] = L[i];
       if (tc < s + d || i === L.length - 1) { const tl0 = tc - s, list = [{ name: n, time: tl0, w: 1 }];
         const prev = i > 0 ? L[i - 1] : (cyc > 0 && mode === 'stand' ? L[L.length - 1] : null);
-        if (prev && tl0 < XF) { const pt = i > 0 ? prev[1] + tl0 : prev[1]; list[0].w = tl0 / XF; list.push({ name: prev[0], time: pt, w: 1 - tl0 / XF }); }
+        const xf = L[i][2] || XF;
+        if (prev && tl0 < xf) { const pt = i > 0 ? prev[1] + tl0 : prev[1]; list[0].w = tl0 / xf; list.push({ name: prev[0], time: pt, w: 1 - tl0 / xf }); }
         return { list, cur: n, f: tl0 * FPS + 1, rest: false }; }
       s += d; }
   }
@@ -202,7 +224,7 @@ export function createSmoking({ scene, root, B, mixer, U, addon, strip, camera, 
   // pre: after the editor's layer weights, before the mixer. want = { mode: 'stand' | 'sit', desk } or null
   function pre(dt, want, base) {
     // one cigarette per director's command: a further 'continue' allows the next one, which starts from its beginning
-    if (want && (!sm.on || sm.mode !== want.mode)) { sm.on = true; sm.mode = want.mode; sm.desk = want.desk || null; sm.t = 0; sm.allow = 1; sm.seq = want.seq; sm.lit = false; sm.exhaleT = -1; }
+    if (want && (!sm.on || sm.mode !== want.mode)) { sm.drink = false; sm.on = true; sm.mode = want.mode; sm.desk = want.desk || null; sm.t = 0; sm.allow = 1; sm.seq = want.seq; sm.lit = false; sm.exhaleT = -1; }
     else if (want && want.seq !== sm.seq) { sm.seq = want.seq; sm.allow++; }
     const C = sm.mode ? cig[sm.mode] + REST[sm.mode] : 1, cap = sm.allow * C - 1e-3;
     if (want) sm.t = Math.min(sm.t + dt, cap); else if (sm.on && sm.P <= 0) sm.on = false;
@@ -210,7 +232,7 @@ export function createSmoking({ scene, root, B, mixer, U, addon, strip, camera, 
     let target = 0;
     if (sm.on) { const s = at(mode, sm.t); sm.list = s.list; sm.cur = s.cur; sm.f = s.f; sm.rest = s.rest;
       // lit from frame 100 of lighting up until the fingers open in Stop (frame 71) — from the clock, so a late viewer sees it lit too
-      sm.lit = !s.rest && !(s.cur === 'smoke_start' || s.cur === 'smoke_stop_end' || (s.cur === 'smoke_light' && s.f < INFO.smoke_light.litFrom) || (s.cur === 'smoke_stop' && s.f >= CIG_OUT));
+      sm.lit = !s.rest && !(s.cur === 'smoke_start' || s.cur === 'smoke_stop_end' || (s.cur === 'smoke_light' && s.f < INFO.smoke_light.litFrom) || s.cur === 'smoke_stop');
       target = want && !(s.rest && (mode === 'sit' || sm.t >= cap)) ? 1 : 0; }             // done smoking: back to the plain idle
     sm.P = target > sm.P ? Math.min(target, sm.P + dt / IN) : Math.max(target, sm.P - dt / IN); sm.W = smooth(sm.P);
     for (const a of all) a.setEffectiveWeight(0);
@@ -222,18 +244,20 @@ export function createSmoking({ scene, root, B, mixer, U, addon, strip, camera, 
     const tot = sm.list.reduce((s, e) => s + e.w, 0) || 1;
     if (mode === 'stand') {
       base.stand_idle.setEffectiveWeight(wSt * (1 - sm.W));
-      for (const e of sm.list) { const a = A['st_' + e.name]; a.time = Math.min(e.time, a.getClip().duration - 1e-4); a.setEffectiveWeight(wSt * sm.W * e.w / tot); }
+      for (const e of sm.list) { const w = wSt * sm.W * e.w / tot;
+        if (e.name === 'smoke_stop') { A.st_stop_body.time = Math.min(e.time, D.smoke_stop - 1e-4); A.st_stop_body.setEffectiveWeight(w); A.st_stop_armEnd.time = 0; A.st_stop_armEnd.setEffectiveWeight(w); continue; }
+        const a = A['st_' + e.name]; a.time = Math.min(e.time, a.getClip().duration - 1e-4); a.setEffectiveWeight(w); }
     } else if (sitParts) {
       for (const e of sm.list) {
         const name = e.name === 'smoke_stop_end' ? 'smoke_stop' : e.name, r = A['ovR_' + name], l = A['ovL_' + name], wr = wSit * sm.W * e.w / tot;
         r.time = l.time = Math.min(e.time, r.getClip().duration - 1e-4); r.setEffectiveWeight(wr);
         const lightW = name === 'smoke_light' ? hump(e.time * FPS + 1, 1, 12, 150, 175) : 0; l.setEffectiveWeight(wr * lightW); sm.lw += (wSit > 0 ? wr / wSit : 0) * lightW;
       }
-      if (drinkL && want?.drink) {                        // the hold clip is longer than the sip: drink from its first frame, eased in and out over 0.4 s
-        const h = sm.list.find((e) => e.name === 'smoke_hold');
-        if (h && h.time < drinkL.D) { sm.dT = h.time; sm.dW = smooth(Math.min(h.time / 0.4, (drinkL.D - h.time) / 0.4)) * sm.W; }
+      if (drinkL && (want ? want.drink : sm.drink)) {    // a sip after every drag, eased in and out over 0.4 s; the last one may run on after the cigarette is gone
+        if (want) sm.drink = !!want.drink;
+        const st = sipAt(sm.t);
+        if (st >= 0) { sm.dT = st; sm.dW = smooth(Math.min(st / SIP_IN, (drinkL.D - st) / SIP_IN)) * (want ? 1 : sm.W); }
         drinkL.core.time = drinkL.L.time = Math.max(0, sm.dT); drinkL.core.setEffectiveWeight(wSit * sm.dW); drinkL.L.setEffectiveWeight(wSit * sm.dW);
-        sitParts.core.setEffectiveWeight(wSit * (1 - sm.dW));
       }
       sitParts.R.setEffectiveWeight(wSit * (1 - sm.W)); sitParts.L.setEffectiveWeight(wSit * Math.max(0, 1 - sm.lw - sm.dW));
     }
@@ -253,7 +277,7 @@ export function createSmoking({ scene, root, B, mixer, U, addon, strip, camera, 
         if (name === 'smoke_start') { const w = hump(f, 3, 12, 17, 26) * sm.W; if (w > 0) d.addScaledVector(fromThigh('r', K.pocketRt).sub(pinch('r')), w); }
         ik('r', d);
       }
-      N.cig.visible = !sm.rest && (name === 'smoke_start' ? f >= 14 : !((name === 'smoke_stop' && f >= CIG_OUT) || name === 'smoke_stop_end')) && sm.W > 0.3;
+      N.cig.visible = !sm.rest && (name === 'smoke_start' ? f >= 14 : !(name === 'smoke_stop' || name === 'smoke_stop_end')) && sm.W > 0.3;
       if (N.cig.visible) placeCig(wm);
       if (wSeat && sm.desk) { tableLift('r', sm.desk, cigEnds(), dt); if (N.cig.visible) placeCig(wm); }
       // left hand and the lighter (lighting up only)
@@ -304,9 +328,10 @@ export function createSmoking({ scene, root, B, mixer, U, addon, strip, camera, 
     if (N.flame.visible) { flameLight.position.copy(wpos(N.flame, tmp2)); flameLight.intensity = (0.35 + Math.random() * 0.12) * LI; } else flameLight.intensity = 0;
   }
   return {
-    fx, pre, post, setSitBase, setDrinkL, sipTime: () => sm.dT, holdStart: () => (sm.mode === 'sit' ? D.smoke_start + D.smoke_light : Infinity), clockT: () => sm.t,
+    fx, pre, post, setSitBase, setDrinkL, sipTime: () => sm.dT, clockT: () => sm.t,
+    sipsBefore: (t) => { if (sm.mode !== 'sit' || !SIPS.length) return 0; const C = cig.sit + REST.sit, tc = t % C; return Math.floor(t / C) * SIPS.length + SIPS.filter((s0) => tc >= s0).length; },
     active: () => sm.on && sm.W > 0.001,
-    status: () => ({ on: sm.on, mode: sm.mode, t: +sm.t.toFixed(2), clip: sm.cur, frame: Math.round(sm.f), W: +sm.W.toFixed(2), lit: sm.lit, rest: sm.rest, cig: N.cig.visible, lighter: N.lighter.visible, particles: liveN }),
-    props: N,
+    status: () => ({ on: sm.on, mode: sm.mode, sip: sm.dT >= 0 && sm.dW > 0.05, t: +sm.t.toFixed(2), clip: sm.cur, frame: Math.round(sm.f), W: +sm.W.toFixed(2), lit: sm.lit, rest: sm.rest, cig: N.cig.visible, lighter: N.lighter.visible, particles: liveN }),
+    props: N, ikL: (d) => ik('l', d), sipW: () => sm.dW,
   };
 }
