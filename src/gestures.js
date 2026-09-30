@@ -7,7 +7,10 @@
 const TIRED = 60;
 // a gesture = clips played one after another (crossfaded); the last one of a sequence named *_stop is its way out
 export const POOLS = {
-  desk: { P: 24, calm: [['sit_idle_02'], ['sit_idle_03'], ['sit_lookat'], ['sit_papers'], ['sit_lean_start', 'sit_lean_01', 'sit_lean_02', 'sit_lean_stop']],
+  desk: { P: 24, calm: [['sit_idle_02'], ['sit_idle_03'], ['sit_lookat'], ['sit_papers'], ['sit_lean_start', 'sit_lean_01', 'sit_lean_02', 'sit_lean_stop'],
+    ['feet_start', 'feet_idle', 'feet_look', 'feet_idle', 'feet_tap', 'feet_idle', 'feet_stop'],                     // feet on the desk (the chair pushed back)
+    ['feet_start', 'feet_idle', 'feet_relax_start', 'feet_relax_01', 'feet_relax_02', 'feet_relax_stop', 'feet_brush', 'feet_stop'],
+    ['write_start', 'write_01', 'write_look', 'write_02', 'write_stop'], ['write_start', 'write_secret', 'write_01', 'write_stop']],   // writing by hand (pencil and sheet)
     tired: [['sit_doze_start', 'sit_doze', 'sit_doze', 'sit_doze_stop'], ['sit_lean_start', 'sit_lean_01', 'sit_lean_02', 'sit_lean_stop'], ['sit_lookat']] },   // resting clears the desk (no typewriter)
   bench: { P: 24, calm: [['sit_idle_02'], ['sit_idle_03'], ['sit_lookat']], tired: [['sit_idle_03'], ['sit_lookat']] },
   stand: { P: 16, calm: [['stand_look'], ['stand_watch_1'], ['stand_watch_2'], ['stand_scratch_1'], ['stand_scratch_2'], ['stand_neck_1'], ['stand_neck_2'], ['stand_idle_02']],

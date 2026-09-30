@@ -3,11 +3,13 @@
 // The page never decides anything itself: it plays commands that arrive from the director ({from, cmd, at}).
 import * as THREE from 'three';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
-import { S, DESKS, BENCH, SPOTS, CHAIR_REST, CHAIR_TUCKED } from './layout.js';
+import { S, DESKS, BENCH, SPOTS, CHAIR_REST, CHAIR_TUCKED, TV_KNOB } from './layout.js';
 import { createSmoking } from './smoke.js';
 import { SIP } from './coffee.js';
 import { createLunch, DISHES, DISH_NAME } from './lunch.js';
 import { bakedClip, barHolder } from './whisky.js';
+import { createWriting } from './write.js';
+import { jazzStart, jazzExtend } from './jazz.js';
 import { plan as gPlan, sample as gSample, wrapUp as gWrap, SEATED as G_SEATED, POOLS as G_POOLS, phonePlan } from './gestures.js';
 
 const FPS = 30, FADE = 0.3, LEAD = 0.9;
@@ -17,6 +19,12 @@ const GRIP_L = { index_01_l: [0.0227, -0.1689, 0.264, 0.9493], index_02_l: [0.06
   ring_01_l: [-0.0176, -0.1271, 0.5486, 0.8262], ring_02_l: [-0.0126, -0.1683, 0.6617, 0.7305], ring_03_l: [-0.0002, -0.0667, 0.3212, 0.9447],
   pinky_01_l: [-0.0327, -0.1437, 0.4467, 0.8824], pinky_02_l: [0.0508, -0.3101, 0.6643, 0.6782], pinky_03_l: [-0.1115, -0.1455, 0.4056, 0.8955],
   thumb_01_l: [0.7449, 0.2419, -0.0452, 0.6201], thumb_02_l: [-0.1084, 0.0484, 0.1403, 0.983], thumb_03_l: [-0.0009, -0.0103, 0.313, 0.9497] };
+// the right hand's pinch (thumb, index and middle on a small thing): the writing clip's hold of the pencil — for turning the TV's knob
+const GRIP_R = { pinky_01_r: [0.0436, -0.0244, 0.4876, 0.8716], pinky_02_r: [0.0508, -0.3101, 0.6643, 0.6782], pinky_03_r: [-0.1115, -0.1455, 0.4056, 0.8955], ring_01_r: [0.0198, -0.0404, 0.5665, 0.8229],
+  ring_02_r: [-0.0126, -0.1683, 0.6617, 0.7305], ring_03_r: [-0.0002, -0.0667, 0.3212, 0.9447], middle_01_r: [-0.0159, -0.0247, 0.4981, 0.8666], middle_02_r: [0.0002, -0.0327, 0.6381, 0.7693],
+  middle_03_r: [-0.0002, -0.016, 0.3269, 0.9449], index_01_r: [0.0234, -0.0332, 0.3137, 0.9486], index_02_r: [0.07, 0.0571, 0.5783, 0.8108], index_03_r: [-0.0001, 0.0154, 0.1767, 0.9841],
+  thumb_01_r: [0.7727, 0.2606, -0.0801, 0.5732], thumb_02_r: [-0.1084, 0.0484, 0.1403, 0.983], thumb_03_r: [0, -0.0065, 0.1384, 0.9904] };
+const GX = 0.35;                                         // crossfade between gesture clips (gestures.js X)
 const _qg = new THREE.Quaternion();
 const smooth = (t) => { t = Math.min(1, Math.max(0, t)); return t * t * (3 - 2 * t); };
 const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
@@ -34,6 +42,7 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {
   const holder = new THREE.Group(), body = new THREE.Group(); body.scale.setScalar(S);
   holder.add(body); body.add(root); scene.add(holder); holder.name = 'PERSON ' + ID;
   root.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; } if (o.isBone) Bn[o.name] = o; });
+  root.traverse((o) => { if (o.isMesh && !o.isSkinnedMesh && /^SM_Prop_/.test(o.name)) o.visible = false; });   // pack props baked into a figure's file (the reporter's pint and spoon) stay hidden: the add-ons bring their own
   const setHolder = (T) => { holder.position.set(T.x, 0, T.z); holder.rotation.y = T.th; };
   const holderPose = () => P(holder.position.x, holder.position.z, holder.rotation.y);
 
@@ -131,6 +140,17 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {
   // the phone (add-on editor2A-phone-web-v01.glb): seated clips in the seat frame, the standing ones (stand_*) in place
   if (extra.phoneClips) for (const c of extra.phoneClips.animations) { try { GEST[c.name] = stripClip('g_' + c.name, c, /^stand_/.test(c.name) ? 'first' : seatBase); } catch (e) { console.warn('phone clip', c.name, e); } }
   const phones = extra.phones || null;
+  // crouching at the TV to turn the channel knob (add-on editor2A-tvswitch-web-v01.glb): the three clips share the frame of the first one (one chain)
+  if (extra.tvswitch) { try { const cl = extra.tvswitch.animations, d = cl.find((c) => c.name === 'tv_crouch_down'); GEST[d.name] = stripClip('g_' + d.name, d, 'first');
+    const T0 = GEST[d.name].traj[0]; for (const c of cl) if (c !== d) GEST[c.name] = stripClip('g_' + c.name, c, T0); } catch (e) { console.warn('tv switch clips', e); } }
+  if (extra.jazz) for (const c of extra.jazz.animations) { try { GEST[c.name] = stripClip('g_' + c.name, c, 'first'); } catch (e) { console.warn('jazz clip', c.name, e); } }   // listening to music at the TV, standing
+  // feet on the desk (add-on editor2A-feetup-web-v01.glb): seated clips in the seat frame + the chair's own track (pushed back, aside, turned)
+  if (extra.feetup) for (const c of extra.feetup.animations) { try { GEST[c.name] = stripClip('g_' + c.name, c, seatBase); } catch (e) { console.warn('feet clip', c.name, e); } }
+  const FEET_CHAIR = extra.feetup?.userData?.chairTracks || null;
+  // writing by hand (add-on editor2A-write-web-v01.glb): seated clips in the seat frame, the pencil and the sheet on his desk
+  let writing = null;
+  if (extra.write) { try { writing = createWriting({ scene, B: Bn, addon: extra.write, DESKS, S });
+    for (const c of writing.clips) GEST[c.name] = stripClip('g_' + c.name, c, seatBase); } catch (e) { console.warn('writing unavailable:', e); writing = null; } }
   if (coffee) CL.drink = stripClip('drink', coffee.bodyClip, seatBase);
 
   // ---------- seats in the office
@@ -261,7 +281,8 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {
   if (mouth0) { mouth0.name = 'face ref (columnist)'; mouth0.position.copy(mk.smkmouth.position); mk.smkmouth.parent.add(mouth0);
     for (const o of Object.values(mk)) o.position.add(MOUTH); }
   // hand IK on top of the mixer: put the arms back to the clean animated pose before each update (the mixer skips unchanged values)
-  const ARMS = ['upperarm_r', 'lowerarm_r', 'hand_r', 'upperarm_l', 'lowerarm_l', 'hand_l', ...(extra.phones ? [...Object.keys(GRIP_L), 'neck_01', 'head'] : [])].map((n) => Bn[n]).filter(Boolean), armQ = ARMS.map((b) => b.quaternion.clone());
+  const ARMS = ['upperarm_r', 'lowerarm_r', 'hand_r', 'upperarm_l', 'lowerarm_l', 'hand_l', ...(extra.phones ? [...Object.keys(GRIP_L), 'neck_01', 'head'] : []), ...(FEET_CHAIR ? ['spine_02'] : []), ...(extra.tvswitch ? Object.keys(GRIP_R) : [])].map((n) => Bn[n]).filter(Boolean), armQ = ARMS.map((b) => b.quaternion.clone());
+  const IK = !!(smoking || lunch || phones || writing || FEET_CHAIR || extra.tvswitch);   // something moves bones after the mixer
   const armRestore = () => ARMS.forEach((b, i) => b.quaternion.copy(armQ[i])), armSave = () => ARMS.forEach((b, i) => armQ[i].copy(b.quaternion));
 
   // ---------- behaviour (as the seating page v6)
@@ -279,6 +300,7 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {
     syncBoxes();                                        // the others may have moved since: walk around where they are now
     if (ch.mode === 'trans' || ch.mode === 'settle' || ch.wh) { ch.queue = goal; if (ch.wh) ch.motion = 'допивает'; return; }
     if (ch.mode === 'seated' && ch.g) { ch.queue = goal; ch.mode = 'settle'; ch.g = gWrap(ch.g, ch.clk - ch.g.t0); ch.motion = 'сидит'; return; }   // lifts his head first
+    if (ch.mode === 'idle' && (ch.g?.jazz || ch.g?.tv)) { ch.queue = goal; if (ch.g.jazz) ch.g = jazzOut(ch.g, ch.clk - ch.g.t0); ch.hold = true; return; }   // the loop goes into its stop / he gets up from the crouch first
     if (ch.mode === 'idle' && ch.g?.phone) { ch.queue = goal; if (!ch.g.wrapped) { ch.g = { ...gWrap(ch.g, ch.clk - ch.g.t0), wrapped: true }; } ch.hold = true; return; }   // standing: puts the handset back first
     if (ch.seat) {
       if (goal.seat === ch.seat) return;
@@ -368,10 +390,11 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {
     if (WP && A.wh_bar) whiskyFrame(dt);
     if (tw) {                                                           // typewriters stay on the desks; an activity that needs the desk clears it
       if (FREE_DESK.has(ch.activity) && !(ch.activity === 'rest_desk' && W.type && W.type.cur > 0.05) && !(ch.activity === 'whisky' && !ch.goalDesk)) { freeDesk = ch.goalDesk || freeDesk; freeKind = ch.activity; }   // hidden as soon as he sets off towards that desk (resting: once the hands are off the keys)
-      else if (freeDesk && ch.activity === 'work') freeDesk = null;                              // back to work at the same desk: the machine is back
+      else if (freeDesk && ch.activity === 'work' && !feetDesk) freeDesk = null;                // back to work at the same desk: the machine is back (after the feet are off it)
       else if (freeDesk && !(ch.seat && SEATS[ch.seat].desk === freeDesk) && ch.mode !== 'settle') freeDesk = null;   // back once he has got up and left
     }
-    SH.claim(ID, freeDesk, freeKind);                                   // the page puts the machines and mugs of all desks right after everybody moved
+    SH.claim(ID, freeDesk, freeKind);
+    if (writing) for (const k of Object.keys(DESKS)) writing.show(k, deskFreeForRest(k));                                  // resting: a sheet and a pencil where the typewriter was                                   // the page puts the machines and mugs of all desks right after everybody moved
     if (ch.chairTail) { const tr = ch.chairTail; tr.t += dt; updateChair(tr); if (tr.t > tr.c.clip.duration) ch.chairTail = null; }
     if (ch.mode === 'walk' && ch.crowd) {                                // walking together: pose from the crowd at his time
       const c = ch.crowd, s = CR.pose(ID, ch.tAbs), mine = !!s && s.seg === c.req, nat = natNow(), k = 1 - smooth((ch.tAbs - c.t0) / 0.5);
@@ -466,7 +489,8 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {
   // ---------- small gestures in the pauses: only while he just sits or just stands (gestures.js keeps the schedule)
   const G_BUSY = new Set(['work', 'coffee', 'smoke', 'smoke_coffee', 'lunch', 'phone', 'invite', 'whisky']);
   const G_LABEL = { sit_lookat: 'оглядывается', sit_papers: 'просматривает бумаги', sit_lean: 'облокотился на стол', sit_doze: 'дремлет', stand_look: 'оглядывается',
-    stand_watch: 'смотрит на часы', stand_yawn: 'зевает', stand_scratch: 'чешет затылок', stand_neck: 'разминает шею' };
+    stand_watch: 'смотрит на часы', stand_yawn: 'зевает', stand_scratch: 'чешет затылок', stand_neck: 'разминает шею', feet_idle: 'закинул ноги на стол', write: 'пишет от руки',
+    write_secret: 'пишет, прикрывая лист рукой', jazz: 'слушает музыку', jazz_02_tap: 'слушает музыку', jazz_03_tap: 'слушает музыку', tv_crouch_down: 'включает музыку' };
   const gDur = (n) => GEST[n] && GEST[n].clip.duration;
   // ---------- the phone: the owner's calls ring on desk A (the editor's phone); whoever is there answers — seated if he sits at
   // that desk, otherwise standing next to it (the director sends him to the spot 'phoneA'). Clock: time since the decision.
@@ -567,16 +591,112 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {
     if (coffee && sipping()) { const g = coffee.groups.find((x) => x.name === 'COFFEE ' + d); if (g?.children[0]) nudgeOne(g.children[0], 'r'); }
     if (cur?.activity === 'smoke_coffee' && mugL[d]?.g.visible && mugL[d].g.children[0]) nudgeOne(mugL[d].g.children[0], 'l');
   }
+  // the chair follows the feet-on-the-desk clips (their chair track, weighted like the clips); the rest of the weight: the chair as it was
+  let feetDesk = null, feetBase = 0;
+  function feetChair(w) {
+    const on = FEET_CHAIR && ch.g && ch.seat && SEATS[ch.seat].desk && ch.g.segs.some((a) => a.n.startsWith('feet_'));
+    if (!on) { if (feetDesk) { setChair(feetDesk, feetBase); feetDesk = null; } return; }
+    if (!feetDesk) { feetDesk = SEATS[ch.seat].desk; feetBase = chairs[feetDesk] ? chairs[feetDesk].dy : 0; }
+    let sw = 0, dx = 0, dy = 0, yaw = 0;
+    for (const n in w) { if (!n.startsWith('feet_')) continue; const [k, t] = w[n], tr = (FEET_CHAIR[n] || FEET_CHAIR.feet_idle).track;
+      const v = FEET_CHAIR[n] ? tr[Math.min(tr.length - 1, Math.max(0, Math.round(t * FPS)))] : tr[0]; sw += k; dx += k * v[0]; dy += k * v[1]; yaw += k * v[2]; }
+    setChair(feetDesk, dy + (1 - sw) * feetBase, dx, yaw);
+  }
+  // pushing the chair back the actor bends low over the desk; our big head would touch it: straighten the back just enough
+  const HEAD_MIN = 1.14 / 0.644;                                      // head bone at least 1.14 m above the floor while he pushes off
+  function feetPost() {
+    const g = ch.g; if (!FEET_CHAIR || !g || !feetDesk) return;
+    const u = ch.clk - g.t0, a = g.segs.find((x) => x.n === 'feet_start' && u >= x.s && u < x.s + x.d); if (!a) return;
+    const b = Bn.spine_02, H = Bn.head; holder.updateMatrixWorld(true);
+    const y0 = H.getWorldPosition(new THREE.Vector3()).y; if (y0 >= HEAD_MIN) return;
+    const T = holderPose(), ax = new THREE.Vector3(Math.cos(T.th), 0, -Math.sin(T.th)), q0 = b.quaternion.clone();   // his left: a turn about it lifts the head
+    const hAt = (dg) => { b.quaternion.copy(q0); rotateWorld(b, new THREE.Quaternion().setFromAxisAngle(ax, dg * Math.PI / 180)); return H.getWorldPosition(new THREE.Vector3()).y; };
+    const sg = hAt(5) > y0 ? 1 : -1; let lo = 0, hi = 35;
+    for (let i = 0; i < 10; i++) { const m = (lo + hi) / 2; if (hAt(sg * m) < HEAD_MIN) lo = m; else hi = m; }
+    hAt(sg * hi);
+  }
+  // the desk is clear of the typewriter for resting (the feet and the writing need it)
+  function deskFreeForRest(k) { return tw ? freeDesk === k && freeKind === 'rest_desk' : !!(ch.seat && SEATS[ch.seat].desk === k); }
+  // how high the finger bones stay above the desk (world metres): the owner's pose in Blender (pencil-grip-v03.blend) — the hands lying on
+  // the sheet; and the turn of the writing hand he gave it (8° about the character's forward axis)
+  const FINGER_R = { r: -0.0018, l: 0.0070 }, DQ_R = new THREE.Quaternion(0, 0, -0.07155, 0.99744);
+  function writePost() {
+    if (!writing) return; const k = ch.seat && SEATS[ch.seat].desk; if (!k) return;
+    const u = ch.g ? ch.clk - ch.g.t0 : 0, e = ch.g && writing.segOf(ch.g, u) ? gSample(ch.g, u).e : 0, w = e ? writing.hold(ch.g, u) * e : 0;
+    if (e > 0) {   // the point onto the paper (the hand goes down), but no finger into the desk: the fingers rest on it (either hand goes up)
+      { const H = Bn.hand_r, rq = root.getWorldQuaternion(new THREE.Quaternion()), now = H.getWorldQuaternion(new THREE.Quaternion());
+        const want = rq.clone().multiply(DQ_R).multiply(rq.clone().invert()).multiply(now); now.slerp(want, e);
+        H.quaternion.copy(H.parent.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(now)); H.updateMatrixWorld(true); }
+      const cr = writing.clearance(k, 'r') - FINGER_R.r, cl = writing.clearance(k, 'l') - FINGER_R.l, down = (sd) => Bn['hand_' + sd].getWorldPosition(new THREE.Vector3());
+      const dy = Math.min(writing.drop(k, w), cr >= 0 ? cr : cr * e); if (dy) reach(down('r').add(new THREE.Vector3(0, -dy, 0)), 1);
+      if (cl < 0) reach(down('l').add(new THREE.Vector3(0, -cl * e, 0)), 1, 'l');
+    }
+    writing.post(k, w, writing.segOf(ch.g, u), ch.g ? ch.g.t0 + ':' + (cur?.seq ?? '') : undefined);
+  }
+  // turning the TV's channel knob while crouched (tv_crouch_idle): the right hand goes to the knob, turns it (a twist of the wrist about
+  // the knob's axis) and comes back. knobTurn: how far the knob is turned (0…1) — the TV switches to music when it is turned.
+  const KNOB = new THREE.Vector3(TV_KNOB.x, TV_KNOB.y, TV_KNOB.z), KNOB_N = new THREE.Vector3(TV_KNOB.n.x, 0, TV_KNOB.n.z), TWIST = deg(70);
+  let knobTurn = 0;
+  function knobPost() {
+    knobTurn = 0; const g = ch.g; if (!g || !g.tv) return;
+    const u = ch.clk - g.t0, a = g.segs.find((x) => x.n === 'tv_crouch_idle' && u >= x.s && u < x.s + x.d); if (!a) return;
+    const t = u - a.s, w = hump(t * FPS, 10, 34, (a.d - 1.0) * FPS, (a.d - 0.25) * FPS), turn = smooth((t - 1.4) / 0.8);
+    if (w <= 0) return;
+    // the hand as one holds a dial: fingers towards the set (a little down), the thumb on top, then the wrist turns about the knob's axis;
+    // the wrist stands back from the knob by the hand's length so the fingers close on it
+    const H = Bn.hand_r, Pw = (b) => Bn[b].getWorldPosition(new THREE.Vector3());
+    const f = Pw('middle_01_r').sub(Pw('hand_r')).normalize(), sd = Pw('pinky_01_r').sub(Pw('index_01_r')), handLen = Pw('middle_03_r').distanceTo(Pw('hand_r'));
+    sd.addScaledVector(f, -sd.dot(f)).normalize();
+    const f2 = KNOB_N.clone().negate().add(new THREE.Vector3(0, -0.25, 0)).normalize(), s2 = new THREE.Vector3(0, -1, 0);
+    s2.applyAxisAngle(f2, TWIST * turn); s2.addScaledVector(f2, -s2.dot(f2)).normalize();
+    const B0 = new THREE.Matrix4().makeBasis(f, sd, f.clone().cross(sd)), B1 = new THREE.Matrix4().makeBasis(f2, s2, f2.clone().cross(s2));
+    const R = new THREE.Quaternion().setFromRotationMatrix(B1.multiply(B0.transpose()));
+    const want = H.getWorldQuaternion(new THREE.Quaternion()).premultiply(R), now = H.getWorldQuaternion(new THREE.Quaternion()).slerp(want, w);
+    H.quaternion.copy(H.parent.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(now)); H.updateMatrixWorld(true);
+    for (const [n, q] of Object.entries(GRIP_R)) if (Bn[n]) Bn[n].quaternion.slerp(new THREE.Quaternion().fromArray(q), w);   // pinch the knob
+    reach(KNOB.clone().addScaledVector(f2, -handLen * 0.8).add(new THREE.Vector3(0, -0.05, 0)), w, 'r');   // the pinch sits above the wrist line
+    knobTurn = turn * (w >= 1 ? 1 : 0);
+  }
+  // music at the TV (director's activities 'jazz' at the spots tv…tv5 and 'tvmusic' at the knob): standing plans in the gestures' clock.
+  // Listening: start, loops, stop — each next loop chosen just before the join, the one nobody else at the TV plays then (jazz.js); the
+  // plans of everybody on this page are in SH.jazz, on the common clock (tAbs). Turning the knob: crouch, turn, get up — once per decision.
+  const TV_SEED = { tv: 0, tv2: 1, tv3: 2, tv4: 3, tv5: 4 };
+  const jazzOthers = () => Object.entries(SH.jazz || {}).filter(([k]) => k !== ID).map(([, v]) => ({ t0: v.g.t0 + v.off, segs: v.g.segs }));
+  function musicPlan() {
+    const sp = (cur?.cmd || cur?.from)?.spot, at = sp && SPOTS[sp], hp = holderPose();
+    if (!at || Math.hypot(hp.x - at.x, hp.z - at.z) > 0.4) return null;
+    if (ch.activity === 'jazz' && sp in TV_SEED && GEST.jazz_start) {
+      const off = ch.tAbs - ch.clk, g = jazzStart(ch.clk + off, 999, TV_SEED[sp], jazzOthers(), gDur, GX); g.t0 -= off; g.kind = 'stand'; return g; }
+    if (ch.activity === 'tvmusic' && sp === 'tvKnob' && GEST.tv_crouch_down && ch.tvSeq !== cur.seq) {
+      ch.tvSeq = cur.seq; const segs = []; let s = 0;
+      for (const n of ['tv_crouch_down', 'tv_crouch_idle', 'tv_crouch_up']) { segs.push({ n, s, d: gDur(n) }); s += gDur(n) - GX; }
+      return { t0: ch.clk, segs, T: s + GX, kind: 'stand', tv: true }; }
+    return null;
+  }
+  function jazzOut(g, u) {                            // leaving the music: the loop he is in goes straight into the stop
+    if (!g.jazz || g.jazz.done) return g;
+    const i = g.segs.findIndex((a) => u >= a.s && u < a.s + a.d), segs = g.segs.slice(0, Math.max(0, i) + 1).map((a) => ({ ...a })), c = segs[segs.length - 1];
+    c.d = Math.min(c.d, u - c.s + GX); const d = gDur('jazz_stop');
+    segs.push({ n: 'jazz_stop', s: u, d }); return { ...g, segs, T: u + d, jazz: { ...g.jazz, done: true }, wrapped: true };
+  }
   function gestures() {
     if (!Object.keys(GEST).length) return;
     phoneCall();
     const calmSeat = ch.mode === 'seated' && ch.seat && !typing() && !sipping() && !eating() && !smoking?.active() && !G_BUSY.has(ch.activity);
     const kind = calmSeat ? (SEATS[ch.seat].desk ? 'desk' : 'bench')
       : ch.mode === 'idle' && !ch.seat && ch.speed === 0 && !smoking?.active() && ch.activity !== 'smoke' ? 'stand' : null;
-    if (ch.g && !ch.g.phone && !(kind === ch.g.kind || (ch.mode === 'settle' && ch.g.kind !== 'stand'))) ch.g = null;   // something else took over: let it fade out
-    if (!ch.g && kind && cur) {
+    if (ch.g && !ch.g.phone && !(kind === ch.g.kind || (ch.mode === 'settle' && ch.g.kind !== 'stand'))) {   // something else took over:
+      const u = ch.clk - ch.g.t0, i = ch.g.segs.findIndex((a, j) => j > 0 && /_stop$/.test(a.n));
+      if (ch.mode === 'seated' && ch.g.kind !== 'stand' && i > 0 && u < ch.g.segs[i].s && !ch.g.wrapped) ch.g = { ...gWrap(ch.g, u), wrapped: true };   // a sequence goes out its own way (feet off the desk first)
+      else if (!ch.g.wrapped) ch.g = null; }                                                                           // a single clip fades out
+    if (ch.g?.jazz && ch.activity !== 'jazz' && !ch.g.wrapped) ch.g = jazzOut(ch.g, ch.clk - ch.g.t0);   // the music is over for him
+    if (ch.g?.jazz && !ch.g.jazz.done) { const off = ch.tAbs - ch.clk, u = ch.clk - ch.g.t0; ch.g.t0 += off; jazzExtend(ch.g, u, jazzOthers(), gDur, GX); ch.g.t0 -= off; }
+    if (SH.jazz) { if (ch.g?.jazz) SH.jazz[ID] = { g: ch.g, off: ch.tAbs - ch.clk }; else delete SH.jazz[ID]; }
+    if (!ch.g && kind === 'stand' && cur && (ch.activity === 'jazz' || ch.activity === 'tvmusic')) { const g = musicPlan(); if (g) ch.g = g; }
+    else if (!ch.g && kind && cur) {
       const slot = Math.floor(ch.clk / G_POOLS[kind].P), key = kind + '|' + cur.seq + '|' + slot;
-      if (key !== ch.gKey) { const g = gPlan(kind, cur.seq, slot, ch.fatigue, gDur);
+      if (key !== ch.gKey) { let g = gPlan(kind, cur.seq, slot, ch.fatigue, gDur);
+        if (g && /^(feet|write)_/.test(g.segs[0].n) && !deskFreeForRest(SEATS[ch.seat].desk)) g = null;   // the feet and the pencil only on a cleared desk
         if (g && ch.clk >= g.t0 && ch.clk < g.t0 + 0.5) { ch.g = g; ch.gKey = key; } }
     }
     if (ch.g && ch.clk - ch.g.t0 >= ch.g.T) { ch.g = null; if (ch.hold) { ch.hold = false; const q = ch.queue; ch.queue = null; if (q) command(q); } }
@@ -585,10 +705,11 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {
     for (const n in GEST) { const k = 'g_' + n, v = w[n];
       if (v) { W[k].target = W[k].cur = v[0]; A[k].time = v[1]; }
       else if (W[k].target > 0 || W[k].cur > 0) { W[k].target = 0; W[k].rate = 1 / 0.4; } }
+    feetChair(w);
     if (ch.g) { for (const k in W) if (!k.startsWith('g_') && k !== base) W[k].target = W[k].cur = 0;
       W[base].target = W[base].cur = 1 - e;
       const main = ch.g.segs.find((a) => !/_(start|stop)$/.test(a.n)) || ch.g.segs[0], lab = G_LABEL[main.n.replace(/_\d+$|_0\d$/, '')];
-      if (lab && ch.mode !== 'settle') ch.motion = lab; if (ch.g.phone) ch.motion = 'говорит по телефону'; }
+      if (lab && ch.mode !== 'settle') ch.motion = lab; if (ch.g.jazz) ch.motion = 'слушает музыку'; if (ch.g.phone) ch.motion = 'говорит по телефону'; }
     else if (ringing) ch.motion = ch.mode === 'walk' ? 'идёт к телефону' : 'звонит телефон';
     else if (/телефон/.test(ch.motion) && (ch.mode === 'seated' || ch.mode === 'idle')) ch.motion = ch.mode === 'seated' ? 'сидит' : 'стоит';   // the call is over
   }
@@ -631,13 +752,13 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {
         if (Math.abs(t - M.t) > 1e-6) { M.t = t; M.a.time = Math.min(t, M.D); M.m.update(0); M.off.position.copy(mugOffset(t)); } } }
     if (!ff) {
       const t0 = A.type ? A.type.time : 0;
-      if (smoking || lunch || phones) armRestore();
+      if (IK) armRestore();
       mixer.update(dt);
-      if (smoking || lunch || phones) { holder.updateMatrixWorld(true); armSave(); } if (smoking) smoking.post(dt);
+      if (IK) { holder.updateMatrixWorld(true); armSave(); } if (smoking) smoking.post(dt);
       { const d = ch.seat && SEATS[ch.seat].desk, M = d && mugL[d], st = smoking ? smoking.sipTime() : -1;      // the hand takes the mug back to where it stood
         const c = M && st >= 0 && cur?.activity === 'smoke_coffee' ? handFix(st) : null;
         if (c) smoking.ikL(c.applyMatrix3(new THREE.Matrix3().setFromMatrix4(M.g.matrix)).multiplyScalar(smoking.sipW())); }
-      phonePost();
+      phonePost(); feetPost(); writePost(); knobPost();
       if (extra.talk) extra.talk.post(ID, Bn, holder, typing() || eating() || sipping() || !!smoking?.active(), dt, ch.mode === 'walk' || ch.mode === 'turn');   // invitations: look at each other, nod / shake
       if (lunch && lunch.active()) lunch.post(ch.lunchT, dt);
       if (mouth0) nudgeSips();
@@ -654,7 +775,7 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {
     for (let i = 0; i < n; i++) frame(1 / FPS, true);
     simT += sec;
     if (ch.mode === 'trans') A[ch.trans.clip].time = ch.trans.t;
-    snapWeights(); if (smoking) smoking.pre(0, smokeWant(), A); mixer.update(0); if (smoking || lunch || phones) { holder.updateMatrixWorld(true); armSave(); } holder.updateMatrixWorld(true); hemFrame();
+    snapWeights(); if (smoking) smoking.pre(0, smokeWant(), A); mixer.update(0); if (IK) { holder.updateMatrixWorld(true); armSave(); } holder.updateMatrixWorld(true); hemFrame();
   }
   function apply(w, serverNow) {                      // w = {seq, chars: {id: {seq, from, cmd, at, state, …}}, chairs} (or the old {seq, editor, state})
     const e = w?.chars?.[ID] || (ID === 'columnist' || ID === 'editor' ? w?.editor : null); if (!e) return;
@@ -687,7 +808,7 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {
   { const home = extra.home && SEATS[extra.home] ? extra.home : 'deskA'; ch.mode = 'idle'; setHolder(SEATS[home].pose); ch.seat = home; ch.mode = 'seated'; fadeTo('sit_idle'); snapWeights(); }   // until his first command comes
   return {
     id: ID, apply, update, holder, SEATS, nav, chairs, fx: smoking ? smoking.fx : null, root,
-    mugs: [], lunchGroup: lunch ? lunch.group : null,
+    mugs: [], lunchGroup: lunch ? lunch.group : null, writeGroups: writing ? writing.groups : [], knobTurn: () => knobTurn,
     moving: () => ch.mode === 'walk' || ch.mode === 'turn' || ch.mode === 'trans' || !!ch.chairTail || !!smoking?.active() || sipping() || eating() || !!ch.g || ringing || !!ch.wh,
     status: () => ({ id: ID, activity: cur?.activity || '', label: cur?.label || '', motion: ch.motion, gesture: ch.g ? ch.g.segs.map((a) => a.n).join('+') : null, mode: ch.mode, seat: ch.seat, source: cur?.source || '', smoke: smoking ? smoking.status() : null, lunch: lunch ? { dish: lunch.dish(), seat: lunch.seat(), t: +ch.lunchT.toFixed(2) } : null, coffee: coffee ? { t: +ch.coffeeT.toFixed(2), sip: ch.sip === null ? null : +ch.sip.toFixed(2), w: W.drink ? +W.drink.cur.toFixed(2) : 0 } : null, whisky: ch.wh ? { kind: ch.wh.kind, t: +ch.wh.t.toFixed(2) } : null, drunk: +(ch.dk || 0).toFixed(2) }),
     debug: { ch, CL, A, W, mixer, SEATS, comp, trajAt, setHolder, snapWeights, command: (g) => command(goalOf(g) || g), place, entryOptions, exitOptions, holderPose, NATIVE: () => NATIVE, smoking, lunch },

@@ -42,7 +42,7 @@ export function createTvSchedule(tv, loadVideoTexture, opts = {}) {
     if (!tex[ch]) tex[ch] = loadVideoTexture([`${base}${FILES[ch]}.webm`, `${base}${FILES[ch]}.mp4`], { flipY });
     return tex[ch];
   };
-  let current = null, bulletinUntil = 0, lastSync = 0;
+  let current = null, bulletinUntil = 0, lastSync = 0, tune = null;
 
   function show(ch, offset) {
     const t = get(ch);
@@ -56,10 +56,13 @@ export function createTvSchedule(tv, loadVideoTexture, opts = {}) {
     get current() { return current; },
     // Экстренный выпуск поверх сетки (телетайп). Картинка — tv_news.jpg или canvas.
     bulletin(texture, seconds = 20) { bulletinUntil = now() + seconds * 1000; tv.switchTo(texture); current = 'bulletin'; },
+    // someone in the newsroom turned the knob (world.tv): this channel from `from` to `until` (ms, relay clock), then the grid again
+    tune(o) { tune = o || null; },
     update() {
       const t = now();
       if (t < bulletinUntil) return;
-      const { ch, offset } = onAir(t, { slotSec: opts.slotSec, program: opts.program, cityHour: opts.cityHour ? opts.cityHour() : null, night: opts.night });
+      const { ch, offset } = tune && FILES[tune.ch] && t >= tune.from && t < tune.until ? { ch: tune.ch, offset: (t / 1000) % CLIP_SEC }
+        : onAir(t, { slotSec: opts.slotSec, program: opts.program, cityHour: opts.cityHour ? opts.cityHour() : null, night: opts.night });
       if (ch !== current) { show(ch, offset); lastSync = t; return; }
       // раз в 30 с подтягиваем ролик к общим часам (вкладка могла спать)
       if (t - lastSync > 30000) {

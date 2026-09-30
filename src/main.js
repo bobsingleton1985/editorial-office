@@ -46,6 +46,10 @@ const PHONE_CLIPS = CHAR_BASE + 'assets/editor2A-phoneL-web-v01.glb';    // add-
 const LUNCH = Q.get('lunch') ?? CHAR_BASE + 'assets/editor2A-lunch-web-v02.glb';   // add-on: dishes, utensils, the eating clips
 const WALKS = Q.get('walks') ?? CHAR_BASE + 'assets/editor2A-walks-web-v01.glb';   // add-on: Mixamo Walking1 (his walk since 29.09) + the drunk walk
 const WHISKY = Q.get('whisky') ?? CHAR_BASE + 'assets/whisky-solo-v01.bin';     // whisky alone: the approved page v7 recorded (bar and desk), whisky.js
+const FEETUP = CHAR_BASE + 'assets/editor2A-feetup-web-v01.glb';     // add-on: feet on the desk (MC Seated SitChairTableFeetUp + the chair's track), «Ноги на стол» v5
+const WRITE = CHAR_BASE + 'assets/editor2A-write-web-v01.glb';       // add-on: writing by hand (MC Seated WriteLetter + the pack's pencil and sheet), «Пишет от руки» v6
+const JAZZ = CHAR_BASE + 'assets/editor2A-jazz-web-v01.glb';         // add-on: listening to music at the TV, standing (5 loops), «Джаз у телевизора» v4
+const TVSWITCH = CHAR_BASE + 'assets/editor2A-tvswitch-web-v01.glb'; // add-on: crouching at the TV to turn the channel knob, «Включает музыку» v2
 const $ = (id) => document.getElementById(id);
 const status = $('status'), bar = $('bar'), fpsEl = $('fps'), who = $('who');
 document.body.classList.add('js');
@@ -292,9 +296,9 @@ const opt = (u) => get(u).catch(() => null);                          // add-ons
 const ld = () => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
 async function loadShared(office) {                                   // once: the clips' file, the add-ons, the things on the desks
   showWho();
-  const [buf, tracks, tbuf, wbuf, sbuf, cbuf, dbuf, gbuf, lbuf, pbuf, pcbuf, wkbuf, whbuf] = await Promise.all([get(CHAR), fetch(CHAR_BASE + 'assets/chair-tracks-v30.json').then((r) => r.json()), opt(CHAR_TYPE), opt(TYPEWRITER), SMOKE ? opt(SMOKE) : null, COFFEE ? opt(COFFEE) : null, opt(DRINK_L), opt(GESTURES), LUNCH ? opt(LUNCH) : null, opt(PHONE), opt(PHONE_CLIPS), WALKS ? opt(WALKS) : null, WHISKY ? opt(WHISKY) : null]);
+  const [buf, tracks, tbuf, wbuf, sbuf, cbuf, dbuf, gbuf, lbuf, pbuf, pcbuf, wkbuf, whbuf, fubuf, wrbuf, jzbuf, tsbuf] = await Promise.all([get(CHAR), fetch(CHAR_BASE + 'assets/chair-tracks-v30.json').then((r) => r.json()), opt(CHAR_TYPE), opt(TYPEWRITER), SMOKE ? opt(SMOKE) : null, COFFEE ? opt(COFFEE) : null, opt(DRINK_L), opt(GESTURES), LUNCH ? opt(LUNCH) : null, opt(PHONE), opt(PHONE_CLIPS), WALKS ? opt(WALKS) : null, WHISKY ? opt(WHISKY) : null, opt(FEETUP), opt(WRITE), opt(JAZZ), opt(TVSWITCH)]);
   const parse = (b) => (b ? ld().parseAsync(b.slice(0), '').catch(() => null) : null);
-  const B = { buf, tracks, sbuf, lbuf, wkbuf, typeClip: tbuf ? (await parse(tbuf))?.animations[0] : null, gestures: await parse(gbuf) };
+  const B = { buf, tracks, sbuf, lbuf, wkbuf, wrbuf, feetup: await parse(fubuf), jazz: await parse(jzbuf), tvswitch: await parse(tsbuf), typeClip: tbuf ? (await parse(tbuf))?.animations[0] : null, gestures: await parse(gbuf) };
   if (wbuf) { typewriters = createTypewriters(sc, await ld().parseAsync(wbuf, ''), DESKS, PACK_S);
     for (const g of typewriters.groups) L.attach(g); for (const g of typewriters.groups) SC.addDynamic(g); }
   let phones = null;
@@ -321,11 +325,11 @@ async function loadPerson(id, e) {
     const clips = await ld().parseAsync(base.buf.slice(0), '');                       // his own copy of the shared clips (the page edits clips in place)
     const bodyG = url && url !== CHAR ? await ld().parseAsync(await get(url), '') : clips;
     const extra = { shared, id, chairBack: Number.isFinite(e.chairBack) ? Math.max(-0.2, Math.min(0.2, e.chairBack)) : 0, home: e.home, mouth: e.mouth,
-      talk, typeClip: base.typeClip, gestures: base.gestures, smoke: await parse(base.sbuf), lunch: await parse(base.lbuf), walks: await parse(base.wkbuf), camera: cam, renderer: r,
+      talk, typeClip: base.typeClip, gestures: base.gestures, smoke: await parse(base.sbuf), lunch: await parse(base.lbuf), walks: await parse(base.wkbuf), feetup: base.feetup, write: await parse(base.wrbuf), jazz: base.jazz, tvswitch: base.tvswitch, camera: cam, renderer: r,
       ...(Q.has('drunk') ? { drunk: Q.get('drunk') !== '0' } : {}),
       ...(base.phoneClips ? { phones: shared.phonesFor(id), phoneClips: base.phoneClips } : {}) };
     const ed = createEditor(sc, officeScene, { scene: bodyG.scene, animations: clips.animations }, base.tracks, extra);
-    if (ed.lunchGroup) { L.attach(ed.lunchGroup); SC.addDynamic(ed.lunchGroup); }
+    if (ed.lunchGroup) { L.attach(ed.lunchGroup); SC.addDynamic(ed.lunchGroup); } for (const g of ed.writeGroups) { L.attach(g); SC.addDynamic(g); }
     L.attach(ed.holder); SC.addDynamic(ed.holder); if (ed.fx) SC.addDynamic(ed.fx); SC.markDirty();
     P.ed = ed; P.loading = false; if (!editor) { editor = ed; window.__editor = ed; }
     window.__people = people;
@@ -467,6 +471,16 @@ function incoming() {
 }
 $('tty').addEventListener('click', incoming);
 
+// MUSIC ON THE TV (director's activity 'tvmusic', owner 30.09): someone turns the knob and the TV plays the music channel for everybody
+// until world.tv.until. A viewer who sees the knob turned switches at that moment; the others (late ones) at world.tv.from.
+let tvSeen = null, tvTune = null, knobAt = 0;
+function tvMusic(now) {
+  if (!sched) return;
+  const t = latest?.tv;
+  if (t !== tvSeen) { tvSeen = t; tvTune = t && t.ch === 'jazz' && Number.isFinite(t.from) && Number.isFinite(t.until) && Number.isFinite(t.at) ? { ch: t.ch, from: t.from, until: t.until, at: t.at } : null;
+    sched.tune(tvTune && knobAt >= tvTune.at ? { ...tvTune, from: Math.min(tvTune.from, knobAt) } : tvTune); }
+  if (tvTune && !(knobAt >= tvTune.at) && now < tvTune.until) eachPerson((ed) => { if (!(knobAt >= tvTune.at) && ed.knobTurn() > 0.5) { knobAt = now; sched.tune({ ...tvTune, from: Math.min(tvTune.from, now) }); } });
+}
 // ---------- per-frame life: clock, paper feed, TV flicker
 let cpuMs = 0;
 let prev = performance.now(), fAcc = 0, fN = 0;
@@ -504,7 +518,7 @@ function step(dt, draw = true) {
     sched.update(); bulletinTV?.update(dt); tv.update(dt);
     if (tvMat) tvMat.emissiveIntensity = 1 + tv.uniforms.flicker.value - 0.5 * tv.uniforms.snow.value;
   }
-  { const now = window.__simNow ?? live.now(); eachPerson((ed) => ed.update(dt, now)); shared?.applyProps(); }
+  { const now = window.__simNow ?? live.now(); eachPerson((ed) => ed.update(dt, now)); shared?.applyProps(); tvMusic(now); }
   talk?.update((cam.top - cam.bottom) / cam.zoom);                  // bubbles over the heads (invitations)   // __simNow: automated checks run on their own clock
   typewriters?.update(dt);                                      // paper feed of the desk typewriters
   if (!draw) return;

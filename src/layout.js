@@ -35,4 +35,17 @@ export const SPOTS = {
   phoneA: { x: -3.0, z: -2.40, th: -Math.PI / 2, label: 'у телефона стола A' },
   bar: { x: 2.705, z: 4.650, th: 0, label: 'у тумбы' },                     // where the approved whisky recording begins (office «BAR | root» frame; set from the recording in main.js)  // in the aisle beside desk A, facing it: the phone (left front corner) at his left hand
 };
+// the zone in front of the TV where people stand listening to music (several at once, «Джаз у телевизора» v3, owner 30.09): a front row of
+// three 1,9 from the screen and a back row of two 3,4 from it, staggered to see between the heads; 1,5 apart or more, all on free floor.
+// Each faces the screen centre. The director sends a listener to the nearest free one (spots tv, tv2 … tv5).
+const TV_C = { x: 2.74, z: 0.94 }, TV_N = { x: -0.42, z: 0.91 }, TV_L = { x: 0.91, z: 0.42 };   // screen centre on the floor, its normal, its right
+export const TV_ZONE = [[1.9, 0], [1.9, -1.5], [1.9, 1.5], [3.4, -0.75], [3.4, 0.75]].map(([d, l], i) => {
+  const x = TV_C.x + TV_N.x * d + TV_L.x * l, z = TV_C.z + TV_N.z * d + TV_L.z * l;
+  return { x, z, th: Math.atan2(TV_C.x - x, TV_C.z - z), label: 'у телевизора' + (i ? ' ' + (i + 1) : '') };
+});
+TV_ZONE.forEach((p, i) => { SPOTS['tv' + (i ? i + 1 : '')] = p; });
+// the TV's channel knob (the right one of the two under the screen), world metres; and where one crouches to turn it: 0,6 in front of it,
+// facing the set («Включает музыку» v2, owner 30.09)
+export const TV_KNOB = { x: TV_C.x + TV_L.x * -0.44 + TV_N.x * 0.03, y: 0.64, z: TV_C.z + TV_L.z * -0.44 + TV_N.z * 0.03, n: TV_N };
+SPOTS.tvKnob = { x: TV_KNOB.x + TV_N.x * 0.6, z: TV_KNOB.z + TV_N.z * 0.6, th: Math.atan2(-TV_N.x, -TV_N.z), label: 'у ручки телевизора' };
 export const RADIUS = 0.49;                          // body radius for walking around furniture: arm swing of the walk + 6 cm (was 0.2 m × S = 0.31: the hand went into the sofa)

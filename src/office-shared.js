@@ -12,9 +12,11 @@ export function createShared({ scene, office, typewriters = null, phones = null,
   // ---------- desk chairs (office nodes)
   const chairs = {}; office.updateMatrixWorld(true);
   for (const [k, name] of Object.entries(CHAIR_NODE)) { const node = office.getObjectByName(name);
-    if (node) chairs[k] = { node, rest: node.getWorldPosition(new THREE.Vector3()), dy: CHAIR_REST, plan: CHAIR_REST }; }
-  function setChair(k, dy) { const c = chairs[k]; if (!c) return; c.dy = dy;
-    const w = c.rest.clone(); w.z -= (dy - CHAIR_REST) * S; c.node.position.copy(c.node.parent.worldToLocal(w)); }
+    if (node) chairs[k] = { node, rest: node.getWorldPosition(new THREE.Vector3()), restQ: node.getWorldQuaternion(new THREE.Quaternion()), dy: CHAIR_REST, plan: CHAIR_REST }; }
+  function setChair(k, dy, dx = 0, yaw = 0) { const c = chairs[k]; if (!c) return; c.dy = dy;   // dx, yaw (degrees): the chair pushed aside and turned (feet on the desk)
+    const w = c.rest.clone(); w.z -= (dy - CHAIR_REST) * S; w.x += dx * S; c.node.position.copy(c.node.parent.worldToLocal(w));
+    if (yaw || c.turned) { c.turned = !!yaw; const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw * Math.PI / 180).multiply(c.restQ);
+      c.node.quaternion.copy(c.node.parent.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(q)); } }
   let chairsSet = false;
   function initChairs(state) {                          // the first world a viewer gets: every chair where the director says
     if (chairsSet) return; chairsSet = true;
@@ -74,6 +76,7 @@ export function createShared({ scene, office, typewriters = null, phones = null,
       ring: (k, t) => { if (t >= 0) phoneOwner[k] = id; if (!mine(k)) return; phones.ring(k, t); if (t < 0 && phoneOwner[k] === id && !phoneOwner[k + ':hold']) delete phoneOwner[k]; },
       hold: (k, p, ...rest) => { if (p > 0) { phoneOwner[k] = id; phoneOwner[k + ':hold'] = id; } if (!mine(k)) return; phones.hold(k, p, ...rest); if (!(p > 0)) delete phoneOwner[k + ':hold']; } };
   }
-  return { chairs, setChair, initChairs, phonesFor, nav, crowd, setStation, syncFor, coffee, mugL, drinkL, claim, applyProps, typewriters, whisky: wprops, whiskyRec: wprops ? whisky : null,
+  const jazz = {};                                      // listening at the TV: id → {g, off} — everybody's running plan, so nobody plays the loop another plays
+  return { chairs, setChair, jazz, initChairs, phonesFor, nav, crowd, setStation, syncFor, coffee, mugL, drinkL, claim, applyProps, typewriters, whisky: wprops, whiskyRec: wprops ? whisky : null,
     groups: [...(coffee ? coffee.groups : []), ...Object.values(mugL).map((m) => m.g), ...(wprops ? wprops.groups : [])] };
 }
