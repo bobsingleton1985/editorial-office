@@ -9,7 +9,7 @@ import { SIP } from './coffee.js';
 import { createLunch, DISHES, DISH_NAME } from './lunch.js';
 import { bakedClip, barHolder } from './whisky.js';
 import { createWriting } from './write.js';
-import { jazzStart, jazzExtend } from './jazz.js';
+import { jazzStart, jazzExtend, DANCE } from './jazz.js';
 import { plan as gPlan, sample as gSample, wrapUp as gWrap, SEATED as G_SEATED, POOLS as G_POOLS, phonePlan } from './gestures.js';
 
 const FPS = 30, FADE = 0.3, LEAD = 0.9;
@@ -143,6 +143,7 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {
   // crouching at the TV to turn the channel knob (add-on editor2A-tvswitch-web-v01.glb): the three clips share the frame of the first one (one chain)
   if (extra.tvswitch) { try { const cl = extra.tvswitch.animations, d = cl.find((c) => c.name === 'tv_crouch_down'); GEST[d.name] = stripClip('g_' + d.name, d, 'first');
     const T0 = GEST[d.name].traj[0]; for (const c of cl) if (c !== d) GEST[c.name] = stripClip('g_' + c.name, c, T0); } catch (e) { console.warn('tv switch clips', e); } }
+  if (extra.dance) for (const c of extra.dance.animations) { try { GEST[c.name] = stripClip('g_' + c.name, c, 'first'); } catch (e) { console.warn('dance clip', c.name, e); } }   // swing dances at the TV (Mixamo), «Танцы у телевизора» v1
   if (extra.jazz) for (const c of extra.jazz.animations) { try { GEST[c.name] = stripClip('g_' + c.name, c, 'first'); } catch (e) { console.warn('jazz clip', c.name, e); } }   // listening to music at the TV, standing
   // feet on the desk (add-on editor2A-feetup-web-v01.glb): seated clips in the seat frame + the chair's own track (pushed back, aside, turned)
   if (extra.feetup) for (const c of extra.feetup.animations) { try { GEST[c.name] = stripClip('g_' + c.name, c, seatBase); } catch (e) { console.warn('feet clip', c.name, e); } }
@@ -661,13 +662,16 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {
   // music at the TV (director's activities 'jazz' at the spots tv…tv5 and 'tvmusic' at the knob): standing plans in the gestures' clock.
   // Listening: start, loops, stop — each next loop chosen just before the join, the one nobody else at the TV plays then (jazz.js); the
   // plans of everybody on this page are in SH.jazz, on the common clock (tAbs). Turning the knob: crouch, turn, get up — once per decision.
-  const TV_SEED = { tv: 0, tv2: 1, tv3: 2, tv4: 3, tv5: 4 };
+  // Dancing (activity 'dance' at tv2, tv3, tv4 — the Charleston travels up to a metre): five swing dances, the same rule, no start or stop
+  const TV_SEED = { tv: 0, tv2: 1, tv3: 2, tv4: 3, tv5: 4 }, MUSIC_ACT = new Set(['jazz', 'dance']);
   const jazzOthers = () => Object.entries(SH.jazz || {}).filter(([k]) => k !== ID).map(([, v]) => ({ t0: v.g.t0 + v.off, segs: v.g.segs }));
   function musicPlan() {
     const sp = (cur?.cmd || cur?.from)?.spot, at = sp && SPOTS[sp], hp = holderPose();
     if (!at || Math.hypot(hp.x - at.x, hp.z - at.z) > 0.4) return null;
     if (ch.activity === 'jazz' && sp in TV_SEED && GEST.jazz_start) {
-      const off = ch.tAbs - ch.clk, g = jazzStart(ch.clk + off, 999, TV_SEED[sp], jazzOthers(), gDur, GX); g.t0 -= off; g.kind = 'stand'; return g; }
+      const off = ch.tAbs - ch.clk, g = jazzStart(ch.clk + off, 999, TV_SEED[sp], jazzOthers(), gDur, GX); g.t0 -= off; g.kind = 'stand'; g.act = 'jazz'; return g; }
+    if (ch.activity === 'dance' && sp in TV_SEED && GEST.dance_crazylegs) {
+      const off = ch.tAbs - ch.clk, g = jazzStart(ch.clk + off, 999, TV_SEED[sp], jazzOthers(), gDur, GX, DANCE); g.t0 -= off; g.kind = 'stand'; g.act = 'dance'; return g; }
     if (ch.activity === 'tvmusic' && sp === 'tvKnob' && GEST.tv_crouch_down && ch.tvSeq !== cur.seq) {
       ch.tvSeq = cur.seq; const segs = []; let s = 0;
       for (const n of ['tv_crouch_down', 'tv_crouch_idle', 'tv_crouch_up']) { segs.push({ n, s, d: gDur(n) }); s += gDur(n) - GX; }
@@ -677,7 +681,8 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {
   function jazzOut(g, u) {                            // leaving the music: the loop he is in goes straight into the stop
     if (!g.jazz || g.jazz.done) return g;
     const i = g.segs.findIndex((a) => u >= a.s && u < a.s + a.d), segs = g.segs.slice(0, Math.max(0, i) + 1).map((a) => ({ ...a })), c = segs[segs.length - 1];
-    c.d = Math.min(c.d, u - c.s + GX); const d = gDur('jazz_stop');
+    c.d = Math.min(c.d, u - c.s + GX); if (!g.jazz.S?.stop) return { ...g, segs, T: u + 0.6, jazz: { ...g.jazz, done: true }, wrapped: true };   // a dance: eases into standing
+    const d = gDur('jazz_stop');
     segs.push({ n: 'jazz_stop', s: u, d }); return { ...g, segs, T: u + d, jazz: { ...g.jazz, done: true }, wrapped: true };
   }
   function gestures() {
@@ -690,10 +695,10 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {
       const u = ch.clk - ch.g.t0, i = ch.g.segs.findIndex((a, j) => j > 0 && /_stop$/.test(a.n));
       if (ch.mode === 'seated' && ch.g.kind !== 'stand' && i > 0 && u < ch.g.segs[i].s && !ch.g.wrapped) ch.g = { ...gWrap(ch.g, u), wrapped: true };   // a sequence goes out its own way (feet off the desk first)
       else if (!ch.g.wrapped) ch.g = null; }                                                                           // a single clip fades out
-    if (ch.g?.jazz && ch.activity !== 'jazz' && !ch.g.wrapped) ch.g = jazzOut(ch.g, ch.clk - ch.g.t0);   // the music is over for him
+    if (ch.g?.jazz && ch.activity !== ch.g.act && !ch.g.wrapped) ch.g = jazzOut(ch.g, ch.clk - ch.g.t0);   // the music is over for him
     if (ch.g?.jazz && !ch.g.jazz.done) { const off = ch.tAbs - ch.clk, u = ch.clk - ch.g.t0; ch.g.t0 += off; jazzExtend(ch.g, u, jazzOthers(), gDur, GX); ch.g.t0 -= off; }
     if (SH.jazz) { if (ch.g?.jazz) SH.jazz[ID] = { g: ch.g, off: ch.tAbs - ch.clk }; else delete SH.jazz[ID]; }
-    if (!ch.g && kind === 'stand' && cur && (ch.activity === 'jazz' || ch.activity === 'tvmusic')) { const g = musicPlan(); if (g) ch.g = g; }
+    if (!ch.g && kind === 'stand' && cur && (MUSIC_ACT.has(ch.activity) || ch.activity === 'tvmusic')) { const g = musicPlan(); if (g) ch.g = g; }
     else if (!ch.g && kind && cur) {
       const slot = Math.floor(ch.clk / G_POOLS[kind].P), key = kind + '|' + cur.seq + '|' + slot;
       if (key !== ch.gKey) { let g = gPlan(kind, cur.seq, slot, ch.fatigue, gDur);
@@ -710,7 +715,7 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {
     if (ch.g) { for (const k in W) if (!k.startsWith('g_') && k !== base) W[k].target = W[k].cur = 0;
       W[base].target = W[base].cur = 1 - e;
       const main = ch.g.segs.find((a) => !/_(start|stop)$/.test(a.n)) || ch.g.segs[0], lab = G_LABEL[main.n.replace(/_\d+$|_0\d$/, '')];
-      if (lab && ch.mode !== 'settle') ch.motion = lab; if (ch.g.jazz) ch.motion = 'слушает музыку'; if (ch.g.phone) ch.motion = 'говорит по телефону'; }
+      if (lab && ch.mode !== 'settle') ch.motion = lab; if (ch.g.jazz) ch.motion = ch.g.act === 'dance' ? 'танцует' : 'слушает музыку'; if (ch.g.phone) ch.motion = 'говорит по телефону'; }
     else if (ringing) ch.motion = ch.mode === 'walk' ? 'идёт к телефону' : 'звонит телефон';
     else if (/телефон/.test(ch.motion) && (ch.mode === 'seated' || ch.mode === 'idle')) ch.motion = ch.mode === 'seated' ? 'сидит' : 'стоит';   // the call is over
   }

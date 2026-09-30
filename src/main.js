@@ -50,6 +50,7 @@ const FEETUP = CHAR_BASE + 'assets/editor2A-feetup-web-v01.glb';     // add-on: 
 const WRITE = CHAR_BASE + 'assets/editor2A-write-web-v01.glb';       // add-on: writing by hand (MC Seated WriteLetter + the pack's pencil and sheet), «Пишет от руки» v6
 const JAZZ = CHAR_BASE + 'assets/editor2A-jazz-web-v01.glb';         // add-on: listening to music at the TV, standing (5 loops), «Джаз у телевизора» v4
 const TVSWITCH = CHAR_BASE + 'assets/editor2A-tvswitch-web-v01.glb'; // add-on: crouching at the TV to turn the channel knob, «Включает музыку» v2
+const DANCE = CHAR_BASE + 'assets/editor2A-dance-web-v01.glb';       // add-on: five swing dances (Mixamo), «Танцы у телевизора» v1
 const $ = (id) => document.getElementById(id);
 const status = $('status'), bar = $('bar'), fpsEl = $('fps'), who = $('who');
 document.body.classList.add('js');
@@ -296,9 +297,9 @@ const opt = (u) => get(u).catch(() => null);                          // add-ons
 const ld = () => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
 async function loadShared(office) {                                   // once: the clips' file, the add-ons, the things on the desks
   showWho();
-  const [buf, tracks, tbuf, wbuf, sbuf, cbuf, dbuf, gbuf, lbuf, pbuf, pcbuf, wkbuf, whbuf, fubuf, wrbuf, jzbuf, tsbuf] = await Promise.all([get(CHAR), fetch(CHAR_BASE + 'assets/chair-tracks-v30.json').then((r) => r.json()), opt(CHAR_TYPE), opt(TYPEWRITER), SMOKE ? opt(SMOKE) : null, COFFEE ? opt(COFFEE) : null, opt(DRINK_L), opt(GESTURES), LUNCH ? opt(LUNCH) : null, opt(PHONE), opt(PHONE_CLIPS), WALKS ? opt(WALKS) : null, WHISKY ? opt(WHISKY) : null, opt(FEETUP), opt(WRITE), opt(JAZZ), opt(TVSWITCH)]);
+  const [buf, tracks, tbuf, wbuf, sbuf, cbuf, dbuf, gbuf, lbuf, pbuf, pcbuf, wkbuf, whbuf, fubuf, wrbuf, jzbuf, tsbuf, dnbuf] = await Promise.all([get(CHAR), fetch(CHAR_BASE + 'assets/chair-tracks-v30.json').then((r) => r.json()), opt(CHAR_TYPE), opt(TYPEWRITER), SMOKE ? opt(SMOKE) : null, COFFEE ? opt(COFFEE) : null, opt(DRINK_L), opt(GESTURES), LUNCH ? opt(LUNCH) : null, opt(PHONE), opt(PHONE_CLIPS), WALKS ? opt(WALKS) : null, WHISKY ? opt(WHISKY) : null, opt(FEETUP), opt(WRITE), opt(JAZZ), opt(TVSWITCH), opt(DANCE)]);
   const parse = (b) => (b ? ld().parseAsync(b.slice(0), '').catch(() => null) : null);
-  const B = { buf, tracks, sbuf, lbuf, wkbuf, wrbuf, feetup: await parse(fubuf), jazz: await parse(jzbuf), tvswitch: await parse(tsbuf), typeClip: tbuf ? (await parse(tbuf))?.animations[0] : null, gestures: await parse(gbuf) };
+  const B = { buf, tracks, sbuf, lbuf, wkbuf, wrbuf, feetup: await parse(fubuf), jazz: await parse(jzbuf), tvswitch: await parse(tsbuf), dance: await parse(dnbuf), typeClip: tbuf ? (await parse(tbuf))?.animations[0] : null, gestures: await parse(gbuf) };
   if (wbuf) { typewriters = createTypewriters(sc, await ld().parseAsync(wbuf, ''), DESKS, PACK_S);
     for (const g of typewriters.groups) L.attach(g); for (const g of typewriters.groups) SC.addDynamic(g); }
   let phones = null;
@@ -325,7 +326,7 @@ async function loadPerson(id, e) {
     const clips = await ld().parseAsync(base.buf.slice(0), '');                       // his own copy of the shared clips (the page edits clips in place)
     const bodyG = url && url !== CHAR ? await ld().parseAsync(await get(url), '') : clips;
     const extra = { shared, id, chairBack: Number.isFinite(e.chairBack) ? Math.max(-0.2, Math.min(0.2, e.chairBack)) : 0, home: e.home, mouth: e.mouth, phoneMouth: e.phoneMouth,
-      talk, typeClip: base.typeClip, gestures: base.gestures, smoke: await parse(base.sbuf), lunch: await parse(base.lbuf), walks: await parse(base.wkbuf), feetup: base.feetup, write: await parse(base.wrbuf), jazz: base.jazz, tvswitch: base.tvswitch, camera: cam, renderer: r,
+      talk, typeClip: base.typeClip, gestures: base.gestures, smoke: await parse(base.sbuf), lunch: await parse(base.lbuf), walks: await parse(base.wkbuf), feetup: base.feetup, write: await parse(base.wrbuf), jazz: base.jazz, tvswitch: base.tvswitch, dance: base.dance, camera: cam, renderer: r,
       ...(Q.has('drunk') ? { drunk: Q.get('drunk') !== '0' } : {}),
       ...(base.phoneClips ? { phones: shared.phonesFor(id), phoneClips: base.phoneClips } : {}) };
     const ed = createEditor(sc, officeScene, { scene: bodyG.scene, animations: clips.animations }, base.tracks, extra);
