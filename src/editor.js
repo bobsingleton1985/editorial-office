@@ -105,6 +105,7 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {
   if (addWalk('walk')) raw.walk = addWalk('walk');
   function prepWalk(clip) {                           // native speed from the pelvis travel, then the drift is taken out (the holder moves him)
     const c = clip.clone(); c.tracks = c.tracks.filter((t) => !t.name.startsWith(rig.name + '.'));
+    for (const t of c.tracks) if (t.name.endsWith('.quaternion')) { const v = t.values; for (let i = 0; i < v.length; i += 4) { const l = Math.hypot(v[i], v[i + 1], v[i + 2], v[i + 3]) || 1; v[i] /= l; v[i + 1] /= l; v[i + 2] /= l; v[i + 3] /= l; } }   // the drunk clip in the add-on came with quaternions of length 1.225: the skeleton grew ×1.5 per bone and filled the screen
     const a = smix.clipAction(clip); a.play(); smix.setTime(0); sg.updateMatrixWorld(true); const p0 = sam.pelvis.getWorldPosition(new THREE.Vector3());
     const d = clip.duration - 1e-4; smix.setTime(d); sg.updateMatrixWorld(true); const p1 = sam.pelvis.getWorldPosition(new THREE.Vector3());
     const native = Math.hypot(p1.x - p0.x, p1.z - p0.z) / d; a.stop(); smix.uncacheAction(clip);
