@@ -145,7 +145,7 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {
     return P(a.x + (b.x - a.x) * f, a.z + (b.z - a.z) * f, a.th + wrap(b.th - a.th) * f); }
 
   // ---------- desk chairs and walking: shared by everybody (office-shared.js); the others' places are boxes to walk around
-  const chairs = SH.chairs, nav = SH.nav, setChair = SH.setChair;
+  const chairs = SH.chairs, nav = SH.nav, setChair = SH.setChair, CR = SH.crowd || null;   // CR: walking together (crowd.js), null — his own paths
   const syncBoxes = () => SH.syncFor(ID);
   syncBoxes();
   const path = (a, b) => nav.path(a, b, 0.25);
@@ -269,7 +269,7 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {
   // a sip: starts only while he is having coffee at a desk (by the coffee clock), once started it is drunk to the end
   const sipping = () => ch.sip !== null;
   const eating = () => !!lunch && lunch.active() && ch.seat === lunch.seat() && !lunch.done(ch.lunchT);
-  const ch = { clk: 0, g: null, gKey: '', fatigue: 0, sip: null, coffeeT: 0, lunchT: 0, lunchSeq: -1, work: false, title: '', mode: 'idle', seat: null, speed: 0, vis: 0, err: 0, path: null, cursor: 0, after: null, trans: null, queue: null, chairTail: null, blendIn: 0, motion: 'стоит' };
+  const ch = { tAbs: 0, crowd: null, clk: 0, g: null, gKey: '', fatigue: 0, sip: null, coffeeT: 0, lunchT: 0, lunchSeq: -1, work: false, title: '', mode: 'idle', seat: null, speed: 0, vis: 0, err: 0, path: null, cursor: 0, after: null, trans: null, queue: null, chairTail: null, blendIn: 0, motion: 'стоит' };
   function command(goal) {
     syncBoxes();                                        // the others may have moved since: walk around where they are now
     if (ch.mode === 'trans' || ch.mode === 'settle') { ch.queue = goal; return; }
@@ -285,13 +285,20 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {
     }
     goTo(goal);
   }
-  function goTo(goal) {
-    const here = holderPose();
+  function crowdGo(to, tail, v0) {                     // walking together: the crowd takes him to `to`, then `tail` is walked by the code below
+    const here = holderPose(), req = CR ? CR.start(ID, ch.tAbs, here, to, natNow(), v0) : null; if (!req) return false;
+    ch.crowd = { req, tail, t0: ch.tAbs, off: P(here.x - req.from.x, here.z - req.from.z) };
+    ch.path = null; ch.cursor = 0; ch.mode = 'walk'; ch.motion = 'идёт'; return true;
+  }
+  function goTo(goal, v0 = 0) {
+    const here = holderPose(); ch.crowd = null;
     if (goal.seat) {
       const pick = entryOptions(goal.seat, here).filter((o) => o.cost < Infinity).sort((a, b) => a.cost - b.cost)[0];
       if (!pick) { ch.motion = 'не может подойти'; return; }
+      if (crowdGo(pick.P0, [P(pick.P0.x, pick.P0.z), P(pick.E.x, pick.E.z)], v0)) { ch.after = { type: 'sit', seat: goal.seat, opt: pick }; return; }
       ch.path = [...pick.pts, P(pick.E.x, pick.E.z)]; ch.cursor = 0; ch.after = { type: 'sit', seat: goal.seat, opt: pick }; ch.mode = 'walk'; ch.motion = 'идёт';
     } else {
+      if (crowdGo(goal.point, [P(goal.point.x, goal.point.z)], v0)) { ch.after = { type: 'stand', face: goal.point.th }; return; }
       const pts = path(here, goal.point); if (!pts) { ch.motion = 'туда не пройти'; return; }
       ch.path = pts; ch.cursor = 0; ch.after = { type: 'stand', face: goal.point.th }; ch.mode = 'walk'; ch.motion = 'идёт';
     }
@@ -360,7 +367,20 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {
     }
     SH.claim(ID, freeDesk, freeKind);                                   // the page puts the machines and mugs of all desks right after everybody moved
     if (ch.chairTail) { const tr = ch.chairTail; tr.t += dt; updateChair(tr); if (tr.t > tr.c.clip.duration) ch.chairTail = null; }
-    if (ch.mode === 'walk') {
+    if (ch.mode === 'walk' && ch.crowd) {                                // walking together: pose from the crowd at his time
+      const c = ch.crowd, s = CR.pose(ID, ch.tAbs), mine = !!s && s.seg === c.req, nat = natNow(), k = 1 - smooth((ch.tAbs - c.t0) / 0.5);
+      const bx = mine ? s.x : c.req.from.x, bz = mine ? s.z : c.req.from.z, vx = mine ? s.vx : 0, vz = mine ? s.vz : 0, sp = Math.hypot(vx, vz);
+      holder.position.x = bx + c.off.x * k; holder.position.z = bz + c.off.z * k; ch.speed = sp; ch.vis = sp; ch.err = 0;
+      { const route = mine && (s.dx || s.dz) ? Math.atan2(s.dx, s.dz) : null, vel = sp > 0.05 ? Math.atan2(vx, vz) : null, wv = smooth((sp / nat - 0.3) / 0.4);
+        const want = route !== null && vel !== null ? route + wrap(vel - route) * wv : vel ?? route;     // slow: along the route, not where the crowd pushes him
+        if (want !== null) { const d = wrap(want - holder.rotation.y), max = deg(Math.abs(d) > 0.8 ? 300 : 150) * dt; holder.rotation.y = wrap(holder.rotation.y + THREE.MathUtils.clamp(d, -max, max)); } }
+      if (!s || (mine && s.done)) {                                     // the approach point: the last metre is ours
+        const here = holderPose(); let pts = [here, ...c.tail];
+        if (!s || s.stalled) { const alt = path(here, c.tail[0]); if (alt) pts = [...alt, ...c.tail.slice(1)]; }
+        ch.path = pts; ch.cursor = 0; ch.crowd = null;
+      }
+    }
+    if (ch.mode === 'walk' && !ch.crowd) {
       const pts = ch.path; let rest = 0; const p = holderPose();
       for (let i = ch.cursor + 1; i < pts.length; i++) rest += dist(i === ch.cursor + 1 ? p : pts[i - 1], pts[i]);
       const acc = 3.2; ch.speed = Math.min(natNow(), ch.speed + acc * dt, Math.sqrt(2 * acc * Math.max(0, rest)) + 0.02);
@@ -392,14 +412,16 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {
         if (tr.kind === 'sit') { ch.seat = tr.seatId; ch.mode = 'seated'; fadeTo(seatedLoop(), typing() ? 0.9 : FADE); A.sit_idle.reset(); if (typing()) { A.type.reset(); A.type.play(); } setHolder(SEATS[tr.seatId].pose); ch.motion = 'сидит';
           if (tr.desk) setChair(tr.desk, BACK); const q = ch.queue; ch.queue = null; if (q) command(q); }
         else { ch.seat = null; ch.mode = 'idle'; fadeTo('stand_idle'); ch.motion = 'стоит'; const q = ch.queue; if (tr.desk) ch.chairTail = tr; ch.queue = null;
-          if (q) { goTo(q); if (ch.mode === 'walk') { ch.speed = THREE.MathUtils.clamp(tr.c.vGo, 0.6, 1.4); ch.blendIn = 0.45; } } }
+          if (q) { goTo(q, THREE.MathUtils.clamp(tr.c.vGo, 0.6, 1.4)); if (ch.mode === 'walk') { ch.speed = THREE.MathUtils.clamp(tr.c.vGo, 0.6, 1.4); ch.blendIn = 0.45; } } }
       }
     }
     if (ch.mode === 'walk' || ch.mode === 'turn' || ch.mode === 'idle') {
-      const v = ch.mode === 'walk' ? ch.vis : ch.speed, wW = smooth((v / natNow() - 0.06) / 0.25), dk = DR ? ch.dk || 0 : 0;
+      // walking: the weight follows the intended speed, not the progress along the path — while he turns sharply (just up from a chair,
+      // the goal behind him) he keeps stepping round instead of dropping into the standing pose first; the cadence follows what he really covers
+      const v = ch.mode === 'walk' ? Math.max(ch.vis, 0.6 * ch.speed) : ch.speed, wW = smooth(((ch.mode === 'walk' ? ch.speed : v) / natNow() - 0.06) / 0.25), dk = DR ? ch.dk || 0 : 0;
       W.walk.target = wW * (1 - dk); if (DR) W.walk_drunk.target = wW * dk; W.stand_idle.target = 1 - wW;
       for (const k in W) if (k !== 'walk' && k !== 'walk_drunk' && k !== 'stand_idle') W[k].target = 0;
-      ch.blendIn = Math.max(0, ch.blendIn - dt); W.walk.rate = W.stand_idle.rate = ch.blendIn > 0 ? 3 : 6; A.walk.timeScale = Math.max(0.6, v / NATIVE);
+      ch.blendIn = Math.max(0, ch.blendIn - dt); W.walk.rate = W.stand_idle.rate = ch.blendIn > 0 ? 3 : 6; A.walk.timeScale = Math.max(ch.crowd ? 0.3 : 0.6, v / NATIVE);
       if (DR) { W.walk_drunk.rate = W.walk.rate; A.walk_drunk.timeScale = Math.max(0.6, v / NATIVE_D); }
     }
     gestures();
@@ -542,11 +564,12 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {
     if (from?.seat && SEATS[from.seat]) { const s = SEATS[from.seat]; setHolder(s.pose); ch.seat = from.seat; ch.mode = 'seated'; ch.motion = 'сидит'; fadeTo(seatedLoop()); if (s.desk) { setChair(s.desk, BACK); chairs[s.desk].plan = BACK; } }
     else { const p = (from?.spot && SPOTS[from.spot]) || SPOTS.window; setHolder(p); ch.motion = 'стоит'; fadeTo('stand_idle'); }
     syncBoxes(); snapWeights();
+    if (CR) CR.stand(ID, from?.seat && SEATS[from.seat] ? null : holderPose());   // standing: an obstacle for the walkers; sitting: his chair or the bench already is
   }
   let cur = null, simT = 0;                          // current command and how far it has been played (s)
   const placeKey = (g) => (g ? g.seat || g.spot || null : null);
   function frame(dt, ff) {
-    ch.clk += dt; updateChar(dt); stepWeights(dt);
+    ch.clk += dt; ch.tAbs += dt; updateChar(dt); stepWeights(dt);
     if (smoking) smoking.pre(dt, smokeWant(), A);
     { const d = ch.seat && SEATS[ch.seat].desk, M = d && mugL[d];                      // the left-hand mug follows the sip; before the first sip it stands at frame 1, after it at the last
       if (M && cur?.activity === 'smoke_coffee' && ch.mode === 'seated') { const s = smoking.sipTime(), t = s >= 0 ? s : smoking.sipsBefore(smoking.clockT()) > 0 ? M.D : 0;
@@ -593,6 +616,7 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {
     // live viewer: he is already there (or on his way there) — go on from here; otherwise rebuild the start and catch up
     const dest = cur ? placeKey(cur.cmd || cur.from) : null;
     const cont = cur && dest === placeKey(e.from) && elapsed < 3;
+    if (!(cont && ch.crowd)) ch.tAbs = e.at / 1000;     // his clock for the crowd: the command's time (the director's, the same for every viewer), then every frame
     if (!cont) place(e.from, w.chairs, e.cmd);
     if (ch.g) ch.g.t0 -= ch.clk; ch.clk = 0;             // a gesture already running goes on; the new decision's slots count from zero
     cur = { seq: eseq, at: e.at, from: e.from, cmd: e.cmd, label: e.label || '', source: e.source || '', activity: e.activity || '' }; simT = 0;

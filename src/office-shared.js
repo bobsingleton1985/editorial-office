@@ -7,7 +7,7 @@ import { GRID } from './navgrid.js';
 import { S, DESKS, SPOTS, RADIUS, chairBox, CHAIR_REST, CHAIR_NODE } from './layout.js';
 import { createCoffee } from './coffee.js';
 
-export function createShared({ scene, office, typewriters = null, phones = null, coffeeAddon = null, drinkLAddon = null }) {
+export function createShared({ scene, office, typewriters = null, phones = null, coffeeAddon = null, drinkLAddon = null, crowd = null }) {
   // ---------- desk chairs (office nodes)
   const chairs = {}; office.updateMatrixWorld(true);
   for (const [k, name] of Object.entries(CHAIR_NODE)) { const node = office.getObjectByName(name);
@@ -70,6 +70,6 @@ export function createShared({ scene, office, typewriters = null, phones = null,
       ring: (k, t) => { if (t >= 0) phoneOwner[k] = id; if (!mine(k)) return; phones.ring(k, t); if (t < 0 && phoneOwner[k] === id && !phoneOwner[k + ':hold']) delete phoneOwner[k]; },
       hold: (k, p, ...rest) => { if (p > 0) { phoneOwner[k] = id; phoneOwner[k + ':hold'] = id; } if (!mine(k)) return; phones.hold(k, p, ...rest); if (!(p > 0)) delete phoneOwner[k + ':hold']; } };
   }
-  return { chairs, setChair, initChairs, phonesFor, nav, setStation, syncFor, coffee, mugL, drinkL, claim, applyProps, typewriters,
+  return { chairs, setChair, initChairs, phonesFor, nav, crowd, setStation, syncFor, coffee, mugL, drinkL, claim, applyProps, typewriters,
     groups: [...(coffee ? coffee.groups : []), ...Object.values(mugL).map((m) => m.g)] };
 }

@@ -33,4 +33,4 @@ export const SPOTS = {
   teletype: { x: 3.85, z: -0.9, th: Math.PI / 2, label: 'у телетайпа' },
   phoneA: { x: -3.0, z: -2.40, th: -Math.PI / 2, label: 'у телефона стола A' },  // in the aisle beside desk A, facing it: the phone (left front corner) at his left hand
 };
-export const RADIUS = 0.2 * S;                        // body radius for walking around furniture
+export const RADIUS = 0.49;                          // body radius for walking around furniture: arm swing of the walk + 6 cm (was 0.2 m × S = 0.31: the hand went into the sofa)

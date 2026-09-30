@@ -12,7 +12,9 @@ import { createShared } from './office-shared.js';
 import { connectLive } from './live.js';
 import { createQuality } from './quality.js';
 import { createStaticCache } from './cache.js';
-import { CHAIR_NODE, DESKS, S as PACK_S } from './layout.js';
+import { CHAIR_NODE, DESKS, S as PACK_S, RADIUS, CHAIR_REST, chairBox } from './layout.js';
+import { createCrowd } from './crowd.js';
+import { GRID } from './navgrid.js';
 import { createTypewriters } from './typewriter.js';
 import { createPhones } from './phone.js';
 import { createWeather } from './weather.js';
@@ -290,7 +292,9 @@ async function loadShared(office) {                                   // once: t
   let phones = null;
   if (pbuf && pcbuf) { phones = createPhones(sc, await ld().parseAsync(pbuf, ''), DESKS, PACK_S);     // phones on every desk; without the clips no phones
     for (const g of phones.groups) L.attach(g); for (const g of phones.groups) SC.addDynamic(g); window.__phones = phones; B.phoneClips = await parse(pcbuf); }
-  shared = createShared({ scene: sc, office, typewriters, phones, coffeeAddon: await parse(cbuf), drinkLAddon: await parse(dbuf) });
+  let crowd = null;                                                              // walking together (Recast crowd); ?crowd=0 — the old one-person paths
+  if (Q.get('crowd') !== '0') { try { crowd = await createCrowd(GRID, Object.keys(DESKS).map((k) => chairBox(k, CHAIR_REST)), RADIUS); window.__crowd = crowd; } catch (e) { console.warn('crowd unavailable:', e); } }
+  shared = createShared({ scene: sc, office, typewriters, phones, coffeeAddon: await parse(cbuf), drinkLAddon: await parse(dbuf), crowd });
   for (const g of shared.groups) { L.attach(g); SC.addDynamic(g); } SC.markDirty();
   window.__tw = typewriters; window.__shared = shared;
   window.__look = (pos, tgt) => { const c = new THREE.PerspectiveCamera(35, innerWidth / innerHeight, 0.05, 100); c.position.copy(B3(...pos)); c.lookAt(B3(...tgt)); c.layers.enableAll(); r.render(sc, c); return r.domElement.toDataURL('image/jpeg', 0.85); };
