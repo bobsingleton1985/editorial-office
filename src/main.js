@@ -324,7 +324,7 @@ async function loadPerson(id, e) {
     const url = glbOf(e), parse = (b) => (b ? ld().parseAsync(b.slice(0), '').catch(() => null) : null);
     const clips = await ld().parseAsync(base.buf.slice(0), '');                       // his own copy of the shared clips (the page edits clips in place)
     const bodyG = url && url !== CHAR ? await ld().parseAsync(await get(url), '') : clips;
-    const extra = { shared, id, chairBack: Number.isFinite(e.chairBack) ? Math.max(-0.2, Math.min(0.2, e.chairBack)) : 0, home: e.home, mouth: e.mouth,
+    const extra = { shared, id, chairBack: Number.isFinite(e.chairBack) ? Math.max(-0.2, Math.min(0.2, e.chairBack)) : 0, home: e.home, mouth: e.mouth, phoneMouth: e.phoneMouth,
       talk, typeClip: base.typeClip, gestures: base.gestures, smoke: await parse(base.sbuf), lunch: await parse(base.lbuf), walks: await parse(base.wkbuf), feetup: base.feetup, write: await parse(base.wrbuf), jazz: base.jazz, tvswitch: base.tvswitch, camera: cam, renderer: r,
       ...(Q.has('drunk') ? { drunk: Q.get('drunk') !== '0' } : {}),
       ...(base.phoneClips ? { phones: shared.phonesFor(id), phoneClips: base.phoneClips } : {}) };
@@ -549,7 +549,7 @@ if (DEMO === 'invite') {   // review stand (owner 30.09): one calls the other fo
   const NAME = { columnist: 'Колумнист', reporter: 'Репортёр' }, HOME = { columnist: 'deskA', reporter: 'deskB' }, SPOT = ['window', 'window2'];
   const SEATS_OF = { deskA: DESKS.A, deskB: DESKS.B }, DESK = { deskA: 'столом A', deskB: 'столом B' }, ACC = { columnist: 'колумниста', reporter: 'репортёра' };
   const body = { columnist: { name: 'Колумнист', glb: 'assets/editor2A-web-v01.glb', home: 'deskA', chairBack: 0 },
-    reporter: { name: 'Репортёр', glb: 'assets/reporter-web-v01.glb', home: 'deskB', chairBack: 0.05, mouth: [-3.8, -0.7, 0] } };
+    reporter: { name: 'Репортёр', glb: 'assets/reporter-web-v03.glb', home: 'deskB', chairBack: 0.05, mouth: [-4.1, -4.2, 0], phoneMouth: [-1.7, -20.7, 0] } };
   const LAG = 4, C = {}, NOW = () => window.__simNow ?? live.now(); let wseq = 0, timers = [], busy = false, who0 = 'columnist';
   const send = () => { wseq++; onWorld({ seq: wseq, chairs: { A: -0.25, B: -0.25, C: -0.25 }, chars: Object.fromEntries(Object.entries(C).map(([k, v]) => [k, { ...body[k], ...v }])) }); };
   const decide = (id, from, cmd, activity, label, extra = {}) => { C[id] = { seq: (C[id]?.seq || 0) + 1, from, cmd, at: NOW(), activity, label, source: 'demo', talk: C[id]?.talk, ...extra }; };   // the last words stay (their bubble runs out by itself)

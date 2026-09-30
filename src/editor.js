@@ -510,7 +510,8 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {
   // after the mixer: the left hand (the nearest one) takes the handset from the cradle and puts it back (two-bone IK on a hump, the start and stop
   // clips' pocket reach turned into a reach to the cradle), the handset goes from the cradle to the ear and back
   const hump = (f, a, b, c, d) => (f < a || f > d ? 0 : f < b ? smooth((f - a) / (b - a)) : f <= c ? 1 : 1 - smooth((f - c) / (d - c)));
-  const EAR_H = new THREE.Vector3(4.5, 0.5, 7.5), MOUTH_H = new THREE.Vector3(0.5, -16.5, 0);   // head bone frame (cm): an ear, a point 3-4 cm in front of the mouth
+  const EAR_H = new THREE.Vector3(4.5, 0.5, 7.5), MOUTH_H = Array.isArray(extra.phoneMouth) && extra.phoneMouth.length === 3 && extra.phoneMouth.every((x) => Number.isFinite(x) && Math.abs(x) < 30)
+    ? new THREE.Vector3(...extra.phoneMouth) : new THREE.Vector3(0.5, -16.5, 0);   // head bone frame (cm): an ear, a point 3-4 cm in front of the mouth (per person: PEOPLE.<id>.phoneMouth; the reporter's head is +25 % since v23)
   let earSide = 0;
   const LOOK = 0.6;                                   // how far towards the phone he turns his head (0..1 of the full turn)
   const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _c = new THREE.Vector3(), _t = new THREE.Vector3(), _qh = new THREE.Quaternion();
