@@ -112,6 +112,11 @@ function sendBlinds() {
     } catch (e) { /* offline: stays local */ }
   }, 150);
 }
+function sendNeed(person, need, value, again = true) {      // a viewer moved a scale (owner 30.09): the director sets it and the person decides again
+  return fetch((RELAY === '/' ? '' : RELAY) + '/settings/needs', { method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(ownerToken ? { Authorization: 'Bearer ' + ownerToken } : {}) }, body: JSON.stringify({ person, need, value }) })
+    .then((r) => { if (r.status === 429 && again) return new Promise((ok) => setTimeout(ok, 400)).then(() => sendNeed(person, need, value, false)); }).catch(() => { /* offline: the scale stays as it was */ });
+}
 function buildBlindsUI(box) {
   const ui = { busy: false, rows: [] };
   for (const [k, label] of [['down', 'Жалюзи: подняты ↔ опущены'], ['tilt', 'Ламели: открыты ↔ закрыты']]) {
@@ -374,7 +379,7 @@ addRepertoire(PANEL.section, CHAR_BASE + 'assets/registry-live.json', () => {
   return st.mode === 'idle' ? 'spot' : null;
 });
 let lastWorld = null;
-openPerson = addDirectorStatus(PANEL.section, () => ({ net, world: lastWorld, now: live ? live.now() : Date.now(), focus, setFocus: (id) => { focus = id; }, open: () => { if ($('settings').hidden) $('menu').click(); } }),
+openPerson = addDirectorStatus(PANEL.section, () => ({ net, world: lastWorld, now: live ? live.now() : Date.now(), focus, setFocus: (id) => { focus = id; }, setNeed: RELAY && !DEMO ? sendNeed : null, open: () => { if ($('settings').hidden) $('menu').click(); } }),
   RELAY ? () => fetch((RELAY === '/' ? '' : RELAY) + '/journal?n=150', { cache: 'no-store' }).then((r) => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }) : null);
 live = connectLive(RELAY, (w) => { lastWorld = w; ttyFrom(w); bulletinFrom(w); onWorld(w); }, (s) => { net = s; showWho(); }, { weather: applyWeather, blinds: (b) => applyBlinds(b, true) });
 

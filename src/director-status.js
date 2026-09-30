@@ -58,23 +58,37 @@ function openJournal(load, only = null, names = {}) {
 // needs scales: whatever needs the director sends in world.state (today only fatigue; new needs appear here by themselves).
 // The director sends values with their rate per minute at the moment of the decision; between decisions the page runs them on.
 const NEED = { fatigue: 'Усталость', boredom: 'Скука', social: 'Общение', recognition: 'Признание', fun: 'Развлечение',
-  coffee: 'Кофе', nicotine: 'Никотин', alcohol: 'Алкоголь', stress: 'Стресс', drunk: 'Опьянение', hunger: 'Голод' };
+  coffee: 'Кофе', nicotine: 'Никотин', alcohol: 'Алкоголь', stress: 'Стресс', drunk: 'Опьянение', hunger: 'Голод', music: 'Тяга к музыке', dance: 'Желание танцевать' };
+// the scales may be moved by any viewer (owner 30.09): the value goes to the director when the finger lets go, and the person decides again;
+// meanwhile the page keeps the moved value for a few seconds (until the director's new state arrives) and does not rebuild the panel under the finger
+let holdUntil = 0; const over = {};
+function slider(k, v, nv, row, ctl) {
+  const i = el('input', 'nr'); i.type = 'range'; i.min = 0; i.max = 100; i.step = 1; i.value = v; i.setAttribute('aria-label', NEED[k] || k);
+  const rel = () => { holdUntil = Date.now() + 700; };
+  i.addEventListener('pointerdown', () => { holdUntil = Date.now() + 15000; }); i.addEventListener('pointerup', rel); i.addEventListener('pointercancel', rel);
+  i.addEventListener('input', () => { holdUntil = Math.max(holdUntil, Date.now() + 1500); nv.textContent = `${i.value} из 100`; row.classList.toggle('hi', +i.value >= 70); });
+  i.addEventListener('change', () => { rel(); ctl.set(k, +i.value); });
+  return i;
+}
 let needsCss = false;
-function scales(state, now) {
+function scales(state, now, ctl) {
   if (!needsCss) { needsCss = true; const st = document.createElement('style'); st.textContent = `
     #settings .needs { margin:6px 0 10px; } #settings .nd { display:grid; grid-template-columns:1fr auto; gap:3px 8px; margin:8px 0; font-size:13px; }
     #settings .nd .nv { color:var(--muted); font-variant-numeric:tabular-nums; font-size:12px; }
     #settings .nd .nb { grid-column:1 / -1; height:7px; border-radius:4px; background:rgba(255,255,255,.09); overflow:hidden; }
     #settings .nd .nb i { display:block; height:100%; border-radius:4px; background:linear-gradient(90deg,#7fa36b,#e0913a); }
     #settings .nd.hi .nb i { background:linear-gradient(90deg,#e0913a,#d9483b); }
-    #settings .nd.task .nb i { background:#8aa7c9; }`; document.head.append(st); }
+    #settings .nd.task .nb i { background:#8aa7c9; }
+    #settings .nd input.nr { grid-column:1 / -1; width:100%; margin:0; height:22px; accent-color:#e0913a; } #settings .nd.hi input.nr { accent-color:#d9483b; }`; document.head.append(st); }
   const box = el('div', 'needs'), mins = Math.max(0, (now - state.at) / 60000);
   for (const [k, n] of Object.entries(state.needs || {})) {
-    const v = Math.max(0, Math.min(100, (n.v ?? 0) + (n.rate ?? 0) * mins)), r = n.rate ?? 0;
+    const v = ctl?.value(k, state) ?? Math.max(0, Math.min(100, (n.v ?? 0) + (n.rate ?? 0) * mins)), r = n.rate ?? 0;
     const trend = r > 0 ? ` ↑ +${r}/мин` : r < 0 ? ` ↓ ${r}/мин` : '';
-    const row = el('div', 'nd' + (v >= 70 ? ' hi' : '')), bar = el('div', 'nb'), fill = el('i');
-    fill.style.width = v.toFixed(1) + '%'; bar.append(fill);
-    row.append(el('span', null, NEED[k] || k), el('span', 'nv', `${Math.round(v)} из 100${trend}`), bar); box.append(row);
+    const row = el('div', 'nd' + (v >= 70 ? ' hi' : '')), nv = el('span', 'nv', `${Math.round(v)} из 100${trend}`);
+    row.append(el('span', null, NEED[k] || k), nv);
+    if (ctl) row.append(slider(k, Math.round(v), nv, row, ctl));
+    else { const bar = el('div', 'nb'), fill = el('i'); fill.style.width = v.toFixed(1) + '%'; bar.append(fill); row.append(bar); }
+    box.append(row);
   }
   const t = state.task;
   if (t) {
@@ -97,7 +111,8 @@ export function addDirectorStatus(section, get, loadJournal) {
   if (loadJournal) { const b = el('div', 'btns'), btn = el('button', null, '📜 Журнал действий'); btn.addEventListener('click', () => openJournal(loadJournal, get().focus, names())); b.append(btn); sec.append(b); }
   let tabKey = '';
   function render() {
-    const { net, world, now, focus, setFocus } = get(), list = peopleOf(world);
+    if (Date.now() < holdUntil) return;                              // a scale is being dragged: do not rebuild it under the finger
+    const { net, world, now, focus, setFocus, setNeed } = get(), list = peopleOf(world);
     const id = list.some(([k]) => k === focus) ? focus : list[0]?.[0], e = list.find(([k]) => k === id)?.[1];
     const key = list.map(([k, x]) => k + ':' + (x.name || '')).join('|') + '#' + id;
     if (key !== tabKey) { tabKey = key; tabs.replaceChildren(...(list.length > 1 ? list.map(([k, x]) => { const b = el('button', null, '👤 ' + (x.name || k)); b.setAttribute('aria-pressed', String(k === id));
@@ -114,8 +129,10 @@ export function addDirectorStatus(section, get, loadJournal) {
     } else rows.push(['Последнее решение', 'ещё не получено']);
     const tb = el('table'); for (const [k, v] of rows) { const tr = el('tr'); tr.append(el('td', 'dim', k), el('td', null, v)); tb.append(tr); }
     const st = e?.state || (list.length === 1 ? world?.state : null), sub = el('div', 'sub', list.length > 1 && e ? `Шкалы потребностей: ${e.name || id}` : 'Шкалы потребностей');
-    const needs = st && typeof st.at === 'number' ? scales(st, now) : el('div', 'hint', 'Шкалы появятся после следующего решения режиссёра.');
-    box.replaceChildren(sub, needs, tb, el('div', 'hint', 'Jev думает, только пока редакцию кто-то смотрит. Время редакции (и шкалы) идёт тоже только при зрителях.'));
+    const ctl = setNeed && net.online && e && st ? { set: (k, val) => { over[id + ':' + k] = { v: val, at: Date.now(), t: get().now }; setNeed(id, k, val); },
+      value: (k, s) => { const o = over[id + ':' + k]; return o && Date.now() - o.at < 6000 && s.at < o.t ? o.v : undefined; } } : null;
+    const needs = st && typeof st.at === 'number' ? scales(st, now, ctl) : el('div', 'hint', 'Шкалы появятся после следующего решения режиссёра.');
+    box.replaceChildren(sub, needs, tb, el('div', 'hint', 'Jev думает, только пока редакцию кто-то смотрит. Время редакции (и шкалы) идёт тоже только при зрителях.' + (ctl ? ' Потяните шкалу — человек пересмотрит, чем заняться (это увидят все зрители).' : '')));
   }
   setInterval(() => { if (sec.open) render(); }, 1000);
   sec.addEventListener('toggle', () => { if (sec.open) render(); });
