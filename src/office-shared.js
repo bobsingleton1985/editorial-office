@@ -6,8 +6,9 @@ import { createNav } from './nav.js';
 import { GRID } from './navgrid.js';
 import { S, DESKS, SPOTS, RADIUS, chairBox, CHAIR_REST, CHAIR_NODE } from './layout.js';
 import { createCoffee } from './coffee.js';
+import { createWhiskyProps } from './whisky.js';
 
-export function createShared({ scene, office, typewriters = null, phones = null, coffeeAddon = null, drinkLAddon = null, crowd = null }) {
+export function createShared({ scene, office, typewriters = null, phones = null, coffeeAddon = null, drinkLAddon = null, crowd = null, whisky = null }) {
   // ---------- desk chairs (office nodes)
   const chairs = {}; office.updateMatrixWorld(true);
   for (const [k, name] of Object.entries(CHAIR_NODE)) { const node = office.getObjectByName(name);
@@ -51,13 +52,16 @@ export function createShared({ scene, office, typewriters = null, phones = null,
       drinkL = { clip: dc, slotName: slot.name, slot, mugClip };
     } catch (e) { console.warn('coffee with a cigarette unavailable:', e); }
   }
+  let wprops = null;                                    // whisky alone (whisky.js): the bar's things and a glass and a bottle for every desk
+  if (whisky) { try { wprops = createWhiskyProps({ scene, office, W: whisky, DESKS }); if (!wprops.barReady) console.warn('whisky: no BAR | root in the office'); } catch (e) { console.warn('whisky unavailable:', e); wprops = null; } }
   const claims = {};                                    // id → {desk, kind}
   const claim = (id, desk, kind) => { claims[id] = desk ? { desk, kind } : null; };
   function applyProps() {
     const by = {}; for (const c of Object.values(claims)) if (c) by[c.desk] = c.kind;
     if (typewriters) for (const [d, m] of Object.entries(typewriters.M)) { const v = !(d in by); if (m.g.visible !== v) m.g.visible = v; }
-    if (coffee) for (const k of Object.keys(DESKS)) coffee.show(k, (!typewriters || k in by) && by[k] !== 'smoke_coffee' && by[k] !== 'rest_desk');   // the mug takes the typewriter's place
+    if (coffee) for (const k of Object.keys(DESKS)) coffee.show(k, (!typewriters || k in by) && by[k] !== 'smoke_coffee' && by[k] !== 'rest_desk' && by[k] !== 'whisky');   // the mug takes the typewriter's place
     for (const k in mugL) mugL[k].g.visible = by[k] === 'smoke_coffee';
+    if (wprops) for (const k of Object.keys(DESKS)) wprops.showDesk(k, by[k] === 'whisky');
   }
 
   // ---------- the phones: one set on the desks; a person rings or holds a handset only through his own view of them,
@@ -70,6 +74,6 @@ export function createShared({ scene, office, typewriters = null, phones = null,
       ring: (k, t) => { if (t >= 0) phoneOwner[k] = id; if (!mine(k)) return; phones.ring(k, t); if (t < 0 && phoneOwner[k] === id && !phoneOwner[k + ':hold']) delete phoneOwner[k]; },
       hold: (k, p, ...rest) => { if (p > 0) { phoneOwner[k] = id; phoneOwner[k + ':hold'] = id; } if (!mine(k)) return; phones.hold(k, p, ...rest); if (!(p > 0)) delete phoneOwner[k + ':hold']; } };
   }
-  return { chairs, setChair, initChairs, phonesFor, nav, crowd, setStation, syncFor, coffee, mugL, drinkL, claim, applyProps, typewriters,
-    groups: [...(coffee ? coffee.groups : []), ...Object.values(mugL).map((m) => m.g)] };
+  return { chairs, setChair, initChairs, phonesFor, nav, crowd, setStation, syncFor, coffee, mugL, drinkL, claim, applyProps, typewriters, whisky: wprops, whiskyRec: wprops ? whisky : null,
+    groups: [...(coffee ? coffee.groups : []), ...Object.values(mugL).map((m) => m.g), ...(wprops ? wprops.groups : [])] };
 }

@@ -26,6 +26,7 @@ import { createTvScreen, loadVideoTexture } from './tv-crt.js';
 import { createTvSchedule } from './tv-schedule.js';
 import { createBulletin, BULLETIN_SEC } from './tv-bulletin.js';
 import { createTalk } from './talk.js';
+import { parseWhisky } from './whisky.js';
 
 const Q = new URLSearchParams(location.search);
 const GLB = Q.get('m') || 'assets/office-v31c.glb', GLB_SIZE = 3909868;   // v31: banker lamps (green glass, glow baked to a texture); v30: the lunch table
@@ -44,6 +45,7 @@ const PHONE = 'assets/phone-v02.glb';                                     // 195
 const PHONE_CLIPS = CHAR_BASE + 'assets/editor2A-phoneL-web-v01.glb';    // add-on: taking the handset (left hand, the nearest), talking seated and standing, hanging up
 const LUNCH = Q.get('lunch') ?? CHAR_BASE + 'assets/editor2A-lunch-web-v02.glb';   // add-on: dishes, utensils, the eating clips
 const WALKS = Q.get('walks') ?? CHAR_BASE + 'assets/editor2A-walks-web-v01.glb';   // add-on: Mixamo Walking1 (his walk since 29.09) + the drunk walk
+const WHISKY = Q.get('whisky') ?? CHAR_BASE + 'assets/whisky-solo-v01.bin';     // whisky alone: the approved page v7 recorded (bar and desk), whisky.js
 const $ = (id) => document.getElementById(id);
 const status = $('status'), bar = $('bar'), fpsEl = $('fps'), who = $('who');
 document.body.classList.add('js');
@@ -290,7 +292,7 @@ const opt = (u) => get(u).catch(() => null);                          // add-ons
 const ld = () => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
 async function loadShared(office) {                                   // once: the clips' file, the add-ons, the things on the desks
   showWho();
-  const [buf, tracks, tbuf, wbuf, sbuf, cbuf, dbuf, gbuf, lbuf, pbuf, pcbuf, wkbuf] = await Promise.all([get(CHAR), fetch(CHAR_BASE + 'assets/chair-tracks-v30.json').then((r) => r.json()), opt(CHAR_TYPE), opt(TYPEWRITER), SMOKE ? opt(SMOKE) : null, COFFEE ? opt(COFFEE) : null, opt(DRINK_L), opt(GESTURES), LUNCH ? opt(LUNCH) : null, opt(PHONE), opt(PHONE_CLIPS), WALKS ? opt(WALKS) : null]);
+  const [buf, tracks, tbuf, wbuf, sbuf, cbuf, dbuf, gbuf, lbuf, pbuf, pcbuf, wkbuf, whbuf] = await Promise.all([get(CHAR), fetch(CHAR_BASE + 'assets/chair-tracks-v30.json').then((r) => r.json()), opt(CHAR_TYPE), opt(TYPEWRITER), SMOKE ? opt(SMOKE) : null, COFFEE ? opt(COFFEE) : null, opt(DRINK_L), opt(GESTURES), LUNCH ? opt(LUNCH) : null, opt(PHONE), opt(PHONE_CLIPS), WALKS ? opt(WALKS) : null, WHISKY ? opt(WHISKY) : null]);
   const parse = (b) => (b ? ld().parseAsync(b.slice(0), '').catch(() => null) : null);
   const B = { buf, tracks, sbuf, lbuf, wkbuf, typeClip: tbuf ? (await parse(tbuf))?.animations[0] : null, gestures: await parse(gbuf) };
   if (wbuf) { typewriters = createTypewriters(sc, await ld().parseAsync(wbuf, ''), DESKS, PACK_S);
@@ -300,7 +302,8 @@ async function loadShared(office) {                                   // once: t
     for (const g of phones.groups) L.attach(g); for (const g of phones.groups) SC.addDynamic(g); window.__phones = phones; B.phoneClips = await parse(pcbuf); }
   let crowd = null;                                                              // walking together (Recast crowd); ?crowd=0 — the old one-person paths
   if (Q.get('crowd') !== '0') { try { crowd = await createCrowd(GRID, Object.keys(DESKS).map((k) => chairBox(k, CHAIR_REST)), RADIUS); window.__crowd = crowd; } catch (e) { console.warn('crowd unavailable:', e); } }
-  shared = createShared({ scene: sc, office, typewriters, phones, coffeeAddon: await parse(cbuf), drinkLAddon: await parse(dbuf), crowd });
+  shared = createShared({ scene: sc, office, typewriters, phones, coffeeAddon: await parse(cbuf), drinkLAddon: await parse(dbuf), crowd,
+    whisky: (() => { try { return whbuf ? parseWhisky(whbuf) : null; } catch (e) { console.warn('whisky recording unreadable:', e); return null; } })() });
   for (const g of shared.groups) { L.attach(g); SC.addDynamic(g); } SC.markDirty();
   window.__tw = typewriters; window.__shared = shared;
   talk = createTalk({ scene: sc, addDynamic: (o) => SC.addDynamic(o), chars: () => charsOf(latest), people: () => people, now: () => window.__simNow ?? live.now(), show: () => S.bubbles !== false });

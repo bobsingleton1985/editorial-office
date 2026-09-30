@@ -32,6 +32,7 @@ export const SPOTS = {
   window: { x: -4.55, z: 2.5, th: -Math.PI / 2, label: 'у окна' },
   window2: { x: -4.55, z: 1.6, th: -Math.PI / 2 + 0.35, label: 'у окна, второе место' },   // smoking together (owner 30.09): 0.9 m from the first, turned 20° towards it
   teletype: { x: 3.85, z: -0.9, th: Math.PI / 2, label: 'у телетайпа' },
-  phoneA: { x: -3.0, z: -2.40, th: -Math.PI / 2, label: 'у телефона стола A' },  // in the aisle beside desk A, facing it: the phone (left front corner) at his left hand
+  phoneA: { x: -3.0, z: -2.40, th: -Math.PI / 2, label: 'у телефона стола A' },
+  bar: { x: 2.705, z: 4.650, th: 0, label: 'у тумбы' },                     // where the approved whisky recording begins (office «BAR | root» frame; set from the recording in main.js)  // in the aisle beside desk A, facing it: the phone (left front corner) at his left hand
 };
 export const RADIUS = 0.49;                          // body radius for walking around furniture: arm swing of the walk + 6 cm (was 0.2 m × S = 0.31: the hand went into the sofa)
