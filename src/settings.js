@@ -16,7 +16,7 @@ export const DEFAULTS = {
   ...PRESETS.evening,
   lamps: { A: true, B: true, C: true, floor: true }, tvGlow: true,
   shadows: true, shadowQ: matchMedia('(max-width: 700px)').matches ? 'low' : 'medium',
-  showFps: true, quality: 'auto',
+  showFps: true, bubbles: true, quality: 'auto',
 };
 const clone = (o) => JSON.parse(JSON.stringify(o));
 const OPEN_KEY = 'editorial.sections.v1';
@@ -107,7 +107,7 @@ export function buildPanel(state, onChange, opts = {}) {
     sel.addEventListener('change', () => { state.shadowQ = sel.value; commit(); });
     inputs.push(() => { sel.value = state.shadowQ; }); row('Качество теней', sel); }
   h('Сцена');
-  for (const [k, label] of [['showFps', 'Показывать кадры/с']]) {
+  for (const [k, label] of [['showFps', 'Показывать кадры/с'], ['bubbles', 'Облачка над головами (приглашения)']]) {
     const i = document.createElement('input'); i.type = 'checkbox';
     i.addEventListener('change', () => { state[k] = i.checked; commit(); });
     inputs.push(() => { i.checked = state[k]; }); row(label, i);

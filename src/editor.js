@@ -427,7 +427,7 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {
     gestures();
   }
   // ---------- small gestures in the pauses: only while he just sits or just stands (gestures.js keeps the schedule)
-  const G_BUSY = new Set(['work', 'coffee', 'smoke', 'smoke_coffee', 'lunch', 'phone']);
+  const G_BUSY = new Set(['work', 'coffee', 'smoke', 'smoke_coffee', 'lunch', 'phone', 'invite']);
   const G_LABEL = { sit_lookat: 'оглядывается', sit_papers: 'просматривает бумаги', sit_lean: 'облокотился на стол', sit_doze: 'дремлет', stand_look: 'оглядывается',
     stand_watch: 'смотрит на часы', stand_yawn: 'зевает', stand_scratch: 'чешет затылок', stand_neck: 'разминает шею' };
   const gDur = (n) => GEST[n] && GEST[n].clip.duration;
@@ -558,7 +558,24 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {
 
   // ---------- playing the director's commands
   const goalOf = (g) => (!g ? null : g.seat ? { seat: g.seat } : g.spot ? { point: SPOTS[g.spot] } : null);
+  // Standing smoking: the Light clip starts 19 cm to the side of where Start ends, and Stop_end 13 cm back — at those cross-fades the
+  // feet slid sideways on the floor (owner 30.09: «he comes to the window and then slides a few cm to the left»). The body is moved
+  // under the holder by the opposite of these jumps so the feet stay put (measured on both people, holder units); the shift stays
+  // while he stands and melts away in his first steps. A function of the smoking clock: late viewers get the same.
+  const FEET_D1 = new THREE.Vector3(0.191, 0, 0.030), FEET_D2 = new THREE.Vector3(-0.134, 0, 0.008), feetO = new THREE.Vector3();
+  function feetFrame(dt) {
+    const b = smoking && smoking.blend();
+    if (b && b.W > 0 && b.list.length && ch.mode === 'idle') {
+      const w = Object.fromEntries(b.list), cur = b.list[0][0];
+      let u1 = cur === 'smoke_start' ? 0 : cur === 'smoke_light' && w.smoke_start !== undefined ? w.smoke_light : 1;
+      let u2 = cur !== 'smoke_stop_end' ? 0 : w.smoke_stop !== undefined ? w.smoke_stop_end : 1;
+      if (cur === 'smoke_start' && w.smoke_stop_end !== undefined) { u1 = 0; u2 = w.smoke_stop_end; }   // the next cigarette (rare): back from Stop_end
+      feetO.set(0, 0, 0).addScaledVector(FEET_D1, -u1).addScaledVector(FEET_D2, -u2);
+    } else if (ch.mode === 'walk' || ch.mode === 'turn' || ch.mode === 'trans') { const k = Math.max(0, 1 - dt / 0.6); feetO.multiplyScalar(feetO.lengthSq() < 1e-8 ? 0 : k); }
+    body.position.copy(feetO);
+  }
   function place(from, chairState, to) {
+    feetO.set(0, 0, 0); body.position.set(0, 0, 0);
     ch.mode = 'idle'; ch.seat = null; ch.trans = null; ch.sip = null; ch.g = null; if (lunch) lunch.end(); ch.queue = null; ch.chairTail = null; ch.path = null; ch.after = null; ch.speed = 0; ch.vis = 0;
     for (const g of [from, to]) { const d = g?.seat && SEATS[g.seat]?.desk; if (d && chairs[d]) { const v = chairState?.[d] ?? CHAIR_REST; setChair(d, v); chairs[d].plan = v; } }
     if (from?.seat && SEATS[from.seat]) { const s = SEATS[from.seat]; setHolder(s.pose); ch.seat = from.seat; ch.mode = 'seated'; ch.motion = 'сидит'; fadeTo(seatedLoop()); if (s.desk) { setChair(s.desk, BACK); chairs[s.desk].plan = BACK; } }
@@ -571,6 +588,7 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {
   function frame(dt, ff) {
     ch.clk += dt; ch.tAbs += dt; updateChar(dt); stepWeights(dt);
     if (smoking) smoking.pre(dt, smokeWant(), A);
+    feetFrame(dt);
     { const d = ch.seat && SEATS[ch.seat].desk, M = d && mugL[d];                      // the left-hand mug follows the sip; before the first sip it stands at frame 1, after it at the last
       if (M && cur?.activity === 'smoke_coffee' && ch.mode === 'seated') { const s = smoking.sipTime(), t = s >= 0 ? s : smoking.sipsBefore(smoking.clockT()) > 0 ? M.D : 0;
         if (Math.abs(t - M.t) > 1e-6) { M.t = t; M.a.time = Math.min(t, M.D); M.m.update(0); M.off.position.copy(mugOffset(t)); } } }
@@ -583,6 +601,7 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {
         const c = M && st >= 0 && cur?.activity === 'smoke_coffee' ? handFix(st) : null;
         if (c) smoking.ikL(c.applyMatrix3(new THREE.Matrix3().setFromMatrix4(M.g.matrix)).multiplyScalar(smoking.sipW())); }
       phonePost();
+      if (extra.talk) extra.talk.post(ID, Bn, holder, typing() || eating() || sipping() || !!smoking?.active(), dt, ch.mode === 'walk' || ch.mode === 'turn');   // invitations: look at each other, nod / shake
       if (lunch && lunch.active()) lunch.post(ch.lunchT, dt);
       if (mouth0) nudgeSips();
       lidFrame(dt); hemFrame();

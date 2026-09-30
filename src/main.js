@@ -12,7 +12,7 @@ import { createShared } from './office-shared.js';
 import { connectLive } from './live.js';
 import { createQuality } from './quality.js';
 import { createStaticCache } from './cache.js';
-import { CHAIR_NODE, DESKS, S as PACK_S, RADIUS, CHAIR_REST, chairBox } from './layout.js';
+import { CHAIR_NODE, DESKS, S as PACK_S, RADIUS, CHAIR_REST, chairBox, SPOTS } from './layout.js';
 import { createCrowd } from './crowd.js';
 import { GRID } from './navgrid.js';
 import { createTypewriters } from './typewriter.js';
@@ -25,6 +25,7 @@ import { createNeon } from './neon.js';
 import { createTvScreen, loadVideoTexture } from './tv-crt.js';
 import { createTvSchedule } from './tv-schedule.js';
 import { createBulletin, BULLETIN_SEC } from './tv-bulletin.js';
+import { createTalk } from './talk.js';
 
 const Q = new URLSearchParams(location.search);
 const GLB = Q.get('m') || 'assets/office-v31c.glb', GLB_SIZE = 3909868;   // v31: banker lamps (green glass, glow baked to a texture); v30: the lunch table
@@ -271,9 +272,9 @@ function setup(g) {
 // ---------- the people of the newsroom, driven by the shared director: world.chars = {id: {name, glb, chairBack, home, seq, from, cmd, at, label, …}}.
 // A new person needs no change here: the director names him, his body comes from the VPS, the clips are shared (one skeleton).
 // Old worlds ({editor}) are the columnist alone.
-let editor = null, live = null, pending = null, net = { online: false }, typewriters = null, shared = null, base = null, officeScene = null;
+let talk = null, editor = null, live = null, pending = null, net = { online: false }, typewriters = null, shared = null, base = null, officeScene = null;
 const people = {}, order = [];                                     // id → {ed, name, loading}; order: as the director lists them
-const PLACE = { deskA: 'за столом A', deskB: 'за столом B', deskC: 'за столом C', benchS: 'на скамье', benchM: 'на скамье', benchN: 'на скамье', window: 'у окна', teletype: 'у телетайпа' };
+const PLACE = { deskA: 'за столом A', deskB: 'за столом B', deskC: 'за столом C', benchS: 'на скамье', benchM: 'на скамье', benchN: 'на скамье', window: 'у окна', window2: 'у окна', teletype: 'у телетайпа' };
 const charsOf = (w) => w?.chars || (w?.editor ? { columnist: { name: 'Колумнист', ...w.editor, seq: w.seq } } : {});
 let focus = null;                                                  // the person the viewer picked (click on him): his scales and journal
 function showWho() {
@@ -302,6 +303,8 @@ async function loadShared(office) {                                   // once: t
   shared = createShared({ scene: sc, office, typewriters, phones, coffeeAddon: await parse(cbuf), drinkLAddon: await parse(dbuf), crowd });
   for (const g of shared.groups) { L.attach(g); SC.addDynamic(g); } SC.markDirty();
   window.__tw = typewriters; window.__shared = shared;
+  talk = createTalk({ scene: sc, addDynamic: (o) => SC.addDynamic(o), chars: () => charsOf(latest), people: () => people, now: () => window.__simNow ?? live.now(), show: () => S.bubbles !== false });
+  window.__talk = talk;
   window.__look = (pos, tgt) => { const c = new THREE.PerspectiveCamera(35, innerWidth / innerHeight, 0.05, 100); c.position.copy(B3(...pos)); c.lookAt(B3(...tgt)); c.layers.enableAll(); r.render(sc, c); return r.domElement.toDataURL('image/jpeg', 0.85); };
   base = B; setInterval(showWho, 1000);
   if (pending) { const w = pending; pending = null; onWorld(w); }
@@ -315,7 +318,7 @@ async function loadPerson(id, e) {
     const clips = await ld().parseAsync(base.buf.slice(0), '');                       // his own copy of the shared clips (the page edits clips in place)
     const bodyG = url && url !== CHAR ? await ld().parseAsync(await get(url), '') : clips;
     const extra = { shared, id, chairBack: Number.isFinite(e.chairBack) ? Math.max(-0.2, Math.min(0.2, e.chairBack)) : 0, home: e.home, mouth: e.mouth,
-      typeClip: base.typeClip, gestures: base.gestures, smoke: await parse(base.sbuf), lunch: await parse(base.lbuf), walks: await parse(base.wkbuf), camera: cam, renderer: r,
+      talk, typeClip: base.typeClip, gestures: base.gestures, smoke: await parse(base.sbuf), lunch: await parse(base.lbuf), walks: await parse(base.wkbuf), camera: cam, renderer: r,
       ...(Q.has('drunk') ? { drunk: Q.get('drunk') !== '0' } : {}),
       ...(base.phoneClips ? { phones: shared.phonesFor(id), phoneClips: base.phoneClips } : {}) };
     const ed = createEditor(sc, officeScene, { scene: bodyG.scene, animations: clips.animations }, base.tracks, extra);
@@ -476,7 +479,7 @@ function tick(now) {
   requestAnimationFrame(tick);
 }
 window.__dbg = () => ({ paper: paperMat && paperMat.map.offset.y, target: paperTarget, tv: sched ? sched.current : null, clocks: clockPivots.length, tty: tty.length, typebox: !!typebox });
-window.__step = (dt, n = 1) => { for (let i = 0; i < n; i++) step(dt, i === n - 1); };   // for automated checks
+window.__step = (dt, n = 1, draw = true) => { for (let i = 0; i < n; i++) step(dt, draw && i === n - 1); };   // for automated checks
 function step(dt, draw = true) {
   const t0 = performance.now();
   if (mixer) mixer.update(dt);
@@ -498,7 +501,8 @@ function step(dt, draw = true) {
     sched.update(); bulletinTV?.update(dt); tv.update(dt);
     if (tvMat) tvMat.emissiveIntensity = 1 + tv.uniforms.flicker.value - 0.5 * tv.uniforms.snow.value;
   }
-  { const now = window.__simNow ?? live.now(); eachPerson((ed) => ed.update(dt, now)); shared?.applyProps(); }   // __simNow: automated checks run on their own clock
+  { const now = window.__simNow ?? live.now(); eachPerson((ed) => ed.update(dt, now)); shared?.applyProps(); }
+  talk?.update((cam.top - cam.bottom) / cam.zoom);                  // bubbles over the heads (invitations)   // __simNow: automated checks run on their own clock
   typewriters?.update(dt);                                      // paper feed of the desk typewriters
   if (!draw) return;
   let moving = false; eachPerson((ed) => { moving = moving || ed.moving(); });
@@ -523,3 +527,52 @@ fetchGLB(GLB).then(({ buffer, got }) => {
     window.__ready = true;
   }, (e) => { status.textContent = 'Ошибка сборки сцены: ' + e.message; window.__err = String(e); });
 }).catch((e) => { status.textContent = 'Не удалось загрузить офис: ' + e.message; window.__err = String(e); });
+
+if (DEMO === 'invite') {   // review stand (owner 30.09): one calls the other for a smoke; the answer is yes / no / not now — a bubble (the thing + the answer) and the head
+  const NAME = { columnist: 'Колумнист', reporter: 'Репортёр' }, HOME = { columnist: 'deskA', reporter: 'deskB' }, SPOT = ['window', 'window2'];
+  const SEATS_OF = { deskA: DESKS.A, deskB: DESKS.B }, DESK = { deskA: 'столом A', deskB: 'столом B' }, ACC = { columnist: 'колумниста', reporter: 'репортёра' };
+  const body = { columnist: { name: 'Колумнист', glb: 'assets/editor2A-web-v01.glb', home: 'deskA', chairBack: 0 },
+    reporter: { name: 'Репортёр', glb: 'assets/reporter-web-v01.glb', home: 'deskB', chairBack: 0.05, mouth: [-3.8, -0.7, 0] } };
+  const LAG = 4, C = {}, NOW = () => window.__simNow ?? live.now(); let wseq = 0, timers = [], busy = false, who0 = 'columnist';
+  const send = () => { wseq++; onWorld({ seq: wseq, chairs: { A: -0.25, B: -0.25, C: -0.25 }, chars: Object.fromEntries(Object.entries(C).map(([k, v]) => [k, { ...body[k], ...v }])) }); };
+  const decide = (id, from, cmd, activity, label, extra = {}) => { C[id] = { seq: (C[id]?.seq || 0) + 1, from, cmd, at: NOW(), activity, label, source: 'demo', talk: C[id]?.talk, ...extra }; };   // the last words stay (their bubble runs out by itself)
+  const say = (id, to, mark) => { C[id] = { ...C[id], talk: { at: NOW(), to, icon: 'smoke', mark } }; };
+  let t0 = 0; const later = (sec, f) => timers.push({ t: t0 + sec * 1000, f });   // on the page's clock (the automated checks step it)
+  const tick = () => { const T = NOW(); for (const x of timers.filter((x) => T >= x.t)) { timers.splice(timers.indexOf(x), 1); x.f(); send(); } };
+  setInterval(tick, 50);
+  const atDesk = (id) => decide(id, { seat: HOME[id] }, null, 'work', 'работает за ' + DESK[HOME[id]]);
+  for (const id of ['columnist', 'reporter']) atDesk(id);
+  net = { online: true, viewers: 0 }; send();
+  // the panel
+  const css = 'font:15px/1.3 system-ui,sans-serif;padding:8px 12px;border-radius:8px;border:1px solid #6b5a48;background:#f4e8cc;color:#2e2219;cursor:pointer';
+  const box = document.createElement('div'); box.id = 'invite';
+  box.style.cssText = 'position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:20;display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:center;max-width:calc(100vw - 32px);background:rgba(30,22,16,.82);padding:10px 12px;border-radius:12px;color:#f4e8cc;font:14px system-ui,sans-serif';
+  const line = document.createElement('div'); line.style.cssText = 'flex-basis:100%;text-align:center;min-height:1.3em';
+  const mk = (t, f) => { const b = document.createElement('button'); b.textContent = t; b.style.cssText = css; b.onclick = f; box.appendChild(b); return b; };
+  const whoBtn = mk('', () => { if (busy) return; who0 = who0 === 'columnist' ? 'reporter' : 'columnist'; paint(); });
+  const bYes = mk('🚬 Да', () => run('yes')), bNo = mk('🚬 Нет', () => run('no')), bLater = mk('🚬 Не сейчас', () => run('later'));
+  box.appendChild(line); document.body.appendChild(box);
+  const paint = (msg) => { const o = who0 === 'columnist' ? 'reporter' : 'columnist';
+    whoBtn.textContent = `Зовёт: ${NAME[who0]} → ${ACC[o]}`; for (const b of [whoBtn, bYes, bNo, bLater]) { b.disabled = busy; b.style.opacity = busy ? 0.5 : 1; }
+    line.textContent = msg || (busy ? '' : 'Выберите, кто зовёт, и ответ приглашённого'); };
+  function run(ans) {
+    if (busy) return; busy = true; timers = []; t0 = NOW();
+    const a = who0, b = a === 'columnist' ? 'reporter' : 'columnist';
+    paint(`${NAME[a]} зовёт ${ACC[b]} покурить…`);
+    decide(a, { seat: HOME[a] }, null, 'invite', `зовёт ${ACC[b]} покурить`); say(a, b, 'q'); send();
+    later(2.2, () => { say(b, a, ans); paint(`${NAME[b]}: ${ans === 'yes' ? 'да' : ans === 'no' ? 'нет' : 'не сейчас'}`); });
+    // who stands where: the pair of places with the shorter walk in sum (then nobody walks past the other already standing there)
+    const dist = (id, k) => { const s0 = SEATS_OF[HOME[id]], p = SPOTS[k]; return Math.hypot(s0.x - p.x, s0.z - p.z); };
+    const sp = dist(a, SPOT[0]) + dist(b, SPOT[1]) <= dist(a, SPOT[1]) + dist(b, SPOT[0]) ? { [a]: SPOT[0], [b]: SPOT[1] } : { [a]: SPOT[1], [b]: SPOT[0] };
+    if (ans !== 'yes') sp[a] = SPOT[0];                                  // alone: the usual place
+    // the one who called gets up first; the other finishes his line and follows a few seconds later — so they do not smoke in step (owner 30.09)
+    later(4.5, () => decide(a, { seat: HOME[a] }, { spot: sp[a] }, 'smoke', 'курит у окна'));
+    if (ans === 'yes') later(4.5 + LAG, () => decide(b, { seat: HOME[b] }, { spot: sp[b] }, 'smoke', 'курит у окна'));
+    if (ans === 'later') { sp[b] = SPOT[1]; later(16, () => { decide(b, { seat: HOME[b] }, { spot: sp[b] }, 'smoke', 'курит у окна'); paint(`${NAME[b]} подошёл позже`); }); }
+    const back = (id, sec) => later(sec, () => decide(id, { spot: sp[id] }, { seat: HOME[id] }, 'work', 'работает за ' + DESK[HOME[id]]));
+    const tb = ans === 'later' ? 16 : 4.5 + LAG;
+    back(a, 4.5 + 66); if (ans !== 'no') back(b, tb + 66);
+    later((ans === 'no' ? 4.5 : tb) + 66 + 12, () => { busy = false; paint(); });
+  }
+  paint(); window.__invite = { run, tick, who: (w) => { who0 = w; paint(); }, C };
+}

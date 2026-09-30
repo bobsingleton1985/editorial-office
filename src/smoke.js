@@ -331,6 +331,7 @@ export function createSmoking({ scene, root, B, mixer, U, addon, strip, camera, 
     fx, pre, post, setSitBase, setDrinkL, sipTime: () => sm.dT, clockT: () => sm.t,
     sipsBefore: (t) => { if (sm.mode !== 'sit' || !SIPS.length) return 0; const C = cig.sit + REST.sit, tc = t % C; return Math.floor(t / C) * SIPS.length + SIPS.filter((s0) => tc >= s0).length; },
     active: () => sm.on && sm.W > 0.001,
+    blend: () => (sm.on && sm.mode === 'stand' ? { W: sm.W, list: sm.list.map((e) => [e.name, e.w]) } : null),   // for keeping the feet planted over the cross-fades
     status: () => ({ on: sm.on, mode: sm.mode, sip: sm.dT >= 0 && sm.dW > 0.05, t: +sm.t.toFixed(2), clip: sm.cur, frame: Math.round(sm.f), W: +sm.W.toFixed(2), lit: sm.lit, rest: sm.rest, cig: N.cig.visible, lighter: N.lighter.visible, particles: liveN }),
     props: N, ikL: (d) => ik('l', d), sipW: () => sm.dW,
   };
