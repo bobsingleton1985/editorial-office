@@ -37,6 +37,7 @@ export function defaultConfig() {
     seed: 7,
     startHour: 9,
     tempo: 1.5,
+    satisfy: 0.9,
     afterIssueDrink: 15,
     drinkContagion: 8,
     jevCallCap: 150,
@@ -49,19 +50,19 @@ export function defaultConfig() {
     characters: {
       editor: ch('Редактор', 'Усталый ветеран за 50. Видел войну и три газеты. Циничен, но справедлив. Держит редакцию на дисциплине, виски — в нижнем ящике стола. О прошлом молчит. Судья между репортёром и колумнистом.', 'deskB',
         { sociability: 40, initiative: 55, discipline: 85, music: 40, risk: 20 },
-        { fatigue: 7, boredom: 4, social: 3, recognition: 3, fun: 3, love: 2, coffee: 8, nicotine: 6, alcohol: 5 },
+        { fatigue: 5.5, boredom: 6, social: 5, recognition: 5, fun: 4, love: 3, coffee: 9, nicotine: 8.5, alcohol: 7 },
         { goal: 'Сдать номер вовремя', stressSensitivity: 60, tolerance: 70 }),
       reporter: ch('Репортёр', 'Около 30. Сын состоятельной семьи; отец женился повторно, и наследство ушло новой семье — воспитание осталось, денег нет. Авантюрист, любит риск, романтик и мечтатель. Легко загорается, за столом быстро скучает, срывается по первой наводке, берёт в долг до гонорара. Сначала действует, потом думает.', 'deskA',
         { sociability: 65, initiative: 85, discipline: 30, music: 60, risk: 90 },
-        { fatigue: 5, boredom: 12, social: 5, recognition: 5, fun: 6, love: 5, coffee: 5, nicotine: 8, alcohol: 4 },
+        { fatigue: 5, boredom: 13, social: 7, recognition: 7, fun: 8.5, love: 6, coffee: 7, nicotine: 9.5, alcohol: 6 },
         { goal: 'Раскопать большую историю; вернуть долги', stressSensitivity: 40, tolerance: 55 }),
       columnist: ch('Колумнист', 'Звезда газеты с именной колонкой. Выходец из бедного Бруклина, пробился сам. Остроумен, любит публику, кофе, пластинки и долгие разговоры. Тщеславен и ревнив, работает рывками. Редактора считает пережитком, к репортёру — тихая зависть.', 'deskC',
         { sociability: 80, initiative: 60, discipline: 45, music: 85, risk: 35 },
-        { fatigue: 5, boredom: 6, social: 9, recognition: 8, fun: 5, love: 4, coffee: 9, nicotine: 3, alcohol: 4 },
+        { fatigue: 5, boredom: 7, social: 11, recognition: 9.5, fun: 7, love: 5, coffee: 9.5, nicotine: 5, alcohol: 6 },
         { goal: 'Колонка к номеру; всеобщее восхищение', stressSensitivity: 65, tolerance: 45 }),
       heroine: ch('Героиня', 'Певица из джаз-клуба по соседству и источник наводок. Не сотрудница редакции, заходит иногда — за рецензией, с пластинкой, с новостями. Свободная и игривая: любит внимание и флирт, не спешит выбирать, тянется к тому, с кем весело; ревность мужчин её забавляет.', null,
         { sociability: 90, initiative: 70, discipline: 25, music: 95, risk: 60 },
-        { fatigue: 4, boredom: 8, social: 8, recognition: 4, fun: 10, love: 4, coffee: 3, nicotine: 5, alcohol: 5 },
+        { fatigue: 4, boredom: 9, social: 9.5, recognition: 5, fun: 12, love: 5, coffee: 5, nicotine: 7, alcohol: 7 },
         { goal: 'Рецензия на выступление; весёлый вечер', stressSensitivity: 30, tolerance: 50 }),
     },
     // Стартовые отношения: sympathy[кто][к кому] −100…100; attraction[кто][к кому] 0…100 (мужчины ↔ героиня).
@@ -94,6 +95,7 @@ export class World {
 
   reset(config) {
     this.cfg = JSON.parse(JSON.stringify(config));
+    setSatisfy(this.cfg.satisfy ?? 0.9);
     this.rand = rng(this.cfg.seed);
     this.t = this.cfg.startHour * 60;       // минуты от полуночи первого дня
     this.revision = 0;
@@ -123,7 +125,7 @@ export class World {
       this.chars[id] = {
         id, name: c.name, present: id !== 'heroine', asleep: false,
         spot, pos: { ...SPOTS[spot] },
-        needs: Object.fromEntries(NEEDS.map(n => [n, r1(15 + this.rand() * 25)])),
+        needs: Object.fromEntries(NEEDS.map(n => [n, r1(30 + this.rand() * 30)])),
         stress: 10, intox: 0, workToday: 0,
         activity: null, needsDecision: id !== 'heroine', decisionReason: 'начало смены',
         forced: null, episodes: [],
@@ -146,6 +148,7 @@ export class World {
     const keep = this.cfg.seed;
     this.cfg = JSON.parse(JSON.stringify(config));
     this.cfg.seed = keep;
+    setSatisfy(this.cfg.satisfy ?? 0.9);
     for (const id of IDS) this.chars[id].name = this.cfg.characters[id].name;
   }
 
@@ -197,7 +200,9 @@ export class World {
         if (n === 'fun') rate *= 1 + c.intox / 50;
         if (n === 'love') rate *= Math.max(0, ...Object.values(c.attraction)) / 50 * (1 + c.intox / 100);
         if (c.asleep && n !== 'fatigue') rate *= 0.2;
-        c.needs[n] = clamp(c.needs[n] + (rate + (during[n] || 0)) * h);
+        let relief = during[n] || 0;
+        if (relief < 0) relief *= (this.cfg.satisfy ?? 0.9) * (0.3 + c.needs[n] / 100);
+        c.needs[n] = clamp(c.needs[n] + (rate + relief) * h);
       }
       c.stress = clamp(c.stress + ((during.stress || 0) - 12) * h);
       c.intox = clamp(c.intox - (6 + cc.tolerance / 10) * h * (c.asleep ? 2 : 1));
@@ -592,7 +597,10 @@ const bond = (w, id, a, s) => pair(w, id, a, (me, other) => { me.sympathy[other.
 const attract = (w, id, a, s) => pair(w, id, a, (me, other) => { const v = me.attraction[other.id]; if (v !== undefined) me.attraction[other.id] = clamp(v + s * (1 - v / 120)); });
 const loveSat = (w, id, a, v) => pair(w, id, a, (me, other) => { if (me.attraction[other.id] !== undefined) sub(me, 'love', v * (0.5 + me.attraction[other.id] / 100)); });
 const epi = (w, id, a, text) => w.episode(id, a.partner ? `${text} с ${w.chars[a.partner].name}` : text, a.partner ? [a.partner] : []);
-const sub = (c, n, v) => { c.needs[n] = clamp(c.needs[n] - v); };
+let SATISFY = 0.9;
+export const setSatisfy = v => { SATISFY = v; };
+// утоление убирает долю текущего желания, а не всё: сильное желание падает заметно, но не в ноль
+const sub = (c, n, v) => { c.needs[n] = clamp(c.needs[n] * (1 - Math.min(0.9, v / 100 * SATISFY))); };
 
 export const ACTIONS = {
   work: { label: 'работает за столом', interruptible: true, during: { recognition: -30, boredom: 6, fatigue: 4, social: 2 }, done: (w, id) => { w.chars[id].workToday++; } },

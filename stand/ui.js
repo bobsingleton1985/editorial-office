@@ -1,4 +1,4 @@
-import { World, defaultConfig, NEEDS, NEED_LABEL, TRAITS, TRAIT_LABEL, IDS, SPOTS, CATALOG, ACTIONS, hhmm, dayOf } from './sim.js?v=3';
+import { World, defaultConfig, NEEDS, NEED_LABEL, TRAITS, TRAIT_LABEL, IDS, SPOTS, CATALOG, ACTIONS, hhmm, dayOf } from './sim.js?v=4';
 
 const $ = id => document.getElementById(id);
 const COLOR = { editor: '#8a5a2b', reporter: '#2f6f8f', columnist: '#7b3f8c', heroine: '#c0392b' };
@@ -241,7 +241,7 @@ function buildPane() {
     const c = config.characters[tab];
     let html = `<h3>Кто это</h3><textarea id="bio">${esc(c.bio)}</textarea><div class="row" style="grid-template-columns:118px 1fr"><span>Длинная цель</span><input type="text" id="goal" value="${esc(c.goal)}"></div>`;
     html += '<h3>Черты (0–100)</h3>' + TRAITS.map(k => slider(TRAIT_LABEL[k], () => c.traits[k], v => c.traits[k] = v, 0, 100)).join('');
-    html += '<h3>Рост потребностей (пунктов в час)</h3>' + NEEDS.map(k => slider(NEED_LABEL[k], () => c.rates[k], v => c.rates[k] = v, 0, 25, 0.5)).join('');
+    html += '<h3>Рост потребностей (пунктов в час)</h3>' + NEEDS.map(k => slider(NEED_LABEL[k], () => c.rates[k], v => c.rates[k] = v, 0, 40, 0.5)).join('');
     html += '<h3>Реакции</h3>' + slider('Чувствительность к стрессу', () => c.stressSensitivity, v => c.stressSensitivity = v, 0, 100, 1, 'Насколько стресс разгоняет тягу к сигарете и виски') + slider('Устойчивость к алкоголю', () => c.tolerance, v => c.tolerance = v, 0, 100, 1, 'Чем выше, тем быстрее трезвеет');
     html += '<h3>Базовое отношение к другим</h3>' + IDS.filter(o => o !== tab).map(o => slider('Симпатия: ' + config.characters[o].name, () => config.sympathy[tab][o] ?? 0, v => { config.sympathy[tab][o] = v; world.chars[tab].sympathy[o] = v; }, -100, 100)).join('');
     const att = Object.keys(config.attraction[tab] || {});
@@ -254,6 +254,7 @@ function buildPane() {
     const F = config.forgetting, A = config.archie;
     p.innerHTML = '<h3>Прогон</h3>' + slider('Seed случайности', () => config.seed, v => config.seed = v, 1, 999, 1, 'Нужен «Новый прогон»') + slider('Старт, час', () => config.startHour, v => config.startHour = v, 0, 23, 1, 'Нужен «Новый прогон»')
       + slider('Темп занятий ×', () => config.tempo, v => config.tempo = v, 0.5, 3, 0.1, 'Множитель длительности занятий: больше — реже решения Jev')
+      + slider('Сила утоления ×', () => config.satisfy, v => config.satisfy = v, 0.1, 1.5, 0.05, 'Какую долю желания снимает одно действие: 0,9 — кофе при тяге 80 оставляет около 30')
       + '<h3>Выпивка</h3>' + slider('После сдачи номера: тяга выпить +', () => config.afterIssueDrink, v => config.afterIssueDrink = v, 0, 50) + slider('Кто-то пьёт рядом: тяга +', () => config.drinkContagion, v => config.drinkContagion = v, 0, 30)
       + '<h3>Редакция</h3>' + slider('Сдача номера, час', () => config.deadlineHour, v => config.deadlineHour = v, 12, 23) + slider('Визит героини, %/вечер', () => config.heroineVisitChance, v => config.heroineVisitChance = v, 0, 100) + slider('Телетайп, раз в N ч', () => config.teletypeEveryHours, v => config.teletypeEveryHours = v, 0.5, 8, 0.5)
       + '<h3>Арчи, минут на этап</h3>' + slider('Скаут', () => A.scout, v => A.scout = v, 1, 90) + slider('Сверка', () => A.match, v => A.match = v, 1, 90) + slider('Карточки', () => A.cards, v => A.cards = v, 1, 90)
