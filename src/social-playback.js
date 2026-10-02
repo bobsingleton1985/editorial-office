@@ -1,5 +1,8 @@
 import catalog from './social-catalog.json';
 export { catalog as SOCIAL_CATALOG };
+// The accepted Standing Arguing take is an authored standing speech loop.
+// Playing its gestures does not assign an argument/topic/emotion to either person.
+export const SOCIAL_CONTINUATION = 'mixamo-gap__mxg_arguing';
 export const socialAlias = id => 'social_'+id.replace(/[^a-zA-Z0-9]/g,'_') + (/IDLE-(013|106|054|057)$/.test(id)?'_stop':'');
 export async function loadSocialAssets(get, parse) {
   const entries=catalog.entries.filter(e=>e.available), paths=[...new Set(entries.map(e=>e.asset))], assets={};
@@ -16,10 +19,18 @@ export async function loadSocialAssets(get, parse) {
   return {entries,assets,styles:catalog.styles};
 }
 export function socialPlan(style, key, t0, duration) {
+  if(style==='neutral')style=SOCIAL_CONTINUATION;
   const s=catalog.styles.find(x=>x.id===style);if(!s)return null;
   let t=0;const segs=[];
   for(const id of s.entries) {const n=socialAlias(id),d=duration(n);if(!d)return null;segs.push({n,s:t,d});t+=d-0.35;}
   return {kind:'stand',social:true,key,t0,segs,T:t+0.35};
+}
+export function nextSocialPlan(social, playedKey, t0, duration) {
+  if(!social)return null;
+  const key=social.id+'|'+social.styleRevision;
+  const selected=social.style&&social.style!=='neutral'&&key!==playedKey;
+  const g=socialPlan(selected?social.style:'neutral',key,t0,duration);
+  return g?{...g,selected}:null;
 }
 export function participationPacket(chars, people, elapsedMs=0) {
   const pairs=[],seen=new Set();
