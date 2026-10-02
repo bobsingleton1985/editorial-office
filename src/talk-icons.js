@@ -9,6 +9,7 @@ function fillStroke(c, fill, lw = 5) { c.fillStyle = fill; c.fill(); c.lineWidth
 
 // every icon is drawn in a 100 × 100 box centred on (0, 0)
 const ICONS = {
+  social(c) {rr(c,-42,-32,84,54,12);fillStroke(c,PAPER);c.beginPath();c.moveTo(-20,22);c.lineTo(-30,42);c.lineTo(1,22);fillStroke(c,PAPER);c.fillStyle=INK;for(const x of [-22,0,22]){c.beginPath();c.arc(x,-5,4,0,Math.PI*2);c.fill();}},
   smoke(c) {                                   // a cigarette with a burning tip and a curl of smoke
     c.save(); c.rotate(-0.32);
     rr(c, -40, 4, 80, 16, 5); fillStroke(c, PAPER);

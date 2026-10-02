@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { loadSocialAssets, participationPacket } from './social-playback.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
@@ -304,7 +305,8 @@ async function loadShared(office) {                                   // once: t
   showWho();
   const [buf, tracks, tbuf, wbuf, sbuf, cbuf, dbuf, gbuf, lbuf, pbuf, pcbuf, wkbuf, whbuf, fubuf, wrbuf, jzbuf, tsbuf, dnbuf] = await Promise.all([get(CHAR), fetch(CHAR_BASE + 'assets/chair-tracks-v30.json').then((r) => r.json()), opt(CHAR_TYPE), opt(TYPEWRITER), SMOKE ? opt(SMOKE) : null, COFFEE ? opt(COFFEE) : null, opt(DRINK_L), opt(GESTURES), LUNCH ? opt(LUNCH) : null, opt(PHONE), opt(PHONE_CLIPS), WALKS ? opt(WALKS) : null, WHISKY ? opt(WHISKY) : null, opt(FEETUP), opt(WRITE), opt(JAZZ), opt(TVSWITCH), opt(DANCE)]);
   const parse = (b) => (b ? ld().parseAsync(b.slice(0), '').catch(() => null) : null);
-  const B = { buf, tracks, sbuf, lbuf, wkbuf, wrbuf, feetup: await parse(fubuf), jazz: await parse(jzbuf), tvswitch: await parse(tsbuf), dance: await parse(dnbuf), typeClip: tbuf ? (await parse(tbuf))?.animations[0] : null, gestures: await parse(gbuf) };
+  let social=null;try{social=await loadSocialAssets(get,b=>ld().parseAsync(b.slice(0),''));}catch(e){console.warn('social unavailable:',e);}
+  const B = { social, buf, tracks, sbuf, lbuf, wkbuf, wrbuf, feetup: await parse(fubuf), jazz: await parse(jzbuf), tvswitch: await parse(tsbuf), dance: await parse(dnbuf), typeClip: tbuf ? (await parse(tbuf))?.animations[0] : null, gestures: await parse(gbuf) };
   if (wbuf) { typewriters = createTypewriters(sc, await ld().parseAsync(wbuf, ''), DESKS, PACK_S);
     for (const g of typewriters.groups) L.attach(g); for (const g of typewriters.groups) SC.addDynamic(g); }
   let phones = null;
@@ -331,6 +333,7 @@ async function loadPerson(id, e) {
     const clips = await ld().parseAsync(base.buf.slice(0), '');                       // his own copy of the shared clips (the page edits clips in place)
     const bodyG = url && url !== CHAR ? await ld().parseAsync(await get(url), '') : clips;
     const extra = { shared, id, chairBack: Number.isFinite(e.chairBack) ? Math.max(-0.2, Math.min(0.2, e.chairBack)) : 0, home: e.home, mouth: e.mouth, phoneMouth: e.phoneMouth,
+      social:base.social,socialPartner:(id)=>{const h=people[id]?.ed?.holder;return h?{x:h.position.x,z:h.position.z}:null;},
       talk, typeClip: base.typeClip, gestures: base.gestures, smoke: await parse(base.sbuf), lunch: await parse(base.lbuf), walks: await parse(base.wkbuf), feetup: base.feetup, write: await parse(base.wrbuf), jazz: base.jazz, tvswitch: base.tvswitch, dance: base.dance, camera: cam, renderer: r,
       ...(Q.has('drunk') ? { drunk: Q.get('drunk') !== '0' } : {}),
       ...(base.phoneClips ? { phones: shared.phonesFor(id), phoneClips: base.phoneClips } : {}) };
@@ -343,7 +346,17 @@ async function loadPerson(id, e) {
   } catch (e2) { P.error = String(e2); P.loading = false; console.warn('person', id, e2); window.__err = String(e2); }
   showWho();
 }
-let latest = null;
+let latest = null;let reportElapsed=0,reportPrevious='',reportSend=0;
+function reportExecution(dt) {
+  const now=live.now(),pairs=participationPacket(charsOf(latest),people);
+  const signature=JSON.stringify(pairs.map(p=>[p.conversationId,p.actors]));
+  const active=pairs.length>0&&pairs.every(p=>Object.values(p.actors).every(a=>a.ready));
+  reportElapsed=active&&signature===reportPrevious&&dt<0.25?Math.min(2000,reportElapsed+dt*1000):0;reportPrevious=signature;
+  if(now-reportSend<1000)return;reportSend=now;
+  const actors={};eachPerson((ed,id)=>{const s=ed.socialStatus();actors[id]={loaded:s.loaded,seq:s.seq,activity:s.activity,executing:s.executing};});
+  const styles=base?.social?.styles.map(x=>x.id)||[];
+  live.execution({pairs:pairs.map(p=>({...p,elapsedMs:reportElapsed})),capabilities:{actors,styles}});reportElapsed=0;
+}
 function onWorld(w) {
   latest = w;
   if (!base) { pending = w; return; }
@@ -530,6 +543,7 @@ function step(dt, draw = true) {
   if (!draw) return;
   let moving = false; eachPerson((ed) => { moving = moving || ed.moving(); });
   L.update(dt, moving && QL.level.live, SC.enabled); ctl.update(); SC.render();
+  if(live?.execution && !DEMO && window.__simNow===undefined) reportExecution(dt);
   cpuMs += (performance.now() - t0 - cpuMs) * 0.1;
   fAcc += dt; fN++;
   if (fAcc >= 2) {

@@ -1,0 +1,2403 @@
+{
+  "version": "social-v01",
+  "entries": [
+    {
+      "id": "gestures-standing/IDLE-088",
+      "code": "IDLE-088",
+      "title": "Позвать правой рукой над головой",
+      "asset": "assets/social-v01/gestures-standing-v2-web.glb",
+      "animation": "IDLE-088 | MCU_am_Stand_Idle_Greet_08_WaveComeHere",
+      "sha256": "12aa8ec3e51001166824f08a11cdac875fad2acc3628453cc3196e6ecf9ca6cb",
+      "range": [
+        0,
+        4.699999809265137
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "цикл",
+      "available": true,
+      "blockedReason": null,
+      "poseStart": "стоя",
+      "poseEnd": "стоя"
+    },
+    {
+      "id": "gestures-standing/IDLE-089",
+      "code": "IDLE-089",
+      "title": "Позвать обеими руками",
+      "asset": "assets/social-v01/gestures-standing-v2-web.glb",
+      "animation": "IDLE-089 | MCU_am_Stand_Idle_Greet_09_WaveComeHere",
+      "sha256": "12aa8ec3e51001166824f08a11cdac875fad2acc3628453cc3196e6ecf9ca6cb",
+      "range": [
+        0,
+        4.0333333015441895
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "цикл",
+      "available": true,
+      "blockedReason": null,
+      "poseStart": "стоя",
+      "poseEnd": "стоя"
+    },
+    {
+      "id": "gestures-standing/IDLE-090",
+      "code": "IDLE-090",
+      "title": "Позвать размашистым махом",
+      "asset": "assets/social-v01/gestures-standing-v2-web.glb",
+      "animation": "IDLE-090 | MCU_am_Stand_Idle_Greet_10_WaveComeHere",
+      "sha256": "12aa8ec3e51001166824f08a11cdac875fad2acc3628453cc3196e6ecf9ca6cb",
+      "range": [
+        0,
+        4.199999809265137
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "цикл",
+      "available": true,
+      "blockedReason": null,
+      "poseStart": "стоя",
+      "poseEnd": "стоя"
+    },
+    {
+      "id": "gestures-standing/IDLE-081",
+      "code": "IDLE-081",
+      "title": "Поздороваться правой рукой",
+      "asset": "assets/social-v01/gestures-standing-v2-web.glb",
+      "animation": "IDLE-081 | MCU_am_Stand_Idle_Greet_01_Wave",
+      "sha256": "12aa8ec3e51001166824f08a11cdac875fad2acc3628453cc3196e6ecf9ca6cb",
+      "range": [
+        0,
+        3.200000047683716
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "цикл",
+      "available": true,
+      "blockedReason": null,
+      "poseStart": "стоя",
+      "poseEnd": "стоя"
+    },
+    {
+      "id": "gestures-standing/IDLE-083",
+      "code": "IDLE-083",
+      "title": "Сдержанно поздороваться",
+      "asset": "assets/social-v01/gestures-standing-v2-web.glb",
+      "animation": "IDLE-083 | MCU_am_Stand_Idle_Greet_03_Wave",
+      "sha256": "12aa8ec3e51001166824f08a11cdac875fad2acc3628453cc3196e6ecf9ca6cb",
+      "range": [
+        0,
+        3.0333333015441895
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "цикл",
+      "available": true,
+      "blockedReason": null,
+      "poseStart": "стоя",
+      "poseEnd": "стоя"
+    },
+    {
+      "id": "gestures-standing/IDLE-087",
+      "code": "IDLE-087",
+      "title": "Поздороваться левой рукой",
+      "asset": "assets/social-v01/gestures-standing-v2-web.glb",
+      "animation": "IDLE-087 | MCU_am_Stand_Idle_Greet_07_Wave",
+      "sha256": "12aa8ec3e51001166824f08a11cdac875fad2acc3628453cc3196e6ecf9ca6cb",
+      "range": [
+        0,
+        2.700000047683716
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "цикл",
+      "available": true,
+      "blockedReason": null,
+      "poseStart": "стоя",
+      "poseEnd": "стоя"
+    },
+    {
+      "id": "gestures-standing/IDLE-082",
+      "code": "IDLE-082",
+      "title": "Коротко кивнуть",
+      "asset": "assets/social-v01/gestures-standing-v2-web.glb",
+      "animation": "IDLE-082 | MCU_am_Stand_Idle_Greet_02_Nod",
+      "sha256": "12aa8ec3e51001166824f08a11cdac875fad2acc3628453cc3196e6ecf9ca6cb",
+      "range": [
+        0,
+        2.366666793823242
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "цикл",
+      "available": true,
+      "blockedReason": null,
+      "poseStart": "стоя",
+      "poseEnd": "стоя"
+    },
+    {
+      "id": "gestures-standing/IDLE-084",
+      "code": "IDLE-084",
+      "title": "Медленно кивнуть",
+      "asset": "assets/social-v01/gestures-standing-v2-web.glb",
+      "animation": "IDLE-084 | MCU_am_Stand_Idle_Greet_04_Nod",
+      "sha256": "12aa8ec3e51001166824f08a11cdac875fad2acc3628453cc3196e6ecf9ca6cb",
+      "range": [
+        0,
+        2.9666666984558105
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "цикл",
+      "available": true,
+      "blockedReason": null,
+      "poseStart": "стоя",
+      "poseEnd": "стоя"
+    },
+    {
+      "id": "gestures-standing/BAR-025",
+      "code": "BAR-025",
+      "title": "Одобрительно кивнуть",
+      "asset": "assets/social-v01/gestures-standing-v2-web.glb",
+      "animation": "BAR-025 | AS_Bartender_Interact_Approve_02",
+      "sha256": "12aa8ec3e51001166824f08a11cdac875fad2acc3628453cc3196e6ecf9ca6cb",
+      "range": [
+        0,
+        5.5
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "разовый",
+      "available": false,
+      "blockedReason": "Нужна высокая барная стойка с проверенной опорой рук",
+      "poseStart": "стоя",
+      "poseEnd": "стоя"
+    },
+    {
+      "id": "gestures-standing/BAR-029",
+      "code": "BAR-029",
+      "title": "Отказать жестом рук",
+      "asset": "assets/social-v01/gestures-standing-v2-web.glb",
+      "animation": "BAR-029 | AS_Bartender_Interact_No_02",
+      "sha256": "12aa8ec3e51001166824f08a11cdac875fad2acc3628453cc3196e6ecf9ca6cb",
+      "range": [
+        0,
+        6.133333206176758
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "разовый",
+      "available": false,
+      "blockedReason": "Нужна высокая барная стойка с проверенной опорой рук",
+      "poseStart": "стоя",
+      "poseEnd": "стоя"
+    },
+    {
+      "id": "gestures-standing/IDLE-085",
+      "code": "IDLE-085",
+      "title": "Указать правой рукой",
+      "asset": "assets/social-v01/gestures-standing-v2-web.glb",
+      "animation": "IDLE-085 | MCU_am_Stand_Idle_Greet_05_Point",
+      "sha256": "12aa8ec3e51001166824f08a11cdac875fad2acc3628453cc3196e6ecf9ca6cb",
+      "range": [
+        0,
+        3.5333333015441895
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "цикл",
+      "available": true,
+      "blockedReason": null,
+      "poseStart": "стоя",
+      "poseEnd": "стоя"
+    },
+    {
+      "id": "gestures-standing/IDLE-086",
+      "code": "IDLE-086",
+      "title": "Указать левой рукой",
+      "asset": "assets/social-v01/gestures-standing-v2-web.glb",
+      "animation": "IDLE-086 | MCU_am_Stand_Idle_Greet_06_Point",
+      "sha256": "12aa8ec3e51001166824f08a11cdac875fad2acc3628453cc3196e6ecf9ca6cb",
+      "range": [
+        0,
+        3.366666793823242
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "цикл",
+      "available": true,
+      "blockedReason": null,
+      "poseStart": "стоя",
+      "poseEnd": "стоя"
+    },
+    {
+      "id": "gestures-standing/BAR-030",
+      "code": "BAR-030",
+      "title": "Размашисто указать вперёд",
+      "asset": "assets/social-v01/gestures-standing-v2-web.glb",
+      "animation": "BAR-030 | AS_Bartender_Interact_Point_01",
+      "sha256": "12aa8ec3e51001166824f08a11cdac875fad2acc3628453cc3196e6ecf9ca6cb",
+      "range": [
+        0,
+        7.099999904632568
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "разовый",
+      "available": false,
+      "blockedReason": "Нужна высокая барная стойка с проверенной опорой рук",
+      "poseStart": "стоя",
+      "poseEnd": "стоя"
+    },
+    {
+      "id": "gestures-standing/BAR-027",
+      "code": "BAR-027",
+      "title": "Слушать с наклоном к опоре",
+      "asset": "assets/social-v01/gestures-standing-v2-web.glb",
+      "animation": "BAR-027 | AS_Bartender_Interact_Lean_Listen_02",
+      "sha256": "12aa8ec3e51001166824f08a11cdac875fad2acc3628453cc3196e6ecf9ca6cb",
+      "range": [
+        0,
+        8.899999618530273
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "разовый",
+      "available": false,
+      "blockedReason": "Нужна высокая барная стойка с проверенной опорой рук",
+      "poseStart": "стоя",
+      "poseEnd": "стоя"
+    },
+    {
+      "id": "gestures-standing/BAR-001",
+      "code": "BAR-001",
+      "title": "Формальное рукопожатие",
+      "asset": "assets/social-v01/gestures-standing-v2-web.glb",
+      "animation": "BAR-001 | AS_Greetings_FormalHandShake",
+      "sha256": "12aa8ec3e51001166824f08a11cdac875fad2acc3628453cc3196e6ecf9ca6cb",
+      "range": [
+        0,
+        6.233333587646484
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "разовый",
+      "available": false,
+      "blockedReason": "Второй участник, синхронное начало, подход/выход; v2 pair в manifest, координаты Blender не переносить в world без преобразования",
+      "poseStart": "стоя",
+      "poseEnd": "стоя"
+    },
+    {
+      "id": "gestures-standing/IDLE-058",
+      "code": "IDLE-058",
+      "title": "Погрозить левым кулаком",
+      "asset": "assets/social-v01/gestures-standing-v2-web.glb",
+      "animation": "IDLE-058 | MCU_am_Stand_Crowd_FistShakeLArm_01",
+      "sha256": "12aa8ec3e51001166824f08a11cdac875fad2acc3628453cc3196e6ecf9ca6cb",
+      "range": [
+        0,
+        2.366666793823242
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "разовый",
+      "available": true,
+      "blockedReason": null,
+      "poseStart": "стоя",
+      "poseEnd": "стоя"
+    },
+    {
+      "id": "gestures-standing/IDLE-061",
+      "code": "IDLE-061",
+      "title": "Погрозить правым кулаком",
+      "asset": "assets/social-v01/gestures-standing-v2-web.glb",
+      "animation": "IDLE-061 | MCU_am_Stand_Crowd_FistShakeRArm_01",
+      "sha256": "12aa8ec3e51001166824f08a11cdac875fad2acc3628453cc3196e6ecf9ca6cb",
+      "range": [
+        0,
+        2.366666793823242
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "разовый",
+      "available": true,
+      "blockedReason": null,
+      "poseStart": "стоя",
+      "poseEnd": "стоя"
+    },
+    {
+      "id": "gestures-standing/IDLE-064",
+      "code": "IDLE-064",
+      "title": "Трясти обоими кулаками",
+      "asset": "assets/social-v01/gestures-standing-v2-web.glb",
+      "animation": "IDLE-064 | MCU_am_Stand_Crowd_FistShakes_01",
+      "sha256": "12aa8ec3e51001166824f08a11cdac875fad2acc3628453cc3196e6ecf9ca6cb",
+      "range": [
+        0,
+        4.699999809265137
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "разовый",
+      "available": true,
+      "blockedReason": null,
+      "poseStart": "стоя",
+      "poseEnd": "стоя"
+    },
+    {
+      "id": "gestures-standing/IDLE-052",
+      "code": "IDLE-052",
+      "title": "Аплодисменты A",
+      "asset": "assets/social-v01/gestures-standing-v2-web.glb",
+      "animation": "IDLE-052 | MCU_am_Stand_Crowd_ClapA_01",
+      "sha256": "12aa8ec3e51001166824f08a11cdac875fad2acc3628453cc3196e6ecf9ca6cb",
+      "range": [
+        0,
+        1.8666666746139526
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "разовый",
+      "available": true,
+      "blockedReason": null,
+      "poseStart": "стоя",
+      "poseEnd": "стоя"
+    },
+    {
+      "id": "gestures-standing/IDLE-055",
+      "code": "IDLE-055",
+      "title": "Аплодисменты B",
+      "asset": "assets/social-v01/gestures-standing-v2-web.glb",
+      "animation": "IDLE-055 | MCU_am_Stand_Crowd_ClapB_01",
+      "sha256": "12aa8ec3e51001166824f08a11cdac875fad2acc3628453cc3196e6ecf9ca6cb",
+      "range": [
+        0,
+        3.299999952316284
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "разовый",
+      "available": true,
+      "blockedReason": null,
+      "poseStart": "стоя",
+      "poseEnd": "стоя"
+    },
+    {
+      "id": "talk-seated/SEAT-018",
+      "code": "SEAT-018",
+      "title": "Спокойно говорить вперёд",
+      "asset": "assets/social-v01/talk-seated-v2-web.glb",
+      "animation": "SEAT-018 | MCU_am_SitChair_Idle_TalkFwd_01",
+      "sha256": "c4272ca531c2ff24b21a265c3a1ccdcff50c8c9112d7120e863ecdfeb1de9d08",
+      "range": [
+        0,
+        4.5333333015441895
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "цикл",
+      "available": false,
+      "blockedReason": "Соответствующий профиль стула/стола; сохранение посадки, направления к партнёру и свободных рук",
+      "poseStart": "сидя · на стуле",
+      "poseEnd": "сидя · на стуле"
+    },
+    {
+      "id": "talk-seated/SEAT-020",
+      "code": "SEAT-020",
+      "title": "Говорить вперёд, широкие жесты",
+      "asset": "assets/social-v01/talk-seated-v2-web.glb",
+      "animation": "SEAT-020 | MCU_am_SitChair_Idle_TalkFwd_03_HandGestures",
+      "sha256": "c4272ca531c2ff24b21a265c3a1ccdcff50c8c9112d7120e863ecdfeb1de9d08",
+      "range": [
+        0,
+        10.866666793823242
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "цикл",
+      "available": false,
+      "blockedReason": "Соответствующий профиль стула/стола; сохранение посадки, направления к партнёру и свободных рук",
+      "poseStart": "сидя · на стуле",
+      "poseEnd": "сидя · на стуле"
+    },
+    {
+      "id": "talk-seated/SEAT-021",
+      "code": "SEAT-021",
+      "title": "Говорить вперёд, жесты руками",
+      "asset": "assets/social-v01/talk-seated-v2-web.glb",
+      "animation": "SEAT-021 | MCU_am_SitChair_Idle_TalkFwd_04_HandGestures",
+      "sha256": "c4272ca531c2ff24b21a265c3a1ccdcff50c8c9112d7120e863ecdfeb1de9d08",
+      "range": [
+        0,
+        7.0333333015441895
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "цикл",
+      "available": false,
+      "blockedReason": "Соответствующий профиль стула/стола; сохранение посадки, направления к партнёру и свободных рук",
+      "poseStart": "сидя · на стуле",
+      "poseEnd": "сидя · на стуле"
+    },
+    {
+      "id": "talk-seated/SEAT-022",
+      "code": "SEAT-022",
+      "title": "Начать разговор вперёд",
+      "asset": "assets/social-v01/talk-seated-v2-web.glb",
+      "animation": "SEAT-022 | MCU_am_SitChair_Idle_TalkFwd_Start",
+      "sha256": "c4272ca531c2ff24b21a265c3a1ccdcff50c8c9112d7120e863ecdfeb1de9d08",
+      "range": [
+        0,
+        0.8666666746139526
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "разовый",
+      "available": false,
+      "blockedReason": "Соответствующий профиль стула/стола; сохранение посадки, направления к партнёру и свободных рук",
+      "poseStart": "сидя · на стуле",
+      "poseEnd": "сидя · на стуле"
+    },
+    {
+      "id": "talk-seated/SEAT-023",
+      "code": "SEAT-023",
+      "title": "Закончить разговор вперёд",
+      "asset": "assets/social-v01/talk-seated-v2-web.glb",
+      "animation": "SEAT-023 | MCU_am_SitChair_Idle_TalkFwd_Stop",
+      "sha256": "c4272ca531c2ff24b21a265c3a1ccdcff50c8c9112d7120e863ecdfeb1de9d08",
+      "range": [
+        0,
+        0.5333333611488342
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "разовый",
+      "available": false,
+      "blockedReason": "Соответствующий профиль стула/стола; сохранение посадки, направления к партнёру и свободных рук",
+      "poseStart": "сидя · на стуле",
+      "poseEnd": "сидя · на стуле"
+    },
+    {
+      "id": "talk-seated/SEAT-024",
+      "code": "SEAT-024",
+      "title": "Говорить соседу слева — 1",
+      "asset": "assets/social-v01/talk-seated-v2-web.glb",
+      "animation": "SEAT-024 | MCU_am_SitChair_Idle_TalkLeft_01",
+      "sha256": "c4272ca531c2ff24b21a265c3a1ccdcff50c8c9112d7120e863ecdfeb1de9d08",
+      "range": [
+        0,
+        4.0333333015441895
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "цикл",
+      "available": false,
+      "blockedReason": "Соответствующий профиль стула/стола; сохранение посадки, направления к партнёру и свободных рук",
+      "poseStart": "сидя · на стуле",
+      "poseEnd": "сидя · на стуле"
+    },
+    {
+      "id": "talk-seated/SEAT-025",
+      "code": "SEAT-025",
+      "title": "Говорить соседу слева — 2",
+      "asset": "assets/social-v01/talk-seated-v2-web.glb",
+      "animation": "SEAT-025 | MCU_am_SitChair_Idle_TalkLeft_02",
+      "sha256": "c4272ca531c2ff24b21a265c3a1ccdcff50c8c9112d7120e863ecdfeb1de9d08",
+      "range": [
+        0,
+        5.366666793823242
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "цикл",
+      "available": false,
+      "blockedReason": "Соответствующий профиль стула/стола; сохранение посадки, направления к партнёру и свободных рук",
+      "poseStart": "сидя · на стуле",
+      "poseEnd": "сидя · на стуле"
+    },
+    {
+      "id": "talk-seated/SEAT-027",
+      "code": "SEAT-027",
+      "title": "Повернуться к соседу слева",
+      "asset": "assets/social-v01/talk-seated-v2-web.glb",
+      "animation": "SEAT-027 | MCU_am_SitChair_Idle_TalkLeft_Start",
+      "sha256": "c4272ca531c2ff24b21a265c3a1ccdcff50c8c9112d7120e863ecdfeb1de9d08",
+      "range": [
+        0,
+        0.5333333611488342
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "разовый",
+      "available": false,
+      "blockedReason": "Соответствующий профиль стула/стола; сохранение посадки, направления к партнёру и свободных рук",
+      "poseStart": "сидя · на стуле",
+      "poseEnd": "сидя · на стуле"
+    },
+    {
+      "id": "talk-seated/SEAT-028",
+      "code": "SEAT-028",
+      "title": "Завершить разговор слева",
+      "asset": "assets/social-v01/talk-seated-v2-web.glb",
+      "animation": "SEAT-028 | MCU_am_SitChair_Idle_TalkLeft_Stop",
+      "sha256": "c4272ca531c2ff24b21a265c3a1ccdcff50c8c9112d7120e863ecdfeb1de9d08",
+      "range": [
+        0,
+        1.3666666746139526
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "разовый",
+      "available": false,
+      "blockedReason": "Соответствующий профиль стула/стола; сохранение посадки, направления к партнёру и свободных рук",
+      "poseStart": "сидя · на стуле",
+      "poseEnd": "сидя · на стуле"
+    },
+    {
+      "id": "talk-seated/SEAT-029",
+      "code": "SEAT-029",
+      "title": "Говорить соседу справа — 1",
+      "asset": "assets/social-v01/talk-seated-v2-web.glb",
+      "animation": "SEAT-029 | MCU_am_SitChair_Idle_TalkRight_01",
+      "sha256": "c4272ca531c2ff24b21a265c3a1ccdcff50c8c9112d7120e863ecdfeb1de9d08",
+      "range": [
+        0,
+        5.5333333015441895
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "цикл",
+      "available": false,
+      "blockedReason": "Соответствующий профиль стула/стола; сохранение посадки, направления к партнёру и свободных рук",
+      "poseStart": "сидя · на стуле",
+      "poseEnd": "сидя · на стуле"
+    },
+    {
+      "id": "talk-seated/SEAT-030",
+      "code": "SEAT-030",
+      "title": "Говорить соседу справа — 2",
+      "asset": "assets/social-v01/talk-seated-v2-web.glb",
+      "animation": "SEAT-030 | MCU_am_SitChair_Idle_TalkRight_02",
+      "sha256": "c4272ca531c2ff24b21a265c3a1ccdcff50c8c9112d7120e863ecdfeb1de9d08",
+      "range": [
+        0,
+        5.366666793823242
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "цикл",
+      "available": false,
+      "blockedReason": "Соответствующий профиль стула/стола; сохранение посадки, направления к партнёру и свободных рук",
+      "poseStart": "сидя · на стуле",
+      "poseEnd": "сидя · на стуле"
+    },
+    {
+      "id": "talk-seated/SEAT-032",
+      "code": "SEAT-032",
+      "title": "Повернуться к соседу справа",
+      "asset": "assets/social-v01/talk-seated-v2-web.glb",
+      "animation": "SEAT-032 | MCU_am_SitChair_Idle_TalkRight_Start",
+      "sha256": "c4272ca531c2ff24b21a265c3a1ccdcff50c8c9112d7120e863ecdfeb1de9d08",
+      "range": [
+        0,
+        0.8666666746139526
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "разовый",
+      "available": false,
+      "blockedReason": "Соответствующий профиль стула/стола; сохранение посадки, направления к партнёру и свободных рук",
+      "poseStart": "сидя · на стуле",
+      "poseEnd": "сидя · на стуле"
+    },
+    {
+      "id": "talk-seated/SEAT-033",
+      "code": "SEAT-033",
+      "title": "Завершить разговор справа",
+      "asset": "assets/social-v01/talk-seated-v2-web.glb",
+      "animation": "SEAT-033 | MCU_am_SitChair_Idle_TalkRight_Stop",
+      "sha256": "c4272ca531c2ff24b21a265c3a1ccdcff50c8c9112d7120e863ecdfeb1de9d08",
+      "range": [
+        0,
+        0.8666666746139526
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "разовый",
+      "available": false,
+      "blockedReason": "Соответствующий профиль стула/стола; сохранение посадки, направления к партнёру и свободных рук",
+      "poseStart": "сидя · на стуле",
+      "poseEnd": "сидя · на стуле"
+    },
+    {
+      "id": "talk-seated/SEAT-146",
+      "code": "SEAT-146",
+      "title": "Говорить за столом — 1",
+      "asset": "assets/social-v01/talk-seated-v2-web.glb",
+      "animation": "SEAT-146 | MCU_am_SitChairTable_Idle_04_Talk",
+      "sha256": "c4272ca531c2ff24b21a265c3a1ccdcff50c8c9112d7120e863ecdfeb1de9d08",
+      "range": [
+        0,
+        5.5333333015441895
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "цикл",
+      "available": false,
+      "blockedReason": "Соответствующий профиль стула/стола; сохранение посадки, направления к партнёру и свободных рук",
+      "poseStart": "сидя · за столом",
+      "poseEnd": "сидя · за столом"
+    },
+    {
+      "id": "talk-seated/SEAT-147",
+      "code": "SEAT-147",
+      "title": "Говорить за столом — 2",
+      "asset": "assets/social-v01/talk-seated-v2-web.glb",
+      "animation": "SEAT-147 | MCU_am_SitChairTable_Idle_05_Talk",
+      "sha256": "c4272ca531c2ff24b21a265c3a1ccdcff50c8c9112d7120e863ecdfeb1de9d08",
+      "range": [
+        0,
+        5.366666793823242
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "цикл",
+      "available": false,
+      "blockedReason": "Соответствующий профиль стула/стола; сохранение посадки, направления к партнёру и свободных рук",
+      "poseStart": "сидя · за столом",
+      "poseEnd": "сидя · за столом"
+    },
+    {
+      "id": "talk-seated/SEAT-158",
+      "code": "SEAT-158",
+      "title": "Говорить, облокотившись на стол",
+      "asset": "assets/social-v01/talk-seated-v2-web.glb",
+      "animation": "SEAT-158 | MCU_am_SitChairTable_Idle_11_Lean_03_Talk",
+      "sha256": "c4272ca531c2ff24b21a265c3a1ccdcff50c8c9112d7120e863ecdfeb1de9d08",
+      "range": [
+        0,
+        4.5333333015441895
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "цикл",
+      "available": false,
+      "blockedReason": "SEAT-162/sit_lean_start → SEAT-158 → SEAT-163/sit_lean_stop; переходы уже есть в живых жестах v52",
+      "poseStart": "сидя · за столом",
+      "poseEnd": "сидя · за столом"
+    },
+    {
+      "id": "talk-seated/SEAT-153",
+      "code": "SEAT-153",
+      "title": "Помахать за столом",
+      "asset": "assets/social-v01/talk-seated-v2-web.glb",
+      "animation": "SEAT-153 | MCU_am_SitChairTable_Idle_08_Wave",
+      "sha256": "c4272ca531c2ff24b21a265c3a1ccdcff50c8c9112d7120e863ecdfeb1de9d08",
+      "range": [
+        0,
+        2.366666555404663
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "цикл",
+      "available": false,
+      "blockedReason": "Соответствующий профиль стула/стола; сохранение посадки, направления к партнёру и свободных рук",
+      "poseStart": "сидя · за столом",
+      "poseEnd": "сидя · за столом"
+    },
+    {
+      "id": "talk-seated/SEAT-155",
+      "code": "SEAT-155",
+      "title": "Помахать левой рукой за столом",
+      "asset": "assets/social-v01/talk-seated-v2-web.glb",
+      "animation": "SEAT-155 | MCU_am_SitChairTable_Idle_10_WaveL",
+      "sha256": "c4272ca531c2ff24b21a265c3a1ccdcff50c8c9112d7120e863ecdfeb1de9d08",
+      "range": [
+        0,
+        2.866666555404663
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "цикл",
+      "available": false,
+      "blockedReason": "Соответствующий профиль стула/стола; сохранение посадки, направления к партнёру и свободных рук",
+      "poseStart": "сидя · за столом",
+      "poseEnd": "сидя · за столом"
+    },
+    {
+      "id": "talk-seated/SEAT-054",
+      "code": "SEAT-054",
+      "title": "Говорить на стуле B",
+      "asset": "assets/social-v01/talk-seated-v2-web.glb",
+      "animation": "SEAT-054 | MCU_am_SitChairB_Idle_04_Talk",
+      "sha256": "c4272ca531c2ff24b21a265c3a1ccdcff50c8c9112d7120e863ecdfeb1de9d08",
+      "range": [
+        0,
+        4.199999809265137
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "цикл",
+      "available": false,
+      "blockedReason": "Профиль стула B, таз 60,6 см; SEAT-060/059 есть на складе, в этих пяти экспортных наборах отсутствуют",
+      "poseStart": "сидя · на стуле",
+      "poseEnd": "сидя · на стуле"
+    },
+    {
+      "id": "talk-seated/SEAT-057",
+      "code": "SEAT-057",
+      "title": "Жестикулировать на стуле B",
+      "asset": "assets/social-v01/talk-seated-v2-web.glb",
+      "animation": "SEAT-057 | MCU_am_SitChairB_Idle_07_TalkHandGesture",
+      "sha256": "c4272ca531c2ff24b21a265c3a1ccdcff50c8c9112d7120e863ecdfeb1de9d08",
+      "range": [
+        0,
+        5.366666793823242
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "цикл",
+      "available": false,
+      "blockedReason": "Профиль стула B, таз 60,6 см; SEAT-060/059 есть на складе, в этих пяти экспортных наборах отсутствуют",
+      "poseStart": "сидя · на стуле",
+      "poseEnd": "сидя · на стуле"
+    },
+    {
+      "id": "talk-seated/SEAT-257",
+      "code": "SEAT-257",
+      "title": "Говорить на краю стола",
+      "asset": "assets/social-v01/talk-seated-v2-web.glb",
+      "animation": "SEAT-257 | MCU_am_SitTableEdge_Idle_04_Talk",
+      "sha256": "c4272ca531c2ff24b21a265c3a1ccdcff50c8c9112d7120e863ecdfeb1de9d08",
+      "range": [
+        0,
+        7.699999809265137
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "цикл",
+      "available": false,
+      "blockedReason": "Край стола, таз 87,3 см; посадка/выход отдельного профиля; SEAT-261 есть на складе, в пяти наборах отсутствует",
+      "poseStart": "сидя · на краю стола",
+      "poseEnd": "сидя · на краю стола"
+    },
+    {
+      "id": "talk-seated/SEAT-258",
+      "code": "SEAT-258",
+      "title": "Кивнуть на краю стола",
+      "asset": "assets/social-v01/talk-seated-v2-web.glb",
+      "animation": "SEAT-258 | MCU_am_SitTableEdge_Idle_05_TalkYes",
+      "sha256": "c4272ca531c2ff24b21a265c3a1ccdcff50c8c9112d7120e863ecdfeb1de9d08",
+      "range": [
+        0,
+        4.699999809265137
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "цикл",
+      "available": false,
+      "blockedReason": "Край стола, таз 87,3 см; посадка/выход отдельного профиля; SEAT-261 есть на складе, в пяти наборах отсутствует",
+      "poseStart": "сидя · на краю стола",
+      "poseEnd": "сидя · на краю стола"
+    },
+    {
+      "id": "talk-seated/SEAT-259",
+      "code": "SEAT-259",
+      "title": "Не согласиться на краю стола",
+      "asset": "assets/social-v01/talk-seated-v2-web.glb",
+      "animation": "SEAT-259 | MCU_am_SitTableEdge_Idle_06_TalkNo",
+      "sha256": "c4272ca531c2ff24b21a265c3a1ccdcff50c8c9112d7120e863ecdfeb1de9d08",
+      "range": [
+        0,
+        3.200000047683716
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "цикл",
+      "available": false,
+      "blockedReason": "Край стола, таз 87,3 см; посадка/выход отдельного профиля; SEAT-261 есть на складе, в пяти наборах отсутствует",
+      "poseStart": "сидя · на краю стола",
+      "poseEnd": "сидя · на краю стола"
+    },
+    {
+      "id": "emotions-quiet/IDLE-210",
+      "code": "IDLE-210",
+      "title": "Посмотреть на часы",
+      "asset": "assets/social-v01/emotions-quiet-v2-web.glb",
+      "animation": "IDLE-210 | MCU_am_Stand_Idle_Waiting_03_CheckWatch",
+      "sha256": "dad647b5dc9f4f713f44b9a8ec7c7bf65d4ae672e092c003ba40eb543ac9afa8",
+      "range": [
+        0,
+        6.199999809265137
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "цикл",
+      "available": true,
+      "blockedReason": null,
+      "poseStart": "стоя",
+      "poseEnd": "стоя"
+    },
+    {
+      "id": "emotions-quiet/IDLE-211",
+      "code": "IDLE-211",
+      "title": "Оглядываться в ожидании",
+      "asset": "assets/social-v01/emotions-quiet-v2-web.glb",
+      "animation": "IDLE-211 | MCU_am_Stand_Idle_Waiting_04_LookAround",
+      "sha256": "dad647b5dc9f4f713f44b9a8ec7c7bf65d4ae672e092c003ba40eb543ac9afa8",
+      "range": [
+        0,
+        4.86667013168335
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "цикл",
+      "available": true,
+      "blockedReason": null,
+      "poseStart": "стоя",
+      "poseEnd": "стоя"
+    },
+    {
+      "id": "emotions-quiet/IDLE-235",
+      "code": "IDLE-235",
+      "title": "Ждать, опираясь на стену",
+      "asset": "assets/social-v01/emotions-quiet-v2-web.glb",
+      "animation": "IDLE-235 | MCU_am_WallLean_Idle_Loop_04_TapLeg",
+      "sha256": "dad647b5dc9f4f713f44b9a8ec7c7bf65d4ae672e092c003ba40eb543ac9afa8",
+      "range": [
+        0,
+        3.033329963684082
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "цикл",
+      "available": false,
+      "blockedReason": "Реальная стена; IDLE-216/217/238 на складе; соответствие конкретному варианту ещё проверить",
+      "poseStart": "стоя · у стены",
+      "poseEnd": "стоя · у стены"
+    },
+    {
+      "id": "emotions-quiet/IDLE-095",
+      "code": "IDLE-095",
+      "title": "Переминаться с рукой на бедре",
+      "asset": "assets/social-v01/emotions-quiet-v2-web.glb",
+      "animation": "IDLE-095 | MCU_am_HandHipL_Idle_05_Fidget",
+      "sha256": "dad647b5dc9f4f713f44b9a8ec7c7bf65d4ae672e092c003ba40eb543ac9afa8",
+      "range": [
+        0,
+        4.86667013168335
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "цикл",
+      "available": false,
+      "blockedReason": "Рука на левом бедре: IDLE-107/096 на складе, вне пяти экспортов",
+      "poseStart": "стоя · руки в боки",
+      "poseEnd": "стоя · руки в боки"
+    },
+    {
+      "id": "emotions-quiet/IDLE-040",
+      "code": "IDLE-040",
+      "title": "Смахнуть с груди",
+      "asset": "assets/social-v01/emotions-quiet-v2-web.glb",
+      "animation": "IDLE-040 | MCU_am_Stand_Idle_BrushOff_08_Chest",
+      "sha256": "dad647b5dc9f4f713f44b9a8ec7c7bf65d4ae672e092c003ba40eb543ac9afa8",
+      "range": [
+        0,
+        4.033329963684082
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "цикл",
+      "available": true,
+      "blockedReason": null,
+      "poseStart": "стоя",
+      "poseEnd": "стоя"
+    },
+    {
+      "id": "emotions-quiet/SEAT-012",
+      "code": "SEAT-012",
+      "title": "Сидячее ожидание — исключено QA",
+      "asset": "assets/social-v01/emotions-quiet-v2-web.glb",
+      "animation": null,
+      "sha256": "dad647b5dc9f4f713f44b9a8ec7c7bf65d4ae672e092c003ba40eb543ac9afa8",
+      "range": null,
+      "nativeSpeed": 1,
+      "authorLoop": "цикл",
+      "available": false,
+      "blockedReason": "Нет web animation; общая приёмка не восстановила отсутствующий экспорт",
+      "poseStart": "сидя · на стуле",
+      "poseEnd": "сидя · на стуле"
+    },
+    {
+      "id": "emotions-quiet/SEAT-090",
+      "code": "SEAT-090",
+      "title": "Покачивать стопой, нога на ногу",
+      "asset": "assets/social-v01/emotions-quiet-v2-web.glb",
+      "animation": "SEAT-090 | MCU_am_SitChairLegsCrossA_Idle_07_FootWiggle",
+      "sha256": "dad647b5dc9f4f713f44b9a8ec7c7bf65d4ae672e092c003ba40eb543ac9afa8",
+      "range": [
+        0,
+        5.199999809265137
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "цикл",
+      "available": false,
+      "blockedReason": "Посадка нога на ногу: SEAT-092/091 на складе, вне пяти экспортов",
+      "poseStart": "сидя · нога на ногу",
+      "poseEnd": "сидя · нога на ногу"
+    },
+    {
+      "id": "emotions-quiet/SEAT-120",
+      "code": "SEAT-120",
+      "title": "Ёрзать на вращающемся стуле",
+      "asset": "assets/social-v01/emotions-quiet-v2-web.glb",
+      "animation": "SEAT-120 | MCU_am_SitChairSpin_Idle_06_Fidget",
+      "sha256": "dad647b5dc9f4f713f44b9a8ec7c7bf65d4ae672e092c003ba40eb543ac9afa8",
+      "range": [
+        0,
+        4.199999809265137
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "цикл",
+      "available": false,
+      "blockedReason": "Нужен подходящий вращающийся стул с более пологой спинкой",
+      "poseStart": "сидя · на стуле",
+      "poseEnd": "сидя · на стуле"
+    },
+    {
+      "id": "emotions-quiet/IDLE-153",
+      "code": "IDLE-153",
+      "title": "Разглядывать ногти",
+      "asset": "assets/social-v01/emotions-quiet-v2-web.glb",
+      "animation": "IDLE-153 | MCU_am_Stand_Idle_LookAtNails_01",
+      "sha256": "dad647b5dc9f4f713f44b9a8ec7c7bf65d4ae672e092c003ba40eb543ac9afa8",
+      "range": [
+        0,
+        5.533329963684082
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "цикл",
+      "available": true,
+      "blockedReason": null,
+      "poseStart": "стоя",
+      "poseEnd": "стоя"
+    },
+    {
+      "id": "emotions-quiet/IDLE-156",
+      "code": "IDLE-156",
+      "title": "Грызть ноготь",
+      "asset": "assets/social-v01/emotions-quiet-v2-web.glb",
+      "animation": "IDLE-156 | MCU_am_Stand_Idle_LookAtNails_04_Bite",
+      "sha256": "dad647b5dc9f4f713f44b9a8ec7c7bf65d4ae672e092c003ba40eb543ac9afa8",
+      "range": [
+        0,
+        7.699999809265137
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "цикл",
+      "available": true,
+      "blockedReason": null,
+      "poseStart": "стоя",
+      "poseEnd": "стоя"
+    },
+    {
+      "id": "emotions-quiet/IDLE-201",
+      "code": "IDLE-201",
+      "title": "Стоять с опущенными плечами",
+      "asset": "assets/social-v01/emotions-quiet-v2-web.glb",
+      "animation": "IDLE-201 | MCU_am_Stand_Idle_Tired_01",
+      "sha256": "dad647b5dc9f4f713f44b9a8ec7c7bf65d4ae672e092c003ba40eb543ac9afa8",
+      "range": [
+        0,
+        7.699999809265137
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "цикл",
+      "available": true,
+      "blockedReason": null,
+      "poseStart": "стоя",
+      "poseEnd": "стоя"
+    },
+    {
+      "id": "emotions-quiet/IDLE-022",
+      "code": "IDLE-022",
+      "title": "Тяжело дышать",
+      "asset": "assets/social-v01/emotions-quiet-v2-web.glb",
+      "animation": "IDLE-022 | MCU_am_Stand_Idle_Breathe_01_Heavy",
+      "sha256": "dad647b5dc9f4f713f44b9a8ec7c7bf65d4ae672e092c003ba40eb543ac9afa8",
+      "range": [
+        0,
+        8.366669654846191
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "цикл",
+      "available": true,
+      "blockedReason": null,
+      "poseStart": "стоя",
+      "poseEnd": "стоя"
+    },
+    {
+      "id": "emotions-quiet/IDLE-017",
+      "code": "IDLE-017",
+      "title": "Разминать плечи",
+      "asset": "assets/social-v01/emotions-quiet-v2-web.glb",
+      "animation": "IDLE-017 | MCU_am_Stand_BodyAche_02_Shoulders",
+      "sha256": "dad647b5dc9f4f713f44b9a8ec7c7bf65d4ae672e092c003ba40eb543ac9afa8",
+      "range": [
+        0,
+        5.699999809265137
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "разовый",
+      "available": true,
+      "blockedReason": null,
+      "poseStart": "стоя",
+      "poseEnd": "стоя"
+    },
+    {
+      "id": "emotions-quiet/SEAT-122",
+      "code": "SEAT-122",
+      "title": "Откинуться, руки за голову",
+      "asset": "assets/social-v01/emotions-quiet-v2-web.glb",
+      "animation": "SEAT-122 | MCU_am_SitChairSpin_Idle_08_HandsHead",
+      "sha256": "dad647b5dc9f4f713f44b9a8ec7c7bf65d4ae672e092c003ba40eb543ac9afa8",
+      "range": [
+        0,
+        5.36667013168335
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "цикл",
+      "available": false,
+      "blockedReason": "Нужен подходящий вращающийся стул с более пологой спинкой",
+      "poseStart": "сидя · на стуле",
+      "poseEnd": "сидя · на стуле"
+    },
+    {
+      "id": "emotions-quiet/SEAT-123",
+      "code": "SEAT-123",
+      "title": "Закинуть руки за голову",
+      "asset": "assets/social-v01/emotions-quiet-v2-web.glb",
+      "animation": "SEAT-123 | MCU_am_SitChairSpin_Idle_08_HandsHead_Start",
+      "sha256": "dad647b5dc9f4f713f44b9a8ec7c7bf65d4ae672e092c003ba40eb543ac9afa8",
+      "range": [
+        0,
+        3.3666698932647705
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "разовый",
+      "available": false,
+      "blockedReason": "Нужен подходящий вращающийся стул с более пологой спинкой",
+      "poseStart": "сидя · на стуле",
+      "poseEnd": "сидя · на стуле"
+    },
+    {
+      "id": "emotions-quiet/SEAT-124",
+      "code": "SEAT-124",
+      "title": "Опустить руки из-за головы",
+      "asset": "assets/social-v01/emotions-quiet-v2-web.glb",
+      "animation": "SEAT-124 | MCU_am_SitChairSpin_Idle_08_HandsHead_Stop",
+      "sha256": "dad647b5dc9f4f713f44b9a8ec7c7bf65d4ae672e092c003ba40eb543ac9afa8",
+      "range": [
+        0,
+        3.8666698932647705
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "разовый",
+      "available": false,
+      "blockedReason": "Нужен подходящий вращающийся стул с более пологой спинкой",
+      "poseStart": "сидя · на стуле",
+      "poseEnd": "сидя · на стуле"
+    },
+    {
+      "id": "emotions-quiet/IDLE-006",
+      "code": "IDLE-006",
+      "title": "Стоять со скрещёнными руками",
+      "asset": "assets/social-v01/emotions-quiet-v2-web.glb",
+      "animation": "IDLE-006 | MCU_am_ArmsCrossed_Idle_01",
+      "sha256": "dad647b5dc9f4f713f44b9a8ec7c7bf65d4ae672e092c003ba40eb543ac9afa8",
+      "range": [
+        0,
+        7.533329963684082
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "цикл",
+      "available": false,
+      "blockedReason": "Составная цепочка с совместными Start/Stop; подключается ниже единым вариантом",
+      "poseStart": "стоя · руки скрещены",
+      "poseEnd": "стоя · руки скрещены"
+    },
+    {
+      "id": "emotions-quiet/IDLE-002",
+      "code": "IDLE-002",
+      "title": "Отвести взгляд со скрещёнными руками",
+      "asset": "assets/social-v01/emotions-quiet-v2-web.glb",
+      "animation": "IDLE-002 | MCU_am_ArmsCrossedB_Idle_02_LookAround",
+      "sha256": "dad647b5dc9f4f713f44b9a8ec7c7bf65d4ae672e092c003ba40eb543ac9afa8",
+      "range": [
+        0,
+        6.86667013168335
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "цикл",
+      "available": true,
+      "blockedReason": null,
+      "poseStart": "стоя · руки скрещены",
+      "poseEnd": "стоя · руки скрещены"
+    },
+    {
+      "id": "emotions-quiet/IDLE-014",
+      "code": "IDLE-014",
+      "title": "Скрестить руки стоя",
+      "asset": "assets/social-v01/emotions-quiet-v2-web.glb",
+      "animation": "IDLE-014 | MCU_am_Stand_Idle_Trans_ArmsCrossed",
+      "sha256": "dad647b5dc9f4f713f44b9a8ec7c7bf65d4ae672e092c003ba40eb543ac9afa8",
+      "range": [
+        0,
+        4.033329963684082
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "разовый",
+      "available": false,
+      "blockedReason": "Составная цепочка с совместными Start/Stop; подключается ниже единым вариантом",
+      "poseStart": "стоя",
+      "poseEnd": "стоя · руки скрещены"
+    },
+    {
+      "id": "emotions-quiet/IDLE-013",
+      "code": "IDLE-013",
+      "title": "Опустить скрещённые руки стоя",
+      "asset": "assets/social-v01/emotions-quiet-v2-web.glb",
+      "animation": "IDLE-013 | MCU_am_ArmsCrossed_Trans_Stand_Idle",
+      "sha256": "dad647b5dc9f4f713f44b9a8ec7c7bf65d4ae672e092c003ba40eb543ac9afa8",
+      "range": [
+        0,
+        3.3666698932647705
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "разовый",
+      "available": false,
+      "blockedReason": "Составная цепочка с совместными Start/Stop; подключается ниже единым вариантом",
+      "poseStart": "стоя · руки скрещены",
+      "poseEnd": "стоя"
+    },
+    {
+      "id": "emotions-quiet/SEAT-043",
+      "code": "SEAT-043",
+      "title": "Сидеть со скрещёнными руками",
+      "asset": "assets/social-v01/emotions-quiet-v2-web.glb",
+      "animation": "SEAT-043 | MCU_am_SitChairArmsCross_Idle_01",
+      "sha256": "dad647b5dc9f4f713f44b9a8ec7c7bf65d4ae672e092c003ba40eb543ac9afa8",
+      "range": [
+        0,
+        7.36667013168335
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "цикл",
+      "available": false,
+      "blockedReason": "Соответствующий профиль стула/стола; сохранение посадки, направления к партнёру и свободных рук",
+      "poseStart": "сидя · на стуле",
+      "poseEnd": "сидя · на стуле"
+    },
+    {
+      "id": "emotions-quiet/SEAT-045",
+      "code": "SEAT-045",
+      "title": "Отвести взгляд сидя со скрещёнными руками",
+      "asset": "assets/social-v01/emotions-quiet-v2-web.glb",
+      "animation": "SEAT-045 | MCU_am_SitChairArmsCross_Idle_03_LookAround",
+      "sha256": "dad647b5dc9f4f713f44b9a8ec7c7bf65d4ae672e092c003ba40eb543ac9afa8",
+      "range": [
+        0,
+        6.033329963684082
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "цикл",
+      "available": false,
+      "blockedReason": "Соответствующий профиль стула/стола; сохранение посадки, направления к партнёру и свободных рук",
+      "poseStart": "сидя · на стуле",
+      "poseEnd": "сидя · на стуле"
+    },
+    {
+      "id": "emotions-quiet/IDLE-234",
+      "code": "IDLE-234",
+      "title": "Посмотреть в сторону у стены",
+      "asset": "assets/social-v01/emotions-quiet-v2-web.glb",
+      "animation": "IDLE-234 | MCU_am_WallLean_Idle_Loop_03_LookLeft",
+      "sha256": "dad647b5dc9f4f713f44b9a8ec7c7bf65d4ae672e092c003ba40eb543ac9afa8",
+      "range": [
+        0,
+        4.36667013168335
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "цикл",
+      "available": false,
+      "blockedReason": "Реальная стена; IDLE-216/217/238 на складе; соответствие конкретному варианту ещё проверить",
+      "poseStart": "стоя · у стены",
+      "poseEnd": "стоя · у стены"
+    },
+    {
+      "id": "emotions-quiet/IDLE-237",
+      "code": "IDLE-237",
+      "title": "Опустить голову у стены",
+      "asset": "assets/social-v01/emotions-quiet-v2-web.glb",
+      "animation": "IDLE-237 | MCU_am_WallLean_Idle_Loop_06_LookDown",
+      "sha256": "dad647b5dc9f4f713f44b9a8ec7c7bf65d4ae672e092c003ba40eb543ac9afa8",
+      "range": [
+        0,
+        3.3666698932647705
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "цикл",
+      "available": false,
+      "blockedReason": "Реальная стена; IDLE-216/217/238 на складе; соответствие конкретному варианту ещё проверить",
+      "poseStart": "стоя · у стены",
+      "poseEnd": "стоя · у стены"
+    },
+    {
+      "id": "emotions-quiet/IDLE-197",
+      "code": "IDLE-197",
+      "title": "Потянуть плечи в широкой стойке",
+      "asset": "assets/social-v01/emotions-quiet-v2-web.glb",
+      "animation": "IDLE-197 | MCU_am_StandWide_Stretch_11_Shoulders",
+      "sha256": "dad647b5dc9f4f713f44b9a8ec7c7bf65d4ae672e092c003ba40eb543ac9afa8",
+      "range": [
+        0,
+        4.699999809265137
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "разовый",
+      "available": false,
+      "blockedReason": "Широкая стойка: IDLE-200/199 на складе, вне пяти экспортов",
+      "poseStart": "стоя · широкая стойка",
+      "poseEnd": "стоя · широкая стойка"
+    },
+    {
+      "id": "emotions-loud/IDLE-053",
+      "code": "IDLE-053",
+      "title": "Начать аплодисменты A",
+      "asset": "assets/social-v01/emotions-loud-v2-web.glb",
+      "animation": "IDLE-053 | MCU_am_Stand_Crowd_ClapA_Start",
+      "sha256": "9f6817d16be9bb6e938810d9e6a7210c656e3a55ffb07c140275053b6a4c0835",
+      "range": [
+        0,
+        0.7666666507720947
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "разовый",
+      "available": true,
+      "blockedReason": null,
+      "poseStart": "стоя",
+      "poseEnd": "стоя"
+    },
+    {
+      "id": "emotions-loud/IDLE-052",
+      "code": "IDLE-052",
+      "title": "Аплодисменты A",
+      "asset": "assets/social-v01/emotions-loud-v2-web.glb",
+      "animation": "IDLE-052 | MCU_am_Stand_Crowd_ClapA_01",
+      "sha256": "9f6817d16be9bb6e938810d9e6a7210c656e3a55ffb07c140275053b6a4c0835",
+      "range": [
+        0,
+        1.8666666746139526
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "разовый",
+      "available": true,
+      "blockedReason": null,
+      "poseStart": "стоя",
+      "poseEnd": "стоя"
+    },
+    {
+      "id": "emotions-loud/IDLE-054",
+      "code": "IDLE-054",
+      "title": "Закончить аплодисменты A",
+      "asset": "assets/social-v01/emotions-loud-v2-web.glb",
+      "animation": "IDLE-054 | MCU_am_Stand_Crowd_ClapA_Stop",
+      "sha256": "9f6817d16be9bb6e938810d9e6a7210c656e3a55ffb07c140275053b6a4c0835",
+      "range": [
+        0,
+        1.1333333253860474
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "разовый",
+      "available": true,
+      "blockedReason": null,
+      "poseStart": "стоя",
+      "poseEnd": "стоя"
+    },
+    {
+      "id": "emotions-loud/IDLE-056",
+      "code": "IDLE-056",
+      "title": "Начать аплодисменты B",
+      "asset": "assets/social-v01/emotions-loud-v2-web.glb",
+      "animation": "IDLE-056 | MCU_am_Stand_Crowd_ClapB_Start",
+      "sha256": "9f6817d16be9bb6e938810d9e6a7210c656e3a55ffb07c140275053b6a4c0835",
+      "range": [
+        0,
+        0.8333333134651184
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "разовый",
+      "available": true,
+      "blockedReason": null,
+      "poseStart": "стоя",
+      "poseEnd": "стоя"
+    },
+    {
+      "id": "emotions-loud/IDLE-055",
+      "code": "IDLE-055",
+      "title": "Аплодисменты B",
+      "asset": "assets/social-v01/emotions-loud-v2-web.glb",
+      "animation": "IDLE-055 | MCU_am_Stand_Crowd_ClapB_01",
+      "sha256": "9f6817d16be9bb6e938810d9e6a7210c656e3a55ffb07c140275053b6a4c0835",
+      "range": [
+        0,
+        3.299999952316284
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "разовый",
+      "available": true,
+      "blockedReason": null,
+      "poseStart": "стоя",
+      "poseEnd": "стоя"
+    },
+    {
+      "id": "emotions-loud/IDLE-057",
+      "code": "IDLE-057",
+      "title": "Закончить аплодисменты B",
+      "asset": "assets/social-v01/emotions-loud-v2-web.glb",
+      "animation": "IDLE-057 | MCU_am_Stand_Crowd_ClapB_Stop",
+      "sha256": "9f6817d16be9bb6e938810d9e6a7210c656e3a55ffb07c140275053b6a4c0835",
+      "range": [
+        0,
+        1.4666666984558105
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "разовый",
+      "available": true,
+      "blockedReason": null,
+      "poseStart": "стоя",
+      "poseEnd": "стоя"
+    },
+    {
+      "id": "emotions-loud/IDLE-047",
+      "code": "IDLE-047",
+      "title": "Вскинуть обе руки в ликовании",
+      "asset": "assets/social-v01/emotions-loud-v2-web.glb",
+      "animation": "IDLE-047 | MCU_am_Stand_Crowd_CheerArms_01",
+      "sha256": "9f6817d16be9bb6e938810d9e6a7210c656e3a55ffb07c140275053b6a4c0835",
+      "range": [
+        0,
+        3.0333333015441895
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "разовый",
+      "available": true,
+      "blockedReason": null,
+      "poseStart": "стоя",
+      "poseEnd": "стоя"
+    },
+    {
+      "id": "emotions-loud/IDLE-048",
+      "code": "IDLE-048",
+      "title": "Вскинуть левую руку в ликовании",
+      "asset": "assets/social-v01/emotions-loud-v2-web.glb",
+      "animation": "IDLE-048 | MCU_am_Stand_Crowd_CheerLArm_01",
+      "sha256": "9f6817d16be9bb6e938810d9e6a7210c656e3a55ffb07c140275053b6a4c0835",
+      "range": [
+        0,
+        2.366666555404663
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "разовый",
+      "available": true,
+      "blockedReason": null,
+      "poseStart": "стоя",
+      "poseEnd": "стоя"
+    },
+    {
+      "id": "emotions-loud/IDLE-058",
+      "code": "IDLE-058",
+      "title": "Погрозить левым кулаком",
+      "asset": "assets/social-v01/emotions-loud-v2-web.glb",
+      "animation": "IDLE-058 | MCU_am_Stand_Crowd_FistShakeLArm_01",
+      "sha256": "9f6817d16be9bb6e938810d9e6a7210c656e3a55ffb07c140275053b6a4c0835",
+      "range": [
+        0,
+        2.366666555404663
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "разовый",
+      "available": true,
+      "blockedReason": null,
+      "poseStart": "стоя",
+      "poseEnd": "стоя"
+    },
+    {
+      "id": "emotions-loud/IDLE-061",
+      "code": "IDLE-061",
+      "title": "Погрозить правым кулаком",
+      "asset": "assets/social-v01/emotions-loud-v2-web.glb",
+      "animation": "IDLE-061 | MCU_am_Stand_Crowd_FistShakeRArm_01",
+      "sha256": "9f6817d16be9bb6e938810d9e6a7210c656e3a55ffb07c140275053b6a4c0835",
+      "range": [
+        0,
+        2.366666555404663
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "разовый",
+      "available": true,
+      "blockedReason": null,
+      "poseStart": "стоя",
+      "poseEnd": "стоя"
+    },
+    {
+      "id": "emotions-loud/IDLE-064",
+      "code": "IDLE-064",
+      "title": "Трясти обоими кулаками",
+      "asset": "assets/social-v01/emotions-loud-v2-web.glb",
+      "animation": "IDLE-064 | MCU_am_Stand_Crowd_FistShakes_01",
+      "sha256": "9f6817d16be9bb6e938810d9e6a7210c656e3a55ffb07c140275053b6a4c0835",
+      "range": [
+        0,
+        4.699999809265137
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "разовый",
+      "available": true,
+      "blockedReason": null,
+      "poseStart": "стоя",
+      "poseEnd": "стоя"
+    },
+    {
+      "id": "emotions-loud/IDLE-070",
+      "code": "IDLE-070",
+      "title": "Выкрик с широким жестом",
+      "asset": "assets/social-v01/emotions-loud-v2-web.glb",
+      "animation": "IDLE-070 | MCU_am_Stand_Crowd_Shout_01",
+      "sha256": "9f6817d16be9bb6e938810d9e6a7210c656e3a55ffb07c140275053b6a4c0835",
+      "range": [
+        0,
+        3.200000047683716
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "разовый",
+      "available": true,
+      "blockedReason": null,
+      "poseStart": "стоя",
+      "poseEnd": "стоя"
+    },
+    {
+      "id": "emotions-loud/IDLE-071",
+      "code": "IDLE-071",
+      "title": "Короткий выкрик",
+      "asset": "assets/social-v01/emotions-loud-v2-web.glb",
+      "animation": "IDLE-071 | MCU_am_Stand_Crowd_Shout_02",
+      "sha256": "9f6817d16be9bb6e938810d9e6a7210c656e3a55ffb07c140275053b6a4c0835",
+      "range": [
+        0,
+        2.5333333015441895
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "разовый",
+      "available": true,
+      "blockedReason": null,
+      "poseStart": "стоя",
+      "poseEnd": "стоя"
+    },
+    {
+      "id": "emotions-loud/SEAT-233",
+      "code": "SEAT-233",
+      "title": "Энергично печатать",
+      "asset": "assets/social-v01/emotions-loud-v2-web.glb",
+      "animation": "SEAT-233 | MCU_am_SitChairTablePC_07_AngryType",
+      "sha256": "9f6817d16be9bb6e938810d9e6a7210c656e3a55ffb07c140275053b6a4c0835",
+      "range": [
+        0,
+        2.866666555404663
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "разовый",
+      "available": false,
+      "blockedReason": "Рабочее место и машинка; вход/выход через печать, отличие от sit_idle 59°; злость пока не установлена",
+      "poseStart": "сидя · за столом",
+      "poseEnd": "сидя · за столом"
+    },
+    {
+      "id": "emotions-loud/IDLE-014",
+      "code": "IDLE-014",
+      "title": "Скрестить руки стоя",
+      "asset": "assets/social-v01/emotions-loud-v2-web.glb",
+      "animation": "IDLE-014 | MCU_am_Stand_Idle_Trans_ArmsCrossed",
+      "sha256": "9f6817d16be9bb6e938810d9e6a7210c656e3a55ffb07c140275053b6a4c0835",
+      "range": [
+        0,
+        4.0333333015441895
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "разовый",
+      "available": true,
+      "blockedReason": null,
+      "poseStart": "стоя",
+      "poseEnd": "стоя · руки скрещены"
+    },
+    {
+      "id": "emotions-loud/IDLE-006",
+      "code": "IDLE-006",
+      "title": "Стоять со скрещёнными руками",
+      "asset": "assets/social-v01/emotions-loud-v2-web.glb",
+      "animation": "IDLE-006 | MCU_am_ArmsCrossed_Idle_01",
+      "sha256": "9f6817d16be9bb6e938810d9e6a7210c656e3a55ffb07c140275053b6a4c0835",
+      "range": [
+        0,
+        7.5333333015441895
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "цикл",
+      "available": true,
+      "blockedReason": null,
+      "poseStart": "стоя · руки скрещены",
+      "poseEnd": "стоя · руки скрещены"
+    },
+    {
+      "id": "emotions-loud/IDLE-013",
+      "code": "IDLE-013",
+      "title": "Опустить скрещённые руки стоя",
+      "asset": "assets/social-v01/emotions-loud-v2-web.glb",
+      "animation": "IDLE-013 | MCU_am_ArmsCrossed_Trans_Stand_Idle",
+      "sha256": "9f6817d16be9bb6e938810d9e6a7210c656e3a55ffb07c140275053b6a4c0835",
+      "range": [
+        0,
+        3.366666555404663
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "разовый",
+      "available": true,
+      "blockedReason": null,
+      "poseStart": "стоя · руки скрещены",
+      "poseEnd": "стоя"
+    },
+    {
+      "id": "emotions-loud/IDLE-109",
+      "code": "IDLE-109",
+      "title": "Упереть руки в бока",
+      "asset": "assets/social-v01/emotions-loud-v2-web.glb",
+      "animation": "IDLE-109 | MCU_am_Stand_Trans_HandsHip",
+      "sha256": "9f6817d16be9bb6e938810d9e6a7210c656e3a55ffb07c140275053b6a4c0835",
+      "range": [
+        0,
+        3.5333333015441895
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "разовый",
+      "available": true,
+      "blockedReason": null,
+      "poseStart": "стоя",
+      "poseEnd": "стоя · руки в боки"
+    },
+    {
+      "id": "emotions-loud/IDLE-102",
+      "code": "IDLE-102",
+      "title": "Стоять, руки в боках",
+      "asset": "assets/social-v01/emotions-loud-v2-web.glb",
+      "animation": "IDLE-102 | MCU_am_HandsHip_Idle_01",
+      "sha256": "9f6817d16be9bb6e938810d9e6a7210c656e3a55ffb07c140275053b6a4c0835",
+      "range": [
+        0,
+        3.366666555404663
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "цикл",
+      "available": true,
+      "blockedReason": null,
+      "poseStart": "стоя · руки в боки",
+      "poseEnd": "стоя · руки в боки"
+    },
+    {
+      "id": "emotions-loud/IDLE-106",
+      "code": "IDLE-106",
+      "title": "Опустить руки с боков",
+      "asset": "assets/social-v01/emotions-loud-v2-web.glb",
+      "animation": "IDLE-106 | MCU_am_HandsHip_Trans_Stand",
+      "sha256": "9f6817d16be9bb6e938810d9e6a7210c656e3a55ffb07c140275053b6a4c0835",
+      "range": [
+        0,
+        5.199999809265137
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "разовый",
+      "available": true,
+      "blockedReason": null,
+      "poseStart": "стоя · руки в боки",
+      "poseEnd": "стоя"
+    },
+    {
+      "id": "emotions-loud/SEAT-050",
+      "code": "SEAT-050",
+      "title": "Скрестить руки сидя",
+      "asset": "assets/social-v01/emotions-loud-v2-web.glb",
+      "animation": "SEAT-050 | MCU_am_SitChair_Trans_SitChairArmsCross",
+      "sha256": "9f6817d16be9bb6e938810d9e6a7210c656e3a55ffb07c140275053b6a4c0835",
+      "range": [
+        0,
+        2.366666555404663
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "разовый",
+      "available": false,
+      "blockedReason": "Соответствующий профиль стула/стола; сохранение посадки, направления к партнёру и свободных рук",
+      "poseStart": "сидя · на стуле",
+      "poseEnd": "сидя · на стуле"
+    },
+    {
+      "id": "emotions-loud/SEAT-044",
+      "code": "SEAT-044",
+      "title": "Сидеть со скрещёнными руками — вариант",
+      "asset": "assets/social-v01/emotions-loud-v2-web.glb",
+      "animation": "SEAT-044 | MCU_am_SitChairArmsCross_Idle_02",
+      "sha256": "9f6817d16be9bb6e938810d9e6a7210c656e3a55ffb07c140275053b6a4c0835",
+      "range": [
+        0,
+        5.5333333015441895
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "цикл",
+      "available": false,
+      "blockedReason": "Соответствующий профиль стула/стола; сохранение посадки, направления к партнёру и свободных рук",
+      "poseStart": "сидя · на стуле",
+      "poseEnd": "сидя · на стуле"
+    },
+    {
+      "id": "emotions-loud/SEAT-049",
+      "code": "SEAT-049",
+      "title": "Опустить скрещённые руки сидя",
+      "asset": "assets/social-v01/emotions-loud-v2-web.glb",
+      "animation": "SEAT-049 | MCU_am_SitChairArmsCross_Trans_SitChair",
+      "sha256": "9f6817d16be9bb6e938810d9e6a7210c656e3a55ffb07c140275053b6a4c0835",
+      "range": [
+        0,
+        2.0333333015441895
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": "разовый",
+      "available": false,
+      "blockedReason": "Соответствующий профиль стула/стола; сохранение посадки, направления к партнёру и свободных рук",
+      "poseStart": "сидя · на стуле",
+      "poseEnd": "сидя · на стуле"
+    },
+    {
+      "id": "mixamo-gap/mxg_sad_idle",
+      "code": "mxg_sad_idle",
+      "title": "Поникнуть, покачиваться",
+      "asset": "assets/social-v01/mixamo-gap-v2-web.glb",
+      "animation": "mxg_sad_idle | Sad Idle",
+      "sha256": "e2c6c18582e458a70002f96b90f10f00927ba2ff07c544fdb9279c8b8784939d",
+      "range": [
+        0,
+        2.799999952316284
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": true,
+      "available": true,
+      "blockedReason": null,
+      "poseStart": "стоя",
+      "poseEnd": "стоя"
+    },
+    {
+      "id": "mixamo-gap/mxg_disappointed",
+      "code": "mxg_disappointed",
+      "title": "Разочарованно вздохнуть",
+      "asset": "assets/social-v01/mixamo-gap-v2-web.glb",
+      "animation": "mxg_disappointed | Disappointed",
+      "sha256": "e2c6c18582e458a70002f96b90f10f00927ba2ff07c544fdb9279c8b8784939d",
+      "range": [
+        0,
+        4.199999809265137
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": true,
+      "available": true,
+      "blockedReason": null,
+      "poseStart": "стоя",
+      "poseEnd": "стоя"
+    },
+    {
+      "id": "mixamo-gap/mxg_defeated",
+      "code": "mxg_defeated",
+      "title": "Стоять подавленно",
+      "asset": "assets/social-v01/mixamo-gap-v2-web.glb",
+      "animation": "mxg_defeated | Defeated",
+      "sha256": "e2c6c18582e458a70002f96b90f10f00927ba2ff07c544fdb9279c8b8784939d",
+      "range": [
+        0,
+        6.733333110809326
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": true,
+      "available": true,
+      "blockedReason": null,
+      "poseStart": "стоя",
+      "poseEnd": "стоя"
+    },
+    {
+      "id": "mixamo-gap/mxg_surprised",
+      "code": "mxg_surprised",
+      "title": "Отшатнуться в удивлении",
+      "asset": "assets/social-v01/mixamo-gap-v2-web.glb",
+      "animation": "mxg_surprised | Surprised",
+      "sha256": "e2c6c18582e458a70002f96b90f10f00927ba2ff07c544fdb9279c8b8784939d",
+      "range": [
+        0,
+        4
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": true,
+      "available": true,
+      "blockedReason": null,
+      "poseStart": "стоя",
+      "poseEnd": "стоя"
+    },
+    {
+      "id": "mixamo-gap/mxg_scared",
+      "code": "mxg_scared",
+      "title": "Испуг с посадкой — исключено QA",
+      "asset": "assets/social-v01/mixamo-gap-v2-web.glb",
+      "animation": null,
+      "sha256": "e2c6c18582e458a70002f96b90f10f00927ba2ff07c544fdb9279c8b8784939d",
+      "range": null,
+      "nativeSpeed": 1,
+      "authorLoop": true,
+      "available": false,
+      "blockedReason": "Нет web animation; общая приёмка не восстановила отсутствующий экспорт",
+      "poseStart": "сидя",
+      "poseEnd": "сидя"
+    },
+    {
+      "id": "mixamo-gap/mxg_terrified",
+      "code": "mxg_terrified",
+      "title": "Съёжиться, закрывая лицо",
+      "asset": "assets/social-v01/mixamo-gap-v2-web.glb",
+      "animation": "mxg_terrified | Terrified",
+      "sha256": "e2c6c18582e458a70002f96b90f10f00927ba2ff07c544fdb9279c8b8784939d",
+      "range": [
+        0,
+        19.96666717529297
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": false,
+      "available": true,
+      "blockedReason": null,
+      "poseStart": "стоя",
+      "poseEnd": "стоя"
+    },
+    {
+      "id": "mixamo-gap/mxg_victory_idle",
+      "code": "mxg_victory_idle",
+      "title": "Победный жест",
+      "asset": "assets/social-v01/mixamo-gap-v2-web.glb",
+      "animation": "mxg_victory_idle | Victory Idle",
+      "sha256": "e2c6c18582e458a70002f96b90f10f00927ba2ff07c544fdb9279c8b8784939d",
+      "range": [
+        0,
+        1.8666666746139526
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": true,
+      "available": true,
+      "blockedReason": null,
+      "poseStart": "стоя",
+      "poseEnd": "стоя"
+    },
+    {
+      "id": "mixamo-gap/mxg_fist_pump",
+      "code": "mxg_fist_pump",
+      "title": "Ликование с посадкой — исключено QA",
+      "asset": "assets/social-v01/mixamo-gap-v2-web.glb",
+      "animation": null,
+      "sha256": "e2c6c18582e458a70002f96b90f10f00927ba2ff07c544fdb9279c8b8784939d",
+      "range": null,
+      "nativeSpeed": 1,
+      "authorLoop": true,
+      "available": false,
+      "blockedReason": "Нет web animation; общая приёмка не восстановила отсутствующий экспорт",
+      "poseStart": "сидя",
+      "poseEnd": "сидя"
+    },
+    {
+      "id": "mixamo-gap/mxg_laughing",
+      "code": "mxg_laughing",
+      "title": "Смеяться, согнувшись",
+      "asset": "assets/social-v01/mixamo-gap-v2-web.glb",
+      "animation": "mxg_laughing | Laughing",
+      "sha256": "e2c6c18582e458a70002f96b90f10f00927ba2ff07c544fdb9279c8b8784939d",
+      "range": [
+        0,
+        9.766666412353516
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": true,
+      "available": true,
+      "blockedReason": null,
+      "poseStart": "стоя",
+      "poseEnd": "стоя"
+    },
+    {
+      "id": "mixamo-gap/mxg_arguing",
+      "code": "mxg_arguing",
+      "title": "Спорить стоя",
+      "asset": "assets/social-v01/mixamo-gap-v2-web.glb",
+      "animation": "mxg_arguing | Standing Arguing",
+      "sha256": "e2c6c18582e458a70002f96b90f10f00927ba2ff07c544fdb9279c8b8784939d",
+      "range": [
+        0,
+        20.799999237060547
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": true,
+      "available": true,
+      "blockedReason": null,
+      "poseStart": "стоя",
+      "poseEnd": "стоя"
+    },
+    {
+      "id": "mixamo-gap/mxg_angry_gesture",
+      "code": "mxg_angry_gesture",
+      "title": "Раздражённо взмахнуть руками",
+      "asset": "assets/social-v01/mixamo-gap-v2-web.glb",
+      "animation": "mxg_angry_gesture | Angry Gesture",
+      "sha256": "e2c6c18582e458a70002f96b90f10f00927ba2ff07c544fdb9279c8b8784939d",
+      "range": [
+        0,
+        3.2666666507720947
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": true,
+      "available": true,
+      "blockedReason": null,
+      "poseStart": "стоя",
+      "poseEnd": "стоя"
+    },
+    {
+      "id": "mixamo-gap/mxg_annoyed_shake",
+      "code": "mxg_annoyed_shake",
+      "title": "Качнуть головой с досадой",
+      "asset": "assets/social-v01/mixamo-gap-v2-web.glb",
+      "animation": "mxg_annoyed_shake | Annoyed Head Shake",
+      "sha256": "e2c6c18582e458a70002f96b90f10f00927ba2ff07c544fdb9279c8b8784939d",
+      "range": [
+        0,
+        2.566666603088379
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": true,
+      "available": true,
+      "blockedReason": null,
+      "poseStart": "стоя",
+      "poseEnd": "стоя"
+    },
+    {
+      "id": "mixamo-gap/mxg_bored",
+      "code": "mxg_bored",
+      "title": "Переминаться от скуки",
+      "asset": "assets/social-v01/mixamo-gap-v2-web.glb",
+      "animation": "mxg_bored | Bored",
+      "sha256": "e2c6c18582e458a70002f96b90f10f00927ba2ff07c544fdb9279c8b8784939d",
+      "range": [
+        0,
+        10.666666984558105
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": true,
+      "available": true,
+      "blockedReason": null,
+      "poseStart": "стоя",
+      "poseEnd": "стоя"
+    },
+    {
+      "id": "mixamo-gap/mxg_thoughtful_nod",
+      "code": "mxg_thoughtful_nod",
+      "title": "Задумчиво кивнуть",
+      "asset": "assets/social-v01/mixamo-gap-v2-web.glb",
+      "animation": "mxg_thoughtful_nod | Thoughtful Head Nod",
+      "sha256": "e2c6c18582e458a70002f96b90f10f00927ba2ff07c544fdb9279c8b8784939d",
+      "range": [
+        0,
+        2.933333396911621
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": true,
+      "available": true,
+      "blockedReason": null,
+      "poseStart": "стоя",
+      "poseEnd": "стоя"
+    },
+    {
+      "id": "mixamo-gap/mxg_thoughtful_shake",
+      "code": "mxg_thoughtful_shake",
+      "title": "Задумчиво не согласиться",
+      "asset": "assets/social-v01/mixamo-gap-v2-web.glb",
+      "animation": "mxg_thoughtful_shake | Thoughtful Head Shake",
+      "sha256": "e2c6c18582e458a70002f96b90f10f00927ba2ff07c544fdb9279c8b8784939d",
+      "range": [
+        0,
+        3.066666603088379
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": true,
+      "available": true,
+      "blockedReason": null,
+      "poseStart": "стоя",
+      "poseEnd": "стоя"
+    },
+    {
+      "id": "mixamo-gap/mxg_thinking",
+      "code": "mxg_thinking",
+      "title": "Задуматься, рука у подбородка",
+      "asset": "assets/social-v01/mixamo-gap-v2-web.glb",
+      "animation": "mxg_thinking | Thinking",
+      "sha256": "e2c6c18582e458a70002f96b90f10f00927ba2ff07c544fdb9279c8b8784939d",
+      "range": [
+        0,
+        4.233333110809326
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": true,
+      "available": true,
+      "blockedReason": null,
+      "poseStart": "стоя",
+      "poseEnd": "стоя"
+    },
+    {
+      "id": "mixamo-gap/mxg_shrugging",
+      "code": "mxg_shrugging",
+      "title": "Пожать плечами",
+      "asset": "assets/social-v01/mixamo-gap-v2-web.glb",
+      "animation": "mxg_shrugging | Shrugging",
+      "sha256": "e2c6c18582e458a70002f96b90f10f00927ba2ff07c544fdb9279c8b8784939d",
+      "range": [
+        0,
+        2
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": true,
+      "available": true,
+      "blockedReason": null,
+      "poseStart": "стоя",
+      "poseEnd": "стоя"
+    },
+    {
+      "id": "mixamo-gap/mxg_look_away",
+      "code": "mxg_look_away",
+      "title": "Неловко отвести взгляд",
+      "asset": "assets/social-v01/mixamo-gap-v2-web.glb",
+      "animation": "mxg_look_away | Look Away Gesture",
+      "sha256": "e2c6c18582e458a70002f96b90f10f00927ba2ff07c544fdb9279c8b8784939d",
+      "range": [
+        0,
+        2.3333332538604736
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": true,
+      "available": true,
+      "blockedReason": null,
+      "poseStart": "стоя",
+      "poseEnd": "стоя"
+    },
+    {
+      "id": "mixamo-gap/mxg_bashful",
+      "code": "mxg_bashful",
+      "title": "Шарканье от смущения — исключено QA",
+      "asset": "assets/social-v01/mixamo-gap-v2-web.glb",
+      "animation": null,
+      "sha256": "e2c6c18582e458a70002f96b90f10f00927ba2ff07c544fdb9279c8b8784939d",
+      "range": null,
+      "nativeSpeed": 1,
+      "authorLoop": true,
+      "available": false,
+      "blockedReason": "Нет web animation; общая приёмка не восстановила отсутствующий экспорт",
+      "poseStart": "стоя",
+      "poseEnd": "стоя"
+    },
+    {
+      "id": "mixamo-gap/mxg_whatever",
+      "code": "mxg_whatever",
+      "title": "Небрежно отмахнуться",
+      "asset": "assets/social-v01/mixamo-gap-v2-web.glb",
+      "animation": "mxg_whatever | Whatever Gesture",
+      "sha256": "e2c6c18582e458a70002f96b90f10f00927ba2ff07c544fdb9279c8b8784939d",
+      "range": [
+        0,
+        1.399999976158142
+      ],
+      "nativeSpeed": 1,
+      "authorLoop": true,
+      "available": true,
+      "blockedReason": null,
+      "poseStart": "стоя",
+      "poseEnd": "стоя"
+    }
+  ],
+  "styles": [
+    {
+      "id": "gestures-standing__IDLE-088",
+      "title": "Позвать правой рукой над головой",
+      "entries": [
+        "gestures-standing/IDLE-088"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "gestures-standing__IDLE-089",
+      "title": "Позвать обеими руками",
+      "entries": [
+        "gestures-standing/IDLE-089"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "gestures-standing__IDLE-090",
+      "title": "Позвать размашистым махом",
+      "entries": [
+        "gestures-standing/IDLE-090"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "gestures-standing__IDLE-081",
+      "title": "Поздороваться правой рукой",
+      "entries": [
+        "gestures-standing/IDLE-081"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "gestures-standing__IDLE-083",
+      "title": "Сдержанно поздороваться",
+      "entries": [
+        "gestures-standing/IDLE-083"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "gestures-standing__IDLE-087",
+      "title": "Поздороваться левой рукой",
+      "entries": [
+        "gestures-standing/IDLE-087"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "gestures-standing__IDLE-082",
+      "title": "Коротко кивнуть",
+      "entries": [
+        "gestures-standing/IDLE-082"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "gestures-standing__IDLE-084",
+      "title": "Медленно кивнуть",
+      "entries": [
+        "gestures-standing/IDLE-084"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "gestures-standing__IDLE-085",
+      "title": "Указать правой рукой",
+      "entries": [
+        "gestures-standing/IDLE-085"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "gestures-standing__IDLE-086",
+      "title": "Указать левой рукой",
+      "entries": [
+        "gestures-standing/IDLE-086"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "gestures-standing__IDLE-058",
+      "title": "Погрозить левым кулаком",
+      "entries": [
+        "gestures-standing/IDLE-058"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "gestures-standing__IDLE-061",
+      "title": "Погрозить правым кулаком",
+      "entries": [
+        "gestures-standing/IDLE-061"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "gestures-standing__IDLE-064",
+      "title": "Трясти обоими кулаками",
+      "entries": [
+        "gestures-standing/IDLE-064"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "emotions-quiet__IDLE-210",
+      "title": "Посмотреть на часы",
+      "entries": [
+        "emotions-quiet/IDLE-210"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "emotions-quiet__IDLE-211",
+      "title": "Оглядываться в ожидании",
+      "entries": [
+        "emotions-quiet/IDLE-211"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "emotions-quiet__IDLE-040",
+      "title": "Смахнуть с груди",
+      "entries": [
+        "emotions-quiet/IDLE-040"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "emotions-quiet__IDLE-153",
+      "title": "Разглядывать ногти",
+      "entries": [
+        "emotions-quiet/IDLE-153"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "emotions-quiet__IDLE-156",
+      "title": "Грызть ноготь",
+      "entries": [
+        "emotions-quiet/IDLE-156"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "emotions-quiet__IDLE-201",
+      "title": "Стоять с опущенными плечами",
+      "entries": [
+        "emotions-quiet/IDLE-201"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "emotions-quiet__IDLE-022",
+      "title": "Тяжело дышать",
+      "entries": [
+        "emotions-quiet/IDLE-022"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "emotions-quiet__IDLE-017",
+      "title": "Разминать плечи",
+      "entries": [
+        "emotions-quiet/IDLE-017"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "emotions-quiet__IDLE-002",
+      "title": "Отвести взгляд со скрещёнными руками",
+      "entries": [
+        "emotions-quiet/IDLE-002"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "emotions-loud__IDLE-047",
+      "title": "Вскинуть обе руки в ликовании",
+      "entries": [
+        "emotions-loud/IDLE-047"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "emotions-loud__IDLE-048",
+      "title": "Вскинуть левую руку в ликовании",
+      "entries": [
+        "emotions-loud/IDLE-048"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "emotions-loud__IDLE-058",
+      "title": "Погрозить левым кулаком",
+      "entries": [
+        "emotions-loud/IDLE-058"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "emotions-loud__IDLE-061",
+      "title": "Погрозить правым кулаком",
+      "entries": [
+        "emotions-loud/IDLE-061"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "emotions-loud__IDLE-064",
+      "title": "Трясти обоими кулаками",
+      "entries": [
+        "emotions-loud/IDLE-064"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "emotions-loud__IDLE-070",
+      "title": "Выкрик с широким жестом",
+      "entries": [
+        "emotions-loud/IDLE-070"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "emotions-loud__IDLE-071",
+      "title": "Короткий выкрик",
+      "entries": [
+        "emotions-loud/IDLE-071"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "mixamo-gap__mxg_sad_idle",
+      "title": "Поникнуть, покачиваться",
+      "entries": [
+        "mixamo-gap/mxg_sad_idle"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "mixamo-gap__mxg_disappointed",
+      "title": "Разочарованно вздохнуть",
+      "entries": [
+        "mixamo-gap/mxg_disappointed"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "mixamo-gap__mxg_defeated",
+      "title": "Стоять подавленно",
+      "entries": [
+        "mixamo-gap/mxg_defeated"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "mixamo-gap__mxg_surprised",
+      "title": "Отшатнуться в удивлении",
+      "entries": [
+        "mixamo-gap/mxg_surprised"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "mixamo-gap__mxg_terrified",
+      "title": "Съёжиться, закрывая лицо",
+      "entries": [
+        "mixamo-gap/mxg_terrified"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "mixamo-gap__mxg_victory_idle",
+      "title": "Победный жест",
+      "entries": [
+        "mixamo-gap/mxg_victory_idle"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "mixamo-gap__mxg_laughing",
+      "title": "Смеяться, согнувшись",
+      "entries": [
+        "mixamo-gap/mxg_laughing"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "mixamo-gap__mxg_arguing",
+      "title": "Спорить стоя",
+      "entries": [
+        "mixamo-gap/mxg_arguing"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "mixamo-gap__mxg_angry_gesture",
+      "title": "Раздражённо взмахнуть руками",
+      "entries": [
+        "mixamo-gap/mxg_angry_gesture"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "mixamo-gap__mxg_annoyed_shake",
+      "title": "Качнуть головой с досадой",
+      "entries": [
+        "mixamo-gap/mxg_annoyed_shake"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "mixamo-gap__mxg_bored",
+      "title": "Переминаться от скуки",
+      "entries": [
+        "mixamo-gap/mxg_bored"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "mixamo-gap__mxg_thoughtful_nod",
+      "title": "Задумчиво кивнуть",
+      "entries": [
+        "mixamo-gap/mxg_thoughtful_nod"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "mixamo-gap__mxg_thoughtful_shake",
+      "title": "Задумчиво не согласиться",
+      "entries": [
+        "mixamo-gap/mxg_thoughtful_shake"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "mixamo-gap__mxg_thinking",
+      "title": "Задуматься, рука у подбородка",
+      "entries": [
+        "mixamo-gap/mxg_thinking"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "mixamo-gap__mxg_shrugging",
+      "title": "Пожать плечами",
+      "entries": [
+        "mixamo-gap/mxg_shrugging"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "mixamo-gap__mxg_look_away",
+      "title": "Неловко отвести взгляд",
+      "entries": [
+        "mixamo-gap/mxg_look_away"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "mixamo-gap__mxg_whatever",
+      "title": "Небрежно отмахнуться",
+      "entries": [
+        "mixamo-gap/mxg_whatever"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "arms_crossed",
+      "title": "Слушать, скрестив руки",
+      "entries": [
+        "emotions-loud/IDLE-014",
+        "emotions-loud/IDLE-006",
+        "emotions-loud/IDLE-013"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "hands_hips",
+      "title": "Говорить с руками в боках",
+      "entries": [
+        "emotions-loud/IDLE-109",
+        "emotions-loud/IDLE-102",
+        "emotions-loud/IDLE-106"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "clap_a",
+      "title": "Поаплодировать собеседнику",
+      "entries": [
+        "emotions-loud/IDLE-053",
+        "emotions-loud/IDLE-052",
+        "emotions-loud/IDLE-054"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "clap_b",
+      "title": "Поаплодировать собеседнику — второй вариант",
+      "entries": [
+        "emotions-loud/IDLE-056",
+        "emotions-loud/IDLE-055",
+        "emotions-loud/IDLE-057"
+      ],
+      "repeat": false
+    }
+  ],
+  "furniture": "standing at mutually facing window places; seated and furniture-dependent variants blocked until compatible profiles are verified",
+  "policy": "Expressions only on explicit actor choice; no inferred topics or partner emotions; exact full ranges, 1x"
+}

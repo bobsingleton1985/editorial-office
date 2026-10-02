@@ -34,6 +34,7 @@ export function createTalk({ scene, addDynamic, chars, people, now, show = () =>
   // who he looks at now and how strongly (0..1), from his own talk and from talk addressed to him
   function lookWant(id, T) {
     let best = null, w = 0;
+    const social=chars()?.[id]?.social;if(social) {best=social.partner;w=1;}
     const own = talkOf(id);
     if (own) { const u = (T - own.at) / 1000; const k = sm((u + LOOK_BEFORE) / 0.35) * (1 - sm((u - LOOK_AFTER) / 0.5)); if (k > w) { w = k; best = own.to; } }
     for (const [o, e] of Object.entries(chars() || {})) { if (o === id) continue; const t = valid(e?.talk) ? e.talk : null; if (!t || t.to !== id) continue;
