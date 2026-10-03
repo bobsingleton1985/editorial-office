@@ -8,7 +8,7 @@ export function connectLive(url, onWorld, onStatus, on = {}) {        // on: {we
   if (!url) { onStatus({ online: false, reason: 'no_relay' }); return { now, url }; }
   const clock = (d) => { if (typeof d.now === 'number') offset = d.now - Date.now(); };
   function open() {
-    es = new EventSource(url.replace(/\/$/, '') + '/events');
+    es = new EventSource(url.replace(/\/$/, '') + '/events?runtime=her-v1');
     es.addEventListener('executor',e=>{try{executionLease=JSON.parse(e.data).lease;}catch{}});
     es.addEventListener('world', (e) => { try { const w = JSON.parse(e.data); clock(w); alive = true; onWorld(w); onStatus({ online: true, viewers: w.viewers }); } catch (err) { /* bad frame */ } });
     for (const k of ['weather', 'blinds']) es.addEventListener(k, (e) => { try { if (on[k]) on[k](JSON.parse(e.data)); } catch (err) { /* ignore */ } });
