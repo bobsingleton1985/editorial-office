@@ -1,4 +1,5 @@
 import catalog from './social-catalog.json';
+import {sha256} from './sha256.mjs';
 export { catalog as SOCIAL_CATALOG };
 // The accepted Standing Arguing take is an authored standing speech loop.
 // Playing its gestures does not assign an argument/topic/emotion to either person.
@@ -8,7 +9,7 @@ export async function loadSocialAssets(get, parse) {
   const entries=catalog.entries.filter(e=>e.available), paths=[...new Set(entries.map(e=>e.asset))], assets={};
   for(const path of paths) {
     const buffer=await get(path), expected=entries.find(e=>e.asset===path).sha256;
-    const hash=[...new Uint8Array(await crypto.subtle.digest('SHA-256',buffer))].map(x=>x.toString(16).padStart(2,'0')).join('');
+    const hash=await sha256(buffer);
     if(hash!==expected)throw Error('social asset changed: '+path);
     assets[path]=await parse(buffer);
   }

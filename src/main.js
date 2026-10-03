@@ -1,3 +1,5 @@
+import {conversationGazeChars} from './social-turns.js';
+import {createNeedSender} from './need-control.js';
 import * as THREE from 'three';
 import { loadSocialAssets, participationPacket } from './social-playback.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
@@ -113,11 +115,9 @@ function sendBlinds() {
     } catch (e) { /* offline: stays local */ }
   }, 150);
 }
-function sendNeed(person, need, value, again = true) {      // a viewer moved a scale (owner 30.09): the director sets it and the person decides again
-  return fetch((RELAY === '/' ? '' : RELAY) + '/settings/needs', { method: 'POST',
+const sendNeed=createNeedSender((person,need,value)=>fetch((RELAY === '/' ? '' : RELAY) + '/settings/needs', { method: 'POST',
     headers: { 'Content-Type': 'application/json', ...(ownerToken ? { Authorization: 'Bearer ' + ownerToken } : {}) }, body: JSON.stringify({ person, need, value }) })
-    .then((r) => { if (r.status === 429 && again) return new Promise((ok) => setTimeout(ok, 400)).then(() => sendNeed(person, need, value, false)); }).catch(() => { /* offline: the scale stays as it was */ });
-}
+);
 function buildBlindsUI(box) {
   const ui = { busy: false, rows: [] };
   for (const [k, label] of [['down', 'Жалюзи: подняты ↔ опущены'], ['tilt', 'Ламели: открыты ↔ закрыты']]) {
@@ -318,7 +318,7 @@ async function loadShared(office) {                                   // once: t
     whisky: (() => { try { return whbuf ? parseWhisky(whbuf) : null; } catch (e) { console.warn('whisky recording unreadable:', e); return null; } })() });
   for (const g of shared.groups) { L.attach(g); SC.addDynamic(g); } SC.markDirty();
   window.__tw = typewriters; window.__shared = shared;
-  talk = createTalk({ scene: sc, addDynamic: (o) => SC.addDynamic(o), chars: () => charsOf(latest), people: () => people, now: () => window.__simNow ?? live.now(), show: () => S.bubbles !== false });
+  talk = createTalk({ scene: sc, addDynamic: (o) => SC.addDynamic(o), chars: () => conversationGazeChars(charsOf(latest),people), people: () => people, now: () => window.__simNow ?? live.now(), show: () => S.bubbles !== false });
   window.__talk = talk;
   window.__look = (pos, tgt) => { const c = new THREE.PerspectiveCamera(35, innerWidth / innerHeight, 0.05, 100); c.position.copy(B3(...pos)); c.lookAt(B3(...tgt)); c.layers.enableAll(); r.render(sc, c); return r.domElement.toDataURL('image/jpeg', 0.85); };
   base = B; setInterval(showWho, 1000);
@@ -547,7 +547,7 @@ function step(dt, draw = true) {
     sched.update(); bulletinTV?.update(dt); tv.update(dt);
     if (tvMat) tvMat.emissiveIntensity = 1 + tv.uniforms.flicker.value - 0.5 * tv.uniforms.snow.value;
   }
-  { const now = window.__simNow ?? live.now(); eachPerson((ed) => ed.update(dt, now)); shared?.applyProps(); tvMusic(now); }
+  { const now = window.__simNow ?? live.now(); talk?.beginFrame(); eachPerson((ed) => ed.update(dt, now)); talk?.flush(); shared?.applyProps(); tvMusic(now); }
   talk?.update((cam.top - cam.bottom) / cam.zoom);                  // bubbles over the heads (invitations)   // __simNow: automated checks run on their own clock
   typewriters?.update(dt);                                      // paper feed of the desk typewriters
   if (!draw) return;

@@ -60,14 +60,20 @@ function openJournal(load, only = null, names = {}) {
 const NEED = { fatigue: 'Усталость', boredom: 'Скука', social: 'Общение', recognition: 'Признание', fun: 'Развлечение',
   coffee: 'Кофе', nicotine: 'Никотин', alcohol: 'Алкоголь', stress: 'Стресс', drunk: 'Опьянение', hunger: 'Голод', music: 'Тяга к музыке', dance: 'Желание танцевать' };
 // the scales may be moved by any viewer (owner 30.09): the value goes to the director when the finger lets go, and the person decides again;
-// meanwhile the page keeps the moved value for a few seconds (until the director's new state arrives) and does not rebuild the panel under the finger
-let holdUntil = 0; const over = {};
+// Only the actively dragged control owns a local value. On release the panel
+// resumes the director's state/rate, even while the assignment is in transit.
+const editing=new Set();
 function slider(k, v, nv, row, ctl) {
   const i = el('input', 'nr'); i.type = 'range'; i.min = 0; i.max = 100; i.step = 1; i.value = v; i.setAttribute('aria-label', NEED[k] || k);
-  const rel = () => { holdUntil = Date.now() + 700; };
-  i.addEventListener('pointerdown', () => { holdUntil = Date.now() + 15000; }); i.addEventListener('pointerup', rel); i.addEventListener('pointercancel', rel);
-  i.addEventListener('input', () => { holdUntil = Math.max(holdUntil, Date.now() + 1500); nv.textContent = `${i.value} из 100`; row.classList.toggle('hi', +i.value >= 70); });
-  i.addEventListener('change', () => { rel(); ctl.set(k, +i.value); });
+  let keyboard=false;
+  i.addEventListener('keydown',ev=>{if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','PageUp','PageDown','Home','End'].includes(ev.key)){keyboard=true;editing.add(i);}});
+  i.addEventListener('keyup',()=>{keyboard=false;editing.delete(i);});
+  i.addEventListener('blur',()=>{keyboard=false;editing.delete(i);});
+  const rel=()=>{editing.delete(i);};
+  i.addEventListener('pointerdown', ev=>{keyboard=false;editing.add(i);i.setPointerCapture?.(ev.pointerId);});
+  for(const event of ['pointerup','pointercancel','lostpointercapture','blur'])i.addEventListener(event,rel);
+  i.addEventListener('input', () => { nv.textContent = `${i.value} из 100`; row.classList.toggle('hi', +i.value >= 70); });
+  i.addEventListener('change', () => { if(!keyboard)rel();ctl.set(k,+i.value);if(!keyboard)ctl.refresh(); });
   return i;
 }
 let needsCss = false;
@@ -82,7 +88,7 @@ function scales(state, now, ctl) {
     #settings .nd input.nr { grid-column:1 / -1; width:100%; margin:0; height:22px; accent-color:#e0913a; } #settings .nd.hi input.nr { accent-color:#d9483b; }`; document.head.append(st); }
   const box = el('div', 'needs'), mins = Math.max(0, (now - state.at) / 60000);
   for (const [k, n] of Object.entries(state.needs || {})) {
-    const v = ctl?.value(k, state) ?? Math.max(0, Math.min(100, (n.v ?? 0) + (n.rate ?? 0) * mins)), r = n.rate ?? 0;
+    const v = Math.max(0, Math.min(100, (n.v ?? 0) + (n.rate ?? 0) * mins)), r = n.rate ?? 0;
     const trend = r > 0 ? ` ↑ +${r}/мин` : r < 0 ? ` ↓ ${r}/мин` : '';
     const row = el('div', 'nd' + (v >= 70 ? ' hi' : '')), nv = el('span', 'nv', `${Math.round(v)} из 100${trend}`);
     row.append(el('span', null, NEED[k] || k), nv);
@@ -111,7 +117,8 @@ export function addDirectorStatus(section, get, loadJournal) {
   if (loadJournal) { const b = el('div', 'btns'), btn = el('button', null, '📜 Журнал действий'); btn.addEventListener('click', () => openJournal(loadJournal, get().focus, names())); b.append(btn); sec.append(b); }
   let tabKey = '';
   function render() {
-    if (Date.now() < holdUntil) return;                              // a scale is being dragged: do not rebuild it under the finger
+    if(editing.size)return; // native pointer capture releases even outside the row
+    const focused = box.contains(document.activeElement) && document.activeElement.matches?.('input.nr') ? document.activeElement.getAttribute('aria-label') : null;
     const { net, world, now, focus, setFocus, setNeed } = get(), list = peopleOf(world);
     const id = list.some(([k]) => k === focus) ? focus : list[0]?.[0], e = list.find(([k]) => k === id)?.[1];
     const key = list.map(([k, x]) => k + ':' + (x.name || '')).join('|') + '#' + id;
@@ -129,10 +136,10 @@ export function addDirectorStatus(section, get, loadJournal) {
     } else rows.push(['Последнее решение', 'ещё не получено']);
     const tb = el('table'); for (const [k, v] of rows) { const tr = el('tr'); tr.append(el('td', 'dim', k), el('td', null, v)); tb.append(tr); }
     const st = e?.state || (list.length === 1 ? world?.state : null), sub = el('div', 'sub', list.length > 1 && e ? `Шкалы потребностей: ${e.name || id}` : 'Шкалы потребностей');
-    const ctl = setNeed && net.online && e && st ? { set: (k, val) => { over[id + ':' + k] = { v: val, at: Date.now(), t: get().now }; setNeed(id, k, val); },
-      value: (k, s) => { const o = over[id + ':' + k]; return o && Date.now() - o.at < 6000 && s.at < o.t ? o.v : undefined; } } : null;
+    const ctl = setNeed && net.online && e && st ? {set:(k,val)=>setNeed(id,k,val),refresh:render} : null;
     const needs = st && typeof st.at === 'number' ? scales(st, now, ctl) : el('div', 'hint', 'Шкалы появятся после следующего решения режиссёра.');
     box.replaceChildren(sub, needs, tb, el('div', 'hint', 'Jev думает, только пока редакцию кто-то смотрит. Время редакции (и шкалы) идёт тоже только при зрителях.' + (ctl ? ' Потяните шкалу — человек пересмотрит, чем заняться (это увидят все зрители).' : '')));
+    if(focused) Array.from(box.querySelectorAll('input.nr')).find(i=>i.getAttribute('aria-label')===focused)?.focus({preventScroll:true});
   }
   setInterval(() => { if (sec.open) render(); }, 1000);
   sec.addEventListener('toggle', () => { if (sec.open) render(); });
