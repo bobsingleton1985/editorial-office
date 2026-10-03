@@ -1,7 +1,7 @@
 // Pure candidate: goals use the existing {seat}/{spot} executor contract.
 // This module proposes/revalidates assignments. It never moves, reserves or consents for actors.
 export const CONVERSATION_PLACES = Object.freeze({
- diningChair:{x:-.7014603836686213,z:.23440707881994335,th:.04388},
+ diningChair:{x:-.7014603836686213,z:.23440707881994335-.57,th:.04388},
  deskA:{seat:{x:-4.181118,z:-2.834009304347826,th:.04388},visitor:{id:'conversationDeskA',x:-3.8,z:-.823391304347826,th:-2.954262}},
  deskB:{seat:{x:.418882,z:-3.738009304347826,th:.04388},visitor:{id:'conversationDeskB',x:.4,z:-1.727391304347826,th:3.132202}},
  deskC:{seat:{x:3.918882,z:-3.734009304347826,th:.04388},visitor:{id:'conversationDeskC',x:3.5,z:-1.723391304347826,th:2.936196}},

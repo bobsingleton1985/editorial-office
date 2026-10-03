@@ -142,10 +142,11 @@ export function addDirectorStatus(section, get, loadJournal) {
     const ctl = setNeed && net.online && e && st ? {set:(k,val)=>setNeed(id,k,val),refresh:render} : null;
     const needs = st && typeof st.at === 'number' ? scales(st, now, ctl) : el('div', 'hint', 'Шкалы появятся после следующего решения режиссёра.');
     const sleepInfo=el('div','hint');
-    if(st?.sleepPressure){const pressure=Math.min(100,st.sleepPressure.v+Math.max(0,now-st.at)/60000*st.sleepPressure.rate);sleepInfo.append(el('div',null,`Сонливость: ${Math.round(pressure)} из 100. Нарастает при бодрствовании, быстрее вечером; снижается во сне.`));}
+    sleepInfo.append(el('div',null,'При усталости 95% персонаж отправляется спать. Во сне усталость и опьянение снижаются; после восстановления сил до 30% усталости он просыпается.'));
+    if(e?.sleepPending)sleepInfo.append(el('div',null,'Сон назначен: '+({sleep_executor_unavailable:'ожидает загрузки движений сна',finishing_safe_exit:'завершает текущее движение',waiting_for_free_desk:'ожидает освобождения стола',waiting_for_free_chair:'ожидает освобождения стула у круглого стола',ready:'готовится ко сну'}[e.sleepPending.reason]||'готовится ко сну')+'.'));
     if(e?.sleep)sleepInfo.append(el('div',null,({entering:'Готовится ко сну',asleep:'Спит',waking:'Просыпается'}[e.sleep.phase]||'Сон')+` · подтверждено сна: ${Math.round(e.sleep.confirmedMs/1000)} с`));
     const lastSleep=e?.memory?.filter(x=>x.event==='sleep_finished').at(-1);
-    if(lastSleep)sleepInfo.append(el('div',null,`Помнит: спал за столом ${Math.round(lastSleep.participatingSeconds)} с; усталость ${Math.round(lastSleep.fatigueBefore)} → ${Math.round(lastSleep.fatigueAfter)}. ${lastSleep.reason==='restored'?'Проснулся после восстановления сил.':'Закончился период сна.'}`));
+    if(lastSleep)sleepInfo.append(el('div',null,`Помнит: ${id==='heroine'?'спала':'спал'} ${lastSleep.kind==='chair'?'на стуле у круглого стола':'за столом'} ${Math.round(lastSleep.participatingSeconds)} с; усталость ${Math.round(lastSleep.fatigueBefore)} → ${Math.round(lastSleep.fatigueAfter)}. ${lastSleep.reason==='restored'?'Силы восстановлены.':'Закончился период сна.'}`));
     const previousMoney=box.querySelector('[data-life-section=money]');if(previousMoney&&renderedActor)moneyOpen.set(renderedActor,previousMoney.open);
     const finances=moneyPanel(e,names());finances.open=moneyOpen.get(id)??false;renderedActor=id;
     box.replaceChildren(sub, needs, sleepInfo, relationshipView(e,names()), finances, tb, el('div', 'hint', 'Jev думает, только пока редакцию кто-то смотрит. Время редакции (и шкалы) идёт тоже только при зрителях.' + (ctl ? ' Потяните шкалу — человек пересмотрит, чем заняться (это увидят все зрители).' : '')));

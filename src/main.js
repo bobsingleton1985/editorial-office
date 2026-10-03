@@ -368,7 +368,7 @@ async function loadPerson(id, e) {
   try {
     let ed;
     if(id==='heroine') {
-      const her=await prepareHeroine(path=>get(path).then(b=>ld().parseAsync(b,'')),shared,id,CHAR_BASE+'assets/heroine-v77/',{sitIdle:CHAR_BASE+'assets/heroine-seat-clearance-v80/clip-sit_idle-hands-v02.glb',repertoireBank:CHAR_BASE+'assets/heroine-repertoire-20261003-v01/heroine-repertoire-v01.glb'});
+      const her=await prepareHeroine(path=>get(path).then(b=>ld().parseAsync(b,'')),shared,id,CHAR_BASE+'assets/heroine-v77/',{sitIdle:CHAR_BASE+'assets/heroine-seat-clearance-v80/clip-sit_idle-hands-v02.glb',repertoireBank:CHAR_BASE+'assets/heroine-repertoire-20261003-v01/heroine-repertoire-v01.glb',sleepBank:CHAR_BASE+'assets/heroine-chair-sleep-20261003-v01/heroine-chair-sleep-v01.glb'});
       her.extra.socialOccupancy=id=>socialSeatOccupancy(charsOf(latest),people,id);
       her.extra.socialWorld=()=>charsOf(latest);her.extra.talk=talk;her.extra.gaze=gaze;her.extra.musicPlaying=()=>sched?.current==='jazz';
       her.extra.socialPartner=id=>{const ed=people[id]?.ed,h=ed?.holder;if(!h)return null;h.updateMatrixWorld(true);const face=ed.root.getObjectByName('head')?.getWorldPosition(new THREE.Vector3());return {x:h.position.x,z:h.position.z,face:face?{x:face.x,y:face.y,z:face.z}:null};};

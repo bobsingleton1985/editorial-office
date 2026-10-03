@@ -58,12 +58,15 @@ for(const p of Object.values(CONVERSATION_PLACES))if(p.visitor)SPOTS[p.visitor.i
 SPOTS.conversationTeletypePartner={...CONVERSATION_PLACES.conversationTeletypePartner,th:2.867425202,label:'собеседник у телетайпа'};
 
 // Independent northern dining chair: no fourth workstation or equipment.
-export const DINING_CHAIR = {id:'diningChair',chair:'D',x:-.7203423836686212,z:.24502507881994334,th:0,label:'стул у северного торца обеденного стола'};
+// Whole standalone chair placement: room for the native arms-cross sleep entry/exit.
+// Translate seat, chair track and measured occupied volume together; no pose changes.
+const DINING_CHAIR_RETREAT = .57;
+export const DINING_CHAIR = {id:'diningChair',chair:'D',x:-.7203423836686212,z:.24502507881994334-DINING_CHAIR_RETREAT,th:0,label:'стул рядом с круглым столом'};
 export const CHAIR_FRAMES = {...DESKS,D:DINING_CHAIR};
 export const CHAIR_KEYS = [...Object.keys(DESKS),'D'];
 export function diningChairBox(dy=CHAIR_REST){const a=DINING_CHAIR.z+.3277274230459462-(dy-CHAIR_REST)*S;return [DINING_CHAIR.x-.34845374387028083,a-.8585941257681122,DINING_CHAIR.x+.34845374387028083,a-.15092568967683412];}
 // Measured source chair sweep, including the executor's allowed max BACK=.2 m.
 export function diningChairSweepBox(){const a=diningChairBox(-.25),b=diningChairBox(.4729);return [a[0],b[1],a[2],a[3]];}
 
-export function diningChairOccupiedBox(){return [-1.1240690917431555,-.2858416239022228,-.31661567559408704,1.0990623459006887];}
+export function diningChairOccupiedBox(){return [-1.1240690917431555,-.2858416239022228-DINING_CHAIR_RETREAT,-.31661567559408704,1.0990623459006887-DINING_CHAIR_RETREAT];}
 export function diningChairAvoidanceBox(){const a=diningChairSweepBox(),b=diningChairOccupiedBox();return [Math.min(a[0],b[0]),Math.min(a[1],b[1]),Math.max(a[2],b[2]),Math.max(a[3],b[3])];}

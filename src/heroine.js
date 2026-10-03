@@ -14,6 +14,7 @@ export async function prepareHeroine(load,shared,id,assetBase='',overrides={}){
   const foodPromise=Promise.all([named(H+'clip-HER-FORK02-owner-v03.glb','fork'),named(H+'clip-HER-SOUP-owner-v02.glb','soup'),named(H+'clip-HER-STIR-owner-v02.glb','stir'),load(H+'plate-food-owner-v03a.glb'),load(H+'fork-owner-v03.glb'),load(H+'knife-owner-v03.glb'),load(H+'key-props-food.glb')]);
   const manifestPromise=fetch(H+'manifest.json').then(r=>{if(!r.ok)throw Error('HTTP '+r.status);return r.json();});
   const bankPromise=load(overrides.repertoireBank||(overrides.repertoireBase||assetBase+'heroine-repertoire/')+'heroine-repertoire-v01.glb');
+  const sleepBankPromise=load(overrides.sleepBank||assetBase+'heroine-sleep-chair/heroine-chair-sleep-v01.glb');
   const propsPromise=Promise.all([load(H+'key-props-bottle.glb'),load(H+'key-props-glass.glb'),fetch(H+'pour-grip-v04.json').then(r=>r.json())]);
   const [model,animations,[fork,soup,stir,plate,forkProp,knifeProp,food],manifest]=await Promise.all([modelPromise,animationsPromise,foodPromise,manifestPromise]);
   const mixer=new THREE.AnimationMixer(model.scene);const a=mixer.clipAction(fork).play();mixer.update(0);model.scene.updateMatrixWorld(true);
@@ -34,7 +35,11 @@ export async function prepareHeroine(load,shared,id,assetBase='',overrides={}){
   const repertoireClips=HEROINE_REPERTOIRE.filter(e=>e.runtime).map(e=>({...e,clip:bankClip(e.id)}));
   const allClips=[...nativeClips,...repertoireClips];
   const gestureNames={"HI-02":"stand_idle_02",tbl_to_chair:'tbl_to_chair',chair_to_tbl:'chair_to_tbl',sit_idle_02:'sit_idle_02'};
-  const gestures={animations:repertoireClips.filter(e=>gestureNames[e.id]).map(e=>{const c=e.clip.clone();c.name=gestureNames[e.id];return c;})};
+  const sleepBank=await sleepBankPromise;
+  const sleepNames=['sleep_cross_start','sleep_cross_doze_start','sleep_cross_loop','sleep_cross_doze_stop','sleep_cross_stop'];
+  const sleepProfile={seatKinds:['chair'],entry:['tbl_to_chair','sleep_cross_start','sleep_cross_doze_start'],loop:'sleep_cross_loop',exit:['sleep_cross_doze_stop','sleep_cross_stop','chair_to_tbl']};
+  const sleepClips=sleepNames.map(name=>{const c=sleepBank.animations.find(c=>c.name===name);if(!c)throw Error('HER sleep bank missing '+name);return c.clone();});
+  const gestures={animations:[...repertoireClips.filter(e=>gestureNames[e.id]).map(e=>{const c=e.clip.clone();c.name=gestureNames[e.id];return c;}),...sleepClips]};
   const [bottle,glass,cfg]=await propsPromise;
-  return {gltf:{scene:model.scene,animations},extra:{gazeProfile:createHeroineGazeProfile(model.scene,repertoireBank),id,faceAxis:[0,0,1],home:'benchN',actorScale:HEROINE_SCALE,shared:{...shared,coffee:null,drinkL:null,whisky:null,whiskyRec:null},lunch:{clips:{fork,soup,stir},plate:plate.scene,bowl:part('P_bowl'),soup:part('P_soup0'),utensils},nativeClips,gestures,gestureSeated:['sit_idle_02','tbl_to_chair','chair_to_tbl'],restPools:heroineRestPools,social:createHeroineSocial(allClips),nativePropsFactory:args=>heroineProps(args,{bottle,glass,cfg},shared),lunchFactory:createHeroineLunch,lunchDishes:['soup','sandwich'],drunk:false}};
+  return {gltf:{scene:model.scene,animations},extra:{gazeProfile:createHeroineGazeProfile(model.scene,repertoireBank),id,faceAxis:[0,0,1],home:'benchN',actorScale:HEROINE_SCALE,shared:{...shared,coffee:null,drinkL:null,whisky:null,whiskyRec:null},lunch:{clips:{fork,soup,stir},plate:plate.scene,bowl:part('P_bowl'),soup:part('P_soup0'),utensils},nativeClips,gestures,sleepProfile,gestureSeated:['sit_idle_02','tbl_to_chair','chair_to_tbl',...sleepNames],restPools:heroineRestPools,social:createHeroineSocial(allClips),nativePropsFactory:args=>heroineProps(args,{bottle,glass,cfg},shared),lunchFactory:createHeroineLunch,lunchDishes:['soup','sandwich'],drunk:false}};
 }
