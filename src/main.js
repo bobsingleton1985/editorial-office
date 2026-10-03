@@ -333,7 +333,7 @@ async function loadPerson(id, e) {
     const clips = await ld().parseAsync(base.buf.slice(0), '');                       // his own copy of the shared clips (the page edits clips in place)
     const bodyG = url && url !== CHAR ? await ld().parseAsync(await get(url), '') : clips;
     const extra = { shared, id, chairBack: Number.isFinite(e.chairBack) ? Math.max(-0.2, Math.min(0.2, e.chairBack)) : 0, home: e.home, mouth: e.mouth, phoneMouth: e.phoneMouth,
-      social:base.social,socialPartner:(id)=>{const h=people[id]?.ed?.holder;return h?{x:h.position.x,z:h.position.z}:null;},
+      social:base.social,socialPartner:(id)=>{const ed=people[id]?.ed,h=ed?.holder;if(!h)return null;h.updateMatrixWorld(true);const head=ed.root.getObjectByName('head'),face=head?.getWorldPosition(new THREE.Vector3());return {x:h.position.x,z:h.position.z,face:face?{x:face.x,y:face.y,z:face.z}:null};},
       talk, typeClip: base.typeClip, gestures: base.gestures, smoke: await parse(base.sbuf), lunch: await parse(base.lbuf), walks: await parse(base.wkbuf), feetup: base.feetup, write: await parse(base.wrbuf), jazz: base.jazz, tvswitch: base.tvswitch, dance: base.dance, camera: cam, renderer: r,
       ...(Q.has('drunk') ? { drunk: Q.get('drunk') !== '0' } : {}),
       ...(base.phoneClips ? { phones: shared.phonesFor(id), phoneClips: base.phoneClips } : {}) };
@@ -342,7 +342,7 @@ async function loadPerson(id, e) {
     L.attach(ed.holder); SC.addDynamic(ed.holder); if (ed.fx) SC.addDynamic(ed.fx); SC.markDirty();
     P.ed = ed; P.loading = false; if (!editor) { editor = ed; window.__editor = ed; }
     window.__people = people;
-    if (latest) ed.apply(latest, live.now());                                       // the newest world, whatever came while he was loading
+    // Initial commands are applied together, in time order, after all bodies load.
   } catch (e2) { P.error = String(e2); P.loading = false; console.warn('person', id, e2); window.__err = String(e2); }
   showWho();
 }
@@ -357,15 +357,25 @@ function reportExecution(dt) {
   const styles=base?.social?.styles.map(x=>x.id)||[];
   live.execution({pairs:pairs.map(p=>({...p,elapsedMs:reportElapsed})),capabilities:{actors,styles}});reportElapsed=0;
 }
+let loadingPeople = false;const activatedPeople=new Set();
 function onWorld(w) {
   latest = w;
   if (!base) { pending = w; return; }
   shared.initChairs(w.chairs);
-  for (const [id, e] of Object.entries(charsOf(w))) {
-    if (!/^[a-z][a-z0-9_]{0,30}$/.test(id)) continue;
-    if (!people[id]) { loadPerson(id, e); continue; }
-    people[id].ed?.apply(w.chars ? w : { ...w, chars: { [id]: e } }, live.now());
+  if (loadingPeople) {for(const [id] of Object.entries(charsOf(w)))if(activatedPeople.has(id))people[id].ed?.apply(w,window.__simNow??live.now());return;}
+  const entries=Object.entries(charsOf(w)).filter(([id])=>/^[a-z][a-z0-9_]{0,30}$/.test(id));
+  const missing=entries.filter(([id])=>!people[id]);
+  if(missing.length) {
+    loadingPeople=true;
+    for(const [id] of entries)if(activatedPeople.has(id))people[id].ed?.apply(w.chars?w:{...w,chars:{[id]:charsOf(w)[id]}},window.__simNow??live.now());
+    Promise.allSettled(missing.map(([id,e])=>loadPerson(id,e))).then(()=>{loadingPeople=false;if(latest)onWorld(latest);});
+    return;
   }
+  // A late viewer must replay the earlier departure before the later arrival.
+  // Applying in model-download order can reserve a future destination over the earlier start.
+  entries.sort(([a,x],[b,y])=>(x.at-y.at)||a.localeCompare(b));
+  for(const [id] of entries){people[id].ed?.apply(w.chars?w:{...w,chars:{[id]:charsOf(w)[id]}},window.__simNow??live.now());if(people[id].ed)activatedPeople.add(id);}
+  showWho();
 }
 window.__world = (w) => onWorld(w);                              // for automated checks: a world by hand (page opened with ?relay=)
 const eachPerson = (f) => { for (const id of order) if (people[id].ed) f(people[id].ed, id); };
