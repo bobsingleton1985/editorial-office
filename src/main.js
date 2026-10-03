@@ -16,7 +16,8 @@ import { createShared } from './office-shared.js';
 import { connectLive } from './live.js';
 import { createQuality } from './quality.js';
 import { createStaticCache } from './cache.js';
-import { CHAIR_NODE, DESKS, S as PACK_S, RADIUS, CHAIR_REST, chairBox, SPOTS } from './layout.js';
+import {addDiningChair} from './dining-chair.js';
+import { CHAIR_NODE, CHAIR_KEYS, diningChairAvoidanceBox, DESKS, S as PACK_S, RADIUS, CHAIR_REST, chairBox, SPOTS } from './layout.js';
 import { createCrowd } from './crowd.js';
 import { GRID } from './navgrid.js';
 import { createTypewriters } from './typewriter.js';
@@ -232,6 +233,7 @@ const clockPivots = [], tty = [];
 let paperTarget = 0, lastX = null, returning = false, ttyBusy = false;
 
 function setup(g) {
+  addDiningChair(g.scene);
   sc.add(g.scene); window.__scene = sc; window.__THREE = THREE;   // for automated checks
   L.attach(g.scene);
   mixer = new THREE.AnimationMixer(g.scene);
@@ -314,7 +316,7 @@ async function loadShared(office) {                                   // once: t
   if (pbuf && pcbuf) { phones = createPhones(sc, await ld().parseAsync(pbuf, ''), DESKS, PACK_S, sound);     // phones on every desk; without the clips no phones
     for (const g of phones.groups) L.attach(g); for (const g of phones.groups) SC.addDynamic(g); window.__phones = phones; B.phoneClips = await parse(pcbuf); }
   let crowd = null;                                                              // walking together (Recast crowd); ?crowd=0 — the old one-person paths
-  if (Q.get('crowd') !== '0') { try { crowd = await createCrowd(GRID, Object.keys(DESKS).map((k) => chairBox(k, CHAIR_REST)), RADIUS); window.__crowd = crowd; } catch (e) { console.warn('crowd unavailable:', e); } }
+  if (Q.get('crowd') !== '0') { try { crowd = await createCrowd(GRID, CHAIR_KEYS.map((k) => k==='D'?diningChairAvoidanceBox():chairBox(k, CHAIR_REST)), RADIUS); window.__crowd = crowd; } catch (e) { console.warn('crowd unavailable:', e); } }
   shared = createShared({ scene: sc, office, typewriters, phones, coffeeAddon: await parse(cbuf), drinkLAddon: await parse(dbuf), crowd,
     whisky: (() => { try { return whbuf ? parseWhisky(whbuf) : null; } catch (e) { console.warn('whisky recording unreadable:', e); return null; } })() });
   for (const g of shared.groups) { L.attach(g); SC.addDynamic(g); } SC.markDirty();
@@ -332,7 +334,8 @@ async function loadPerson(id, e) {
   try {
     let ed;
     if(id==='heroine') {
-      const her=await prepareHeroine(path=>get(path).then(b=>ld().parseAsync(b,'')),shared,id,CHAR_BASE+'assets/heroine-v77/');
+      const her=await prepareHeroine(path=>get(path).then(b=>ld().parseAsync(b,'')),shared,id,CHAR_BASE+'assets/heroine-v77/',{sitIdle:CHAR_BASE+'assets/heroine-seat-clearance-v80/clip-sit_idle-hands-v02.glb'});
+      her.extra.socialOccupancy=id=>socialSeatOccupancy(charsOf(latest),people,id);
       ed=createEditor(sc,officeScene,her.gltf,base.tracks,her.extra);
     } else {
     const url = glbOf(e), parse = (b) => (b ? ld().parseAsync(b.slice(0), '').catch(() => null) : null);
@@ -362,7 +365,7 @@ function reportExecution(dt) {
   const active=pairs.length>0&&pairs.every(p=>Object.values(p.actors).every(a=>a.ready));
   reportElapsed=active&&signature===reportPrevious&&dt<0.25?Math.min(2000,reportElapsed+dt*1000):0;reportPrevious=signature;
   if(now-reportSend<1000)return;reportSend=now;
-  const actors={};eachPerson((ed,id)=>{const s=ed.socialStatus();actors[id]={loaded:s.loaded,seq:s.seq,activity:s.activity,executing:s.executing,mode:s.mode,seat:s.seat,x:s.x,z:s.z,profiles:s.profiles,readingAvailable:s.readingAvailable};});
+  const actors={};eachPerson((ed,id)=>{const s=ed.socialStatus();actors[id]={loaded:s.loaded,seq:s.seq,activity:s.activity,executing:s.executing,executionEnd:s.executionEnd,mode:s.mode,seat:s.seat,x:s.x,z:s.z,profiles:s.profiles,sleepAvailable:s.sleepAvailable,sleep:s.sleep,diningChairClear:s.diningChairClear,readingAvailable:s.readingAvailable};});
   const styles=base?.social?.styles.map(x=>x.id)||[];
   live.execution({pairs:pairs.map(p=>({...p,elapsedMs:reportElapsed})),capabilities:{actors,styles}});reportElapsed=0;
 }

@@ -2,11 +2,11 @@ import * as THREE from 'three';
 import {heroineProps} from './heroine-props.js';
 import {createHeroineLunch} from './heroine-lunch.js';
 export const HEROINE_SCALE=1/(.959280767191607/1.5537539445117445);
-export async function prepareHeroine(load,shared,id,assetBase=''){
+export async function prepareHeroine(load,shared,id,assetBase='',overrides={}){
   const H=assetBase+'heroine/';const navNames=['sit_idle',...['L02a','L03a','R02a'].flatMap(t=>['desk_sit_'+t,'desk_stand_'+t]),...['L01','L02','R01','R02'].flatMap(t=>['booth_sit_'+t,'booth_stand_'+t])];
   const model=await load(H+'heroine-v15-head15.glb');
   const named=async(path,name)=>{const c=(await load(path)).animations[0].clone();c.name=name;return c;};
-  const animations=await Promise.all([named(H+'clip-MX-WALK.glb','walk'),named(H+'clip-SEAT-001.glb','stand_idle'),...navNames.map(n=>named(assetBase+'heroine-nav/clip-'+n+'.glb',n))]);
+  const animations=await Promise.all([named(H+'clip-MX-WALK.glb','walk'),named(H+'clip-SEAT-001.glb','stand_idle'),...navNames.map(n=>named(n==='sit_idle'&&overrides.sitIdle?overrides.sitIdle:assetBase+'heroine-nav/clip-'+n+'.glb',n))]);
   const [fork,soup,stir,plate,forkProp,knifeProp,food]=await Promise.all([named(H+'clip-HER-FORK02-owner-v03.glb','fork'),named(H+'clip-HER-SOUP-owner-v02.glb','soup'),named(H+'clip-HER-STIR-owner-v02.glb','stir'),load(H+'plate-food-owner-v03a.glb'),load(H+'fork-owner-v03.glb'),load(H+'knife-owner-v03.glb'),load(H+'key-props-food.glb')]);
   const mixer=new THREE.AnimationMixer(model.scene);const a=mixer.clipAction(fork).play();mixer.update(0);model.scene.updateMatrixWorld(true);
   const utensils=[['l',forkProp],['r',knifeProp]].map(([side,g])=>{g.scene.updateMatrixWorld(true);return {side,object:g.scene,local:model.scene.getObjectByName('hand_'+side).matrixWorld.clone().invert().multiply(g.scene.matrixWorld),dish:'sandwich'};});a.stop();

@@ -59,7 +59,7 @@ export async function createCrowd(G, extra, radius) {
   const segAt = (p, tt) => { let s = null; for (const q of p.reqs) if (q.t0 <= tt + 1e-6) s = q; return s; };
   function staticPos(p, tt) {                        // where somebody who is not walking stands at time tt
     const s = segAt(p, tt);
-    if (s) return s.done ? s.doneAt : s.from;
+    if (s) return s.stop ? s.from : s.done ? s.doneAt : s.from;
     if (p.reqs.length) return p.reqs[0].from;        // before his first walk: where he set off from
     return p.stand;
   }
@@ -69,7 +69,7 @@ export async function createCrowd(G, extra, radius) {
     t = tBase; hist = new Map(); dirty = false;
     for (const id of [...people.keys()].sort()) {
       const p = people.get(id); p.agent = null; p.cur = null; p.pass = null; p.stall = 0; p.boost = 0;
-      for (const q of p.reqs) { q.done = false; q.doneT = null; q.doneAt = null; q.stalled = false; }
+      for (const q of p.reqs) { if(q.stop)continue; q.done = false; q.doneT = null; q.doneAt = null; q.stalled = false; }
       const at = staticPos(p, t); if (!at) continue;
       p.agent = crowd.addAgent(V(at), { ...AG, radius, maxSpeed: 2 });
       hist.set(id, []);
@@ -77,15 +77,18 @@ export async function createCrowd(G, extra, radius) {
     record();
   }
   function record() {
-    for (const [id, p] of [...people.entries()].sort((x, y) => (x[0] < y[0] ? -1 : 1))) { if (!p.agent) continue;
-      const a = p.agent, pos = a.position(), vel = a.velocity(), w = !!(p.cur && !p.cur.done);
+    for (const [id, p] of [...people.entries()].sort((x, y) => (x[0] < y[0] ? -1 : 1))) { if (!p.agent) {if(!hist.has(id))hist.set(id,[]);hist.get(id).push(null);continue;}
+      if(!hist.has(id))hist.set(id,[]);const a = p.agent, pos = a.position(), vel = a.velocity(), w = !!(p.cur && !p.cur.done);
       let dx = 0, dz = 0; if (w) { const n = a.nextTargetInPath(); dx = n.x - pos.x; dz = n.z - pos.z; }
       hist.get(id).push({ x: pos.x, z: pos.z, vx: w ? vel.x : 0, vz: w ? vel.z : 0, dx, dz, w, seg: p.cur }); }
   }
   function stepOnce() {
     const tn = t + STEP;
-    for (const p of order) { if (!p.agent) continue;
+    for (const p of order) {
       const s = segAt(p, tn);
+      if(s?.stop){if(p.cur!==s){if(p.agent)crowd.removeAgent(p.agent);p.agent=s.from?crowd.addAgent(V(s.from),{...AG,radius,maxSpeed:0}):null;p.cur=s;p.pass=null;p.stall=0;}continue;}
+      if(!p.agent&&s)p.agent=crowd.addAgent(V(s.from),{...AG,radius,maxSpeed:s.speed});
+      if(!p.agent)continue;
       if (s && s !== p.cur) {                          // a new walk starts: from where he is, towards the approach point
         p.cur = s; p.stall = 0; p.pass = null; p.agent.updateFlags = AG.updateFlags; p.agent.maxSpeed = s.speed;
         p.agent.teleport(V(s.from)); p.agent.requestMoveTarget(V(s.to));
@@ -140,7 +143,7 @@ export async function createCrowd(G, extra, radius) {
       if (hyp(q.x - v.x, q.z - v.z) < 1.2 || (q.x - v.x) * f[0] + (q.z - v.z) * f[1] > -0.3) { p.pass.via = null; p.agent.requestMoveTarget(V(p.pass.wp)); }
     }
     for (const p of all) if (p.pass) {
-      const o = p.pass.other, f = p.pass.dir, a = p.agent.position(), b = o.agent.position(), rp = [b.x - a.x, b.z - a.z], ahead = rp[0] * f[0] + rp[1] * f[1], d = hyp(rp[0], rp[1]);
+      const o = p.pass.other;if(!o.agent){p.pass=null;p.stall=0;p.agent.updateFlags=AG.updateFlags;p.agent.requestMoveTarget(V(p.cur.to));continue;}const f = p.pass.dir, a = p.agent.position(), b = o.agent.position(), rp = [b.x - a.x, b.z - a.z], ahead = rp[0] * f[0] + rp[1] * f[1], d = hyp(rp[0], rp[1]);
       if (!(o.cur && !o.cur.done) || (ahead < -0.2 && d > R2) || d > PASS.range) { p.pass = null; p.stall = 0; p.agent.updateFlags = AG.updateFlags; p.agent.requestMoveTarget(V(p.cur.to)); log.push({ t: +(t - tBase).toFixed(2), end: true, ahead: +ahead.toFixed(2), d: +d.toFixed(2) }); }
     }
     for (let i = 0; i < all.length; i++) for (let j = i + 1; j < all.length; j++) {
@@ -182,11 +185,12 @@ export async function createCrowd(G, extra, radius) {
   const q30 = (tt) => Math.round(tt / STEP) * STEP;
   return {
     // somebody standing still (a spot) or sitting (null: not an obstacle for the crowd — his chair or the bench already is)
-    stand(id, pos) {
-      const p = person(id), s = pos ? snap(pos) : null, v = s && s.d < ON_MESH ? { x: s.x, z: s.z } : null;
-      if (p.reqs.length) return;                       // his walks decide where he is in this episode
-      if ((p.stand && v && hyp(p.stand.x - v.x, p.stand.z - v.z) < 1e-4) || (!p.stand && !v)) return;
-      p.stand = v; dirty = true;
+    stand(id, pos, at=null) {
+      const p=person(id),s=pos?snap(pos):null,v=s&&s.d<ON_MESH?{x:s.x,z:s.z}:null;
+      if(at===null||!p.reqs.length){if((p.stand&&v&&hyp(p.stand.x-v.x,p.stand.z-v.z)<1e-4)||(!p.stand&&!v))return;p.stand=v;dirty=true;return;}
+      const t0=q30(at),last=p.reqs.at(-1);
+      if(last?.stop&&JSON.stringify(last.from)===JSON.stringify(v))return;
+      p.reqs=p.reqs.filter(q=>q.t0<t0);p.reqs.push({stop:true,t0,from:v,to:v,done:true,doneT:t0,doneAt:v});dirty=true;
     },
     // a walk from `from` to `to` starting at t0 (s); false: no crowd walk possible (the page walks its own path then)
     start(id, t0, from, to, speed, v0 = 0) {
@@ -207,6 +211,7 @@ export async function createCrowd(G, extra, radius) {
     pose(id, tt) {
       advance(tt); const h = hist.get(id); if (!h || !h.length) return null;
       const k = Math.max(0, Math.min(h.length - 1, (tt - tBase) / STEP)), i = Math.floor(k), f = k - i, a = h[i], b = h[Math.min(i + 1, h.length - 1)];
+      if(!a||!b)return null;
       const s = a.seg && a.seg.done && a.seg.doneT <= tt + 1e-6 ? a.seg : b.seg && b.seg.done && b.seg.doneT <= tt + 1e-6 ? b.seg : null;
       return { x: a.x + (b.x - a.x) * f, z: a.z + (b.z - a.z) * f, vx: a.vx + (b.vx - a.vx) * f, vz: a.vz + (b.vz - a.vz) * f, dx: a.dx, dz: a.dz,
         walking: a.w, done: !!s, stalled: !!s?.stalled, seg: a.seg || b.seg };

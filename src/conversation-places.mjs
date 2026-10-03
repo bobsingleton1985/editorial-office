@@ -1,6 +1,7 @@
 // Pure candidate: goals use the existing {seat}/{spot} executor contract.
 // This module proposes/revalidates assignments. It never moves, reserves or consents for actors.
 export const CONVERSATION_PLACES = Object.freeze({
+ diningChair:{x:-.7014603836686213,z:.23440707881994335,th:.04388},
  deskA:{seat:{x:-4.181118,z:-2.834009304347826,th:.04388},visitor:{id:'conversationDeskA',x:-3.8,z:-.823391304347826,th:-2.954262}},
  deskB:{seat:{x:.418882,z:-3.738009304347826,th:.04388},visitor:{id:'conversationDeskB',x:.4,z:-1.727391304347826,th:3.132202}},
  deskC:{seat:{x:3.918882,z:-3.734009304347826,th:.04388},visitor:{id:'conversationDeskC',x:3.5,z:-1.723391304347826,th:2.936196}},
@@ -38,13 +39,14 @@ export function benchPassageTags(seat,occupiedSeats=[]){
  return [...(!blocked.has('benchN')?['L02']:[]),...(!blocked.has('benchS')?['R02']:[])];
 }
 function assignment(actor,place,profile,side='front'){
- const isDesk=desk(place),isBench=bench(place),kind=isDesk?'desk':isBench?'bench':'stand';
+ const isDesk=desk(place),isChair=place==='diningChair',isBench=bench(place),kind=isDesk?'desk':isChair?'chair':isBench?'bench':'stand';
  return {actor,place,goal:kind==='stand'?{spot:place}:{seat:place},posture:kind,
-  contactProfile:isDesk?'sit-chair-table':isBench?'sit-booth-with-chair-conversation':'standing-floor',
-  playbackProfile:profile,side,pose:{...poseOf(place)},entryTags:[],exitTags:[],mustKeepSeatFrame:kind!=='stand'};
+  contactProfile:isDesk||isChair?'sit-chair-table':isBench?'sit-booth-with-chair-conversation':'standing-floor',
+  playbackProfile:profile,side,pose:{...poseOf(place)},entryTags:isChair?['L02a','R02a']:[],exitTags:isChair?['L02a','R02a']:[],mustKeepSeatFrame:kind!=='stand'};
 }
 function commitProposal(input,members,kind,assignments,id,occupied){
  const reasons=[];
+ if(kind==='dining'&&Object.values(assignments).some(a=>a.place==='benchM')&&occupied.some(v=>v.place==='benchN'&&!members.includes(v.owner)))reasons.push({code:'dining-near-neighbour-interposes',place:'benchN'});
  for(const a of Object.values(assignments))if(!freePlace(a.place,members,occupied))reasons.push({code:'occupied',actor:a.actor,place:a.place});
  const assignedPlaces=Object.values(assignments).map(a=>a.place);
  if(assignedPlaces.includes('benchS')&&assignedPlaces.includes('benchN')&&occupied.some(v=>v.place==='benchM'&&!members.includes(v.owner)))reasons.push({code:'bench-middle-interposes',place:'benchM'});
@@ -78,9 +80,17 @@ export function conversationPlaceProposals(input){
  if(members.length!==2||members[0]===members[1]||members.some(id=>!actors[id]))return {intent:input.intent||'auto',proposals:[],unsupported:[{code:'invalid-pair'}]};
  const occupied=occupancy(input),seats=members.map(id=>currentSeat(actors[id]));
  let intent=input.intent||'auto';
- if(intent==='auto')intent=seats.some(desk)?'desk':seats.some(bench)?'bench':members.some(id=>['teletype','teletypeRead','conversationTeletypePartner'].includes(actors[id].place))?'teletype':'standing';
+ if(intent==='auto')intent=seats.includes('diningChair')?'dining':seats.some(desk)?'desk':seats.some(bench)?'bench':members.some(id=>['teletype','teletypeRead','conversationTeletypePartner'].includes(actors[id].place))?'teletype':'standing';
  const proposals=[],unsupported=[];
- if(intent==='teletype'){
+ if(intent==='dining'){
+  for(const host of members.filter(id=>currentSeat(actors[id])==='diningChair')){
+   const guest=members.find(id=>id!==host),current=currentSeat(actors[guest]);
+   for(const place of ['benchN','benchM'].filter(p=>!bench(current)||p===current)){
+    const a=assignment(host,'diningChair','desk-front'),b=assignment(guest,place,'bench-left','left');
+    proposals.push(commitProposal(input,members,'dining',{[host]:a,[guest]:b},`dining:${host}:${guest}:${place}`,occupied));
+   }
+  }
+ }else if(intent==='teletype'){
   for(const places of [['teletypeRead','conversationTeletypePartner'],['conversationTeletypePartner','teletypeRead']]){
    const assignments={};for(let i=0;i<2;i++){
     const own=assignment(members[i],places[i],'teletype-standing'),other=poseOf(places[1-i]);own.pose.th=Math.atan2(other.x-own.pose.x,other.z-own.pose.z);assignments[members[i]]=own;

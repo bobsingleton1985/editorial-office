@@ -139,7 +139,12 @@ export function addDirectorStatus(section, get, loadJournal) {
     const st = e?.state || (list.length === 1 ? world?.state : null), sub = el('div', 'sub', list.length > 1 && e ? `Шкалы потребностей: ${e.name || id}` : 'Шкалы потребностей');
     const ctl = setNeed && net.online && e && st ? {set:(k,val)=>setNeed(id,k,val),refresh:render} : null;
     const needs = st && typeof st.at === 'number' ? scales(st, now, ctl) : el('div', 'hint', 'Шкалы появятся после следующего решения режиссёра.');
-    box.replaceChildren(sub, needs, relationshipView(e,names()), tb, el('div', 'hint', 'Jev думает, только пока редакцию кто-то смотрит. Время редакции (и шкалы) идёт тоже только при зрителях.' + (ctl ? ' Потяните шкалу — человек пересмотрит, чем заняться (это увидят все зрители).' : '')));
+    const sleepInfo=el('div','hint');
+    if(st?.sleepPressure){const pressure=Math.min(100,st.sleepPressure.v+Math.max(0,now-st.at)/60000*st.sleepPressure.rate);sleepInfo.append(el('div',null,`Сонливость: ${Math.round(pressure)} из 100. Нарастает при бодрствовании, быстрее вечером; снижается во сне.`));}
+    if(e?.sleep)sleepInfo.append(el('div',null,({entering:'Готовится ко сну',asleep:'Спит',waking:'Просыпается'}[e.sleep.phase]||'Сон')+` · подтверждено сна: ${Math.round(e.sleep.confirmedMs/1000)} с`));
+    const lastSleep=e?.memory?.filter(x=>x.event==='sleep_finished').at(-1);
+    if(lastSleep)sleepInfo.append(el('div',null,`Помнит: спал за столом ${Math.round(lastSleep.participatingSeconds)} с; усталость ${Math.round(lastSleep.fatigueBefore)} → ${Math.round(lastSleep.fatigueAfter)}. ${lastSleep.reason==='restored'?'Проснулся после восстановления сил.':'Закончился период сна.'}`));
+    box.replaceChildren(sub, needs, sleepInfo, relationshipView(e,names()), tb, el('div', 'hint', 'Jev думает, только пока редакцию кто-то смотрит. Время редакции (и шкалы) идёт тоже только при зрителях.' + (ctl ? ' Потяните шкалу — человек пересмотрит, чем заняться (это увидят все зрители).' : '')));
     if(focused) Array.from(box.querySelectorAll('input.nr')).find(i=>i.getAttribute('aria-label')===focused)?.focus({preventScroll:true});
   }
   setInterval(() => { if (sec.open) render(); }, 1000);

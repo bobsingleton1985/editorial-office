@@ -17,6 +17,7 @@ export const POOLS = {
     tired: [['stand_yawn_1'], ['stand_yawn_2'], ['stand_neck_1'], ['stand_yawn_1'], ['stand_look']] },
 };
 export const SEATED = new Set(Object.values(POOLS.desk).concat(Object.values(POOLS.bench)).flat(2).filter((n) => typeof n === 'string'));
+for(const n of ['floor_sleep_start','floor_sleep','floor_sleep_stop'])SEATED.add(n);
 const X = 0.35, ENV = 0.6;                                         // crossfade between clips, fade in/out over the plain idle
 
 function rnd(seq, slot, salt) {                                    // the same numbers for every viewer

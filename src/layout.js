@@ -13,9 +13,10 @@ export const DESKS = {
 };
 // Office chairs stand 0.1174 m further out than the pack's seated position; after someone stands up they are pushed in (-0.25).
 export const CHAIR_REST = 0.1174, CHAIR_TUCKED = -0.25;
-export const CHAIR_NODE = { A: 'CHAIR_v02_|_ANCHOR', B: 'STATION_B_|_CHAIR_v02_|_ANCHOR', C: 'STATION_C_|_CHAIR_v02_|_ANCHOR' };
+export const CHAIR_NODE = { A: 'CHAIR_v02_|_ANCHOR', B: 'STATION_B_|_CHAIR_v02_|_ANCHOR', C: 'STATION_C_|_CHAIR_v02_|_ANCHOR', D:'DINING_CHAIR_N_|_ANCHOR' };
 // chair footprint (office units) relative to the seated chair: front edge 0.231 m ahead of the desk frame... measured from the office model
 export function chairBox(k, dy) {                   // [x0, z0, x1, z1] of the chair at pack offset dy (m, + = away from the desk)
+  if(k==='D')return diningChairBox(dy);
   const D = DESKS[k], front = D.z + 0.231 * S - dy * S;       // front edge of the seat (towards the desk)
   return [D.x - 0.36, front - 0.707, D.x + 0.36, front];
 }
@@ -55,3 +56,14 @@ export const RADIUS = 0.49;                          // body radius for walking 
 
 for(const p of Object.values(CONVERSATION_PLACES))if(p.visitor)SPOTS[p.visitor.id]={...p.visitor,label:'собеседник у стола'};
 SPOTS.conversationTeletypePartner={...CONVERSATION_PLACES.conversationTeletypePartner,th:2.867425202,label:'собеседник у телетайпа'};
+
+// Independent northern dining chair: no fourth workstation or equipment.
+export const DINING_CHAIR = {id:'diningChair',chair:'D',x:-.7203423836686212,z:.24502507881994334,th:0,label:'стул у северного торца обеденного стола'};
+export const CHAIR_FRAMES = {...DESKS,D:DINING_CHAIR};
+export const CHAIR_KEYS = [...Object.keys(DESKS),'D'];
+export function diningChairBox(dy=CHAIR_REST){const a=DINING_CHAIR.z+.3277274230459462-(dy-CHAIR_REST)*S;return [DINING_CHAIR.x-.34845374387028083,a-.8585941257681122,DINING_CHAIR.x+.34845374387028083,a-.15092568967683412];}
+// Measured source chair sweep, including the executor's allowed max BACK=.2 m.
+export function diningChairSweepBox(){const a=diningChairBox(-.25),b=diningChairBox(.4729);return [a[0],b[1],a[2],a[3]];}
+
+export function diningChairOccupiedBox(){return [-1.1240690917431555,-.2858416239022228,-.31661567559408704,1.0990623459006887];}
+export function diningChairAvoidanceBox(){const a=diningChairSweepBox(),b=diningChairOccupiedBox();return [Math.min(a[0],b[0]),Math.min(a[1],b[1]),Math.max(a[2],b[2]),Math.max(a[3],b[3])];}

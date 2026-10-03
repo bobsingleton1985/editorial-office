@@ -4,7 +4,7 @@
 import * as THREE from 'three';
 import { createNav } from './nav.js';
 import { GRID } from './navgrid.js';
-import { S, DESKS, SPOTS, RADIUS, chairBox, CHAIR_REST, CHAIR_NODE } from './layout.js';
+import { S, DESKS, CHAIR_KEYS, diningChairOccupiedBox, BENCH, SPOTS, RADIUS, chairBox, CHAIR_REST, CHAIR_NODE } from './layout.js';
 import { createCoffee } from './coffee.js';
 import { createWhiskyProps } from './whisky.js';
 
@@ -28,12 +28,37 @@ export function createShared({ scene, office, typewriters = null, phones = null,
   const boxOf = (place) => {                            // where a person stands or sits, as a box others walk around
     if (!place) return null;
     if (place.spot && SPOTS[place.spot]) { const p = SPOTS[place.spot], r = 0.22 * S; return [p.x - r, p.z - r, p.x + r, p.z + r]; }
+    if(place.chair){const b=diningChairOccupiedBox();b.dining=true;return b;}
     if (place.bench) { const p = place.bench, r = 0.2 * S; return [p.x - r, p.z - r, p.x + 0.55 * S, p.z + r]; }   // seated on the bench: the legs go towards the table (+x)
     return null;                                        // at a desk: his chair is already a box
   };
   function setStation(id, place) { stations[id] = boxOf(place); }
+  // Sample native seat paths against body and passage reservations. Keep the lease
+  // through the chair tail or the complete retreat behind the bench.
+  const nativeD = {},actors={};
+  const registerActor=(id,read)=>{actors[id]=read;};
+  function nativeClear(id, points, seat){
+    const bench=seat?.startsWith('bench'),d=seat==='diningChair',others=Object.entries(stations).filter(([k,b])=>k!==id&&b);
+    const boxes=d?others.map(([,b])=>b):others.filter(([,b])=>b.dining).map(([,b])=>b);
+    for(const [k,b]of Object.entries(nativeD))if(k!==id&&(d||b.dining||bench&&b.bench))boxes.push(b);
+    if(bench)for(const [k,read]of Object.entries(actors)){if(k===id)continue;const a=read();if(a&&!a.seat)boxes.push([a.x-RADIUS,a.z-RADIUS,a.x+RADIUS,a.z+RADIUS]);}
+    return !points.some(p=>boxes.some(b=>p.x>b[0]-RADIUS&&p.x<b[2]+RADIUS&&p.z>b[1]-RADIUS&&p.z<b[3]+RADIUS));
+  }
+  function setNative(id,points,seat){if(!points){delete nativeD[id];return;}const b=[Math.min(...points.map(p=>p.x))-RADIUS,Math.min(...points.map(p=>p.z))-RADIUS,Math.max(...points.map(p=>p.x))+RADIUS,Math.max(...points.map(p=>p.z))+RADIUS];b.dining=seat==='diningChair';b.bench=seat?.startsWith('bench');nativeD[id]=b;}
+  function benchRefuge(id,from){
+    syncFor(id);const choices=[];
+    for(const x of [BENCH.N.x-1.5,BENCH.N.x-2.2])for(const z of [BENCH.N.z,BENCH.M.z,BENCH.S.z]){
+      const p={x,z,th:from.th};if(nav.blocked(x,z)||Math.hypot(x-from.x,z-from.z)<.3)continue;
+      if(Object.entries(actors).some(([k,read])=>{const a=read();return k!==id&&a&&Math.hypot(x-a.x,z-a.z)<2*RADIUS+.1;}))continue;
+      if(Object.entries(nativeD).some(([k,b])=>k!==id&&x>b[0]-RADIUS&&x<b[2]+RADIUS&&z>b[1]-RADIUS&&z<b[3]+RADIUS))continue;
+      const pts=nav.path(from,p,.05);if(!pts)continue;
+      const samples=[];for(let i=1;i<pts.length;i++){const a=pts[i-1],b=pts[i],n=Math.max(1,Math.ceil(Math.hypot(b.x-a.x,b.z-a.z)/.05));for(let j=0;j<=n;j++)samples.push({x:a.x+(b.x-a.x)*j/n,z:a.z+(b.z-a.z)*j/n});}
+      if(nativeClear(id,samples,'bench-refuge'))choices.push({point:p,pts,samples,cost:nav.length(pts)});
+    }
+    return choices.sort((a,b)=>a.cost-b.cost)[0]||null;
+  }
   function syncFor(id) {
-    nav.setBoxes([...Object.keys(DESKS).map((k) => chairBox(k, chairs[k] ? chairs[k].plan : CHAIR_REST)),
+    nav.setBoxes([...CHAIR_KEYS.map((k) => chairBox(k, chairs[k] ? chairs[k].plan : CHAIR_REST)),
       ...Object.entries(stations).filter(([k, b]) => k !== id && b).map(([, b]) => b)]);
   }
 
@@ -77,6 +102,6 @@ export function createShared({ scene, office, typewriters = null, phones = null,
       hold: (k, p, ...rest) => { if (p > 0) { phoneOwner[k] = id; phoneOwner[k + ':hold'] = id; } if (!mine(k)) return; phones.hold(k, p, ...rest); if (!(p > 0)) delete phoneOwner[k + ':hold']; } };
   }
   const jazz = {};                                      // listening at the TV: id → {g, off} — everybody's running plan, so nobody plays the loop another plays
-  return { chairs, setChair, jazz, initChairs, phonesFor, nav, crowd, setStation, syncFor, coffee, mugL, drinkL, claim, applyProps, typewriters, whisky: wprops, whiskyRec: wprops ? whisky : null,
+  return { chairs, setChair, jazz, initChairs, phonesFor, nav, crowd, setStation, nativeClear, setNative, registerActor, benchRefuge, syncFor, coffee, mugL, drinkL, claim, applyProps, typewriters, whisky: wprops, whiskyRec: wprops ? whisky : null,
     groups: [...(coffee ? coffee.groups : []), ...Object.values(mugL).map((m) => m.g), ...(wprops ? wprops.groups : [])] };
 }
