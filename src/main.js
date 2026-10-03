@@ -1,7 +1,7 @@
 import {conversationGazeChars} from './social-turns.js';
 import {createNeedSender} from './need-control.js';
 import * as THREE from 'three';
-import { loadSocialAssets, participationPacket } from './social-playback.js';
+import { loadSocialAssets, participationPacket,socialSeatOccupancy } from './social-playback.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
@@ -334,7 +334,7 @@ async function loadPerson(id, e) {
     const bodyG = url && url !== CHAR ? await ld().parseAsync(await get(url), '') : clips;
     const extra = { shared, id, chairBack: Number.isFinite(e.chairBack) ? Math.max(-0.2, Math.min(0.2, e.chairBack)) : 0, home: e.home, mouth: e.mouth, phoneMouth: e.phoneMouth,
       social:base.social,socialPartner:(id)=>{const ed=people[id]?.ed,h=ed?.holder;if(!h)return null;h.updateMatrixWorld(true);const head=ed.root.getObjectByName('head'),face=head?.getWorldPosition(new THREE.Vector3());return {x:h.position.x,z:h.position.z,face:face?{x:face.x,y:face.y,z:face.z}:null};},
-      talk, typeClip: base.typeClip, gestures: base.gestures, smoke: await parse(base.sbuf), lunch: await parse(base.lbuf), walks: await parse(base.wkbuf), feetup: base.feetup, write: await parse(base.wrbuf), jazz: base.jazz, tvswitch: base.tvswitch, dance: base.dance, camera: cam, renderer: r,
+      socialOccupancy:id=>socialSeatOccupancy(charsOf(latest),people,id),socialWorld:()=>charsOf(latest),talk, typeClip: base.typeClip, gestures: base.gestures, smoke: await parse(base.sbuf), lunch: await parse(base.lbuf), walks: await parse(base.wkbuf), feetup: base.feetup, write: await parse(base.wrbuf), jazz: base.jazz, tvswitch: base.tvswitch, dance: base.dance, camera: cam, renderer: r,
       ...(Q.has('drunk') ? { drunk: Q.get('drunk') !== '0' } : {}),
       ...(base.phoneClips ? { phones: shared.phonesFor(id), phoneClips: base.phoneClips } : {}) };
     const ed = createEditor(sc, officeScene, { scene: bodyG.scene, animations: clips.animations }, base.tracks, extra);
@@ -353,7 +353,7 @@ function reportExecution(dt) {
   const active=pairs.length>0&&pairs.every(p=>Object.values(p.actors).every(a=>a.ready));
   reportElapsed=active&&signature===reportPrevious&&dt<0.25?Math.min(2000,reportElapsed+dt*1000):0;reportPrevious=signature;
   if(now-reportSend<1000)return;reportSend=now;
-  const actors={};eachPerson((ed,id)=>{const s=ed.socialStatus();actors[id]={loaded:s.loaded,seq:s.seq,activity:s.activity,executing:s.executing};});
+  const actors={};eachPerson((ed,id)=>{const s=ed.socialStatus();actors[id]={loaded:s.loaded,seq:s.seq,activity:s.activity,executing:s.executing,mode:s.mode,seat:s.seat,x:s.x,z:s.z,profiles:s.profiles,readingAvailable:s.readingAvailable};});
   const styles=base?.social?.styles.map(x=>x.id)||[];
   live.execution({pairs:pairs.map(p=>({...p,elapsedMs:reportElapsed})),capabilities:{actors,styles}});reportElapsed=0;
 }
@@ -402,7 +402,7 @@ addRepertoire(PANEL.section, CHAR_BASE + 'assets/registry-live.json', () => {
   return st.mode === 'idle' ? 'spot' : null;
 });
 let lastWorld = null;
-openPerson = addDirectorStatus(PANEL.section, () => ({ net, world: lastWorld, now: live ? live.now() : Date.now(), focus, setFocus: (id) => { focus = id; }, setNeed: RELAY && !DEMO ? sendNeed : null, open: () => { if ($('settings').hidden) $('menu').click(); } }),
+openPerson = addDirectorStatus(PANEL.section, () => ({ net, world: latest||lastWorld, now: window.__simNow??(live ? live.now() : Date.now()), focus, setFocus: (id) => { focus = id; }, setNeed: RELAY && !DEMO ? sendNeed : null, open: () => { if ($('settings').hidden) $('menu').click(); } }),
   RELAY ? () => fetch((RELAY === '/' ? '' : RELAY) + '/journal?n=150', { cache: 'no-store' }).then((r) => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }) : null);
 live = connectLive(RELAY, (w) => { lastWorld = w; ttyFrom(w); bulletinFrom(w); onWorld(w); }, (s) => { net = s; showWho(); }, { weather: applyWeather, blinds: (b) => applyBlinds(b, true) });
 

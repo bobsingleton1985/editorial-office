@@ -67,6 +67,12 @@ export function createTalk({ scene, addDynamic, chars, people, now, show = () =>
     let best = null, w = 0, listener = false;
     const attention=resolveConversationAttention(readChars(),people(),id,T);
     if(attention)return {who:attention.targetActor,w:attention.role==='listener'?1:0,listener:attention.role==='listener',dialogue:true,attention};
+    // Only the explicit mutually ready pre-start posture addresses both actors.
+    // Once participation has started, canonical alternating roles own the gaze.
+    const pair=readChars()?.[id]?.social, partner=pair&&readChars()?.[pair.partner]?.social;
+    const ownStatus=people()[id]?.ed?.conversationStatus?.(),otherStatus=people()[pair?.partner]?.ed?.conversationStatus?.();
+    if(pair?.firstParticipation===null&&partner?.id===pair.id&&partner.partner===id&&ownStatus?.role==='waiting'&&otherStatus?.role==='waiting')
+      return {who:pair.partner,w:1,listener:true,dialogue:true,attention:{conversationId:pair.id,role:'waiting',targetActor:pair.partner}};
     // Missing/mismatched turn data never produces the old symmetric social stare.
     const own = talkOf(id);
     if (own) { const u = (T - own.at) / 1000; const k = sm((u + LOOK_BEFORE) / 0.35) * (1 - sm((u - LOOK_AFTER) / 0.5)); if (k > w) { w = k; best = own.to; } }
@@ -113,18 +119,25 @@ export function createTalk({ scene, addDynamic, chars, people, now, show = () =>
       const bf=l&&r?UP.clone().cross(r.sub(l).setY(0).normalize()):new THREE.Vector3(0,0,1).applyQuaternion(holder.getWorldQuaternion(new THREE.Quaternion()));
       const a=Math.atan2(f.x,f.z), body=Math.atan2(bf.x,bf.z), target=Math.atan2(you.x-me.x,you.z-me.z);
       const relative=Math.atan2(Math.sin(target-body),Math.cos(target-body));
-      const coneWeight=1-sm((Math.abs(relative)-THREE.MathUtils.degToRad(60))/THREE.MathUtils.degToRad(20));
+      const seated=people()[id]?.ed?.status?.().mode==='seated';
+      const coneWeight=1-sm((Math.abs(relative)-THREE.MathUtils.degToRad(seated?105:60))/THREE.MathUtils.degToRad(20));
       if(coneWeight>0) {
         poses.get(id).dirty=true;
         const attentionWeight=s.listenerWeight*coneWeight;
-        const boundedTarget=body+THREE.MathUtils.clamp(relative,-HEAD_MAX,HEAD_MAX);
-        const delta=Math.atan2(Math.sin(boundedTarget-a),Math.cos(boundedTarget-a))*attentionWeight;
+        const chestYaw=seated&&B.spine_03?THREE.MathUtils.clamp(relative,-CHEST_MAX,CHEST_MAX)*attentionWeight:0;
+        if(chestYaw)rotWorld(B.spine_03,new THREE.Quaternion().setFromAxisAngle(UP,chestYaw));
+        const headFace=new THREE.Vector3(0,-1,0).applyQuaternion(B.head.getWorldQuaternion(new THREE.Quaternion()));
+        const headAngle=Math.atan2(headFace.x,headFace.z);
+        const boundedTarget=body+chestYaw+THREE.MathUtils.clamp(relative-chestYaw,-HEAD_MAX,HEAD_MAX);
+        const delta=Math.atan2(Math.sin(boundedTarget-headAngle),Math.cos(boundedTarget-headAngle))*attentionWeight;
         const yq=new THREE.Quaternion().setFromAxisAngle(UP,delta);
         if(B.neck_01)rotWorld(B.neck_01,new THREE.Quaternion().slerp(yq,0.4));
         rotWorld(B.head,new THREE.Quaternion().slerp(yq,B.neck_01?0.6:1));
         const face=new THREE.Vector3(0,-1,0).applyQuaternion(B.head.getWorldQuaternion(new THREE.Quaternion()));
         const desiredPitch=Math.atan2(you.y-me.y,Math.hypot(you.x-me.x,you.z-me.z)), currentPitch=Math.atan2(face.y,Math.hypot(face.x,face.z));
-        const pitch=THREE.MathUtils.clamp(desiredPitch-currentPitch,-0.2,0.2)*attentionWeight;
+        const mixedPosture=!!people()[id]?.ed?.status?.().seat!==!!people()[s.listenerTarget]?.ed?.status?.().seat;
+        const pitchLimit=mixedPosture?.45:.2;
+        const pitch=THREE.MathUtils.clamp(desiredPitch-currentPitch,-pitchLimit,pitchLimit)*attentionWeight;
         const right=UP.clone().cross(face.clone().setY(0).normalize());
         if(B.neck_01)rotWorld(B.neck_01,new THREE.Quaternion().setFromAxisAngle(right,-pitch*0.4));
         rotWorld(B.head,new THREE.Quaternion().setFromAxisAngle(right,-pitch*(B.neck_01?0.6:1)));

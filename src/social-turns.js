@@ -1,10 +1,10 @@
+import {styleAllowed,visualIntentAt} from './conversation-policy.mjs';
 import {sample as sampleGestures} from './gestures.js';
 import {SOCIAL_CATALOG,socialPlan,socialAlias} from './social-playback.js';
 // Visual choreography only. No invented words, topics, feelings or semantic speaking events.
 // All participants replay one timeline from the director's first verified participation.
 // Choice events remain in the current pair until it ends; continue never repeats a choice.
 const SPEECH = [
- ['mixamo-gap__mxg_arguing'],
  ['gestures-standing__IDLE-085','gestures-standing__IDLE-086','gestures-standing__IDLE-082'],
  ['gestures-standing__IDLE-084','gestures-standing__IDLE-085'],
 ];
@@ -16,12 +16,13 @@ export function clipIdentity(name) {return byAlias.get(name)?.animation||name;}
 // Two accepted standing idle takes from different native clips, disjoint from
 // the explicit social catalogue. They remain distinct during speech fades/pauses.
 export function conversationBase(social,actor) {
- return [actor,social.partner].sort().indexOf(actor)===0?'stand_idle':'g_stand_idle_02';
+ const seated=(social.visual?.profiles?.[actor]||social.assignment?.playbackProfile||'stand')!=='stand'&&(social.visual?.profiles?.[actor]||social.assignment?.playbackProfile)!=='teletype-standing';
+ return [actor,social.partner].sort().indexOf(actor)===0?(seated?'sit_idle':'stand_idle'):(seated?'g_sit_idle_02':'g_stand_idle_02');
 }
 const hash=s=>{let v=0;for(const c of s)v=(v*31+c.charCodeAt(0))>>>0;return v;};
-function phrase(styles,key,duration) {
+function phrase(styles,key,duration,context) {
  const segs=[];let s=0;
- for(const style of styles){const p=socialPlan(style,key,0,duration);if(!p)return null;for(const a of p.segs)segs.push({...a,s:a.s+s});s+=p.T-0.35;}
+ for(const style of styles){const p=socialPlan(style,key,0,duration,context);if(!p)return null;for(const a of p.segs)segs.push({...a,s:a.s+s,phraseEnd:p.T+s});s+=p.T-0.35;}
  return segs.length?{segs,T:s+0.35}:null;
 }
 export function turnAt(social,actor,time,duration) {
@@ -29,7 +30,7 @@ export function turnAt(social,actor,time,duration) {
  const members=[actor,social.partner].sort(),seed=hash(social.id||members.join('|'));
  const anchor=social.firstParticipation;
  // Mutual addressed standing idle establishes readiness before the server confirms the start.
- if(!Number.isFinite(anchor))return {id:social.id,index:-1,start:time,end:time+1,speaker:null,listener:null,role:'waiting',segs:[],T:1,offset:0,source:'visual_choreography',waiting:true};
+ if(!Number.isFinite(anchor))return {id:social.id,index:-1,start:social.agreedAt??time,end:time+1,speaker:null,listener:null,role:'waiting',segs:[],T:1,offset:0,source:'visual_choreography',waiting:true};
  const events=(social.visual?.version===1?social.visual.events:[] )||[];
  const choices=events.filter(e=>members.includes(e.actor)&&Number.isFinite(e.at)&&typeof e.style==='string').map((e,i)=>({...e,key:e.actor+'|'+e.revision+'|'+i})).sort((a,b)=>a.at-b.at||a.key.localeCompare(b.key));
  const consumed=new Set();let start=anchor, index=0;
@@ -38,24 +39,27 @@ export function turnAt(social,actor,time,duration) {
   // A small lead gives viewers time to receive the choice before its full native take starts.
   const chosen=choices.find(e=>e.actor===speaker&&!consumed.has(e.key)&&e.at+3000<=start);
   if(chosen)consumed.add(chosen.key);
-  let speech=chosen?phrase([chosen.style],chosen.key,duration):null;const unavailableChoice=!!chosen&&!speech;
-  if(!speech)for(let j=0;j<SPEECH.length&&!speech;j++)speech=phrase(SPEECH[(seed+index+j)%SPEECH.length],social.id+'|'+index,duration);
+  const profile=social.visual?.profiles?.[speaker]||'stand';
+  const context={...visualIntentAt(social,speaker,start),pose:profile==='stand'?'standing':profile};
+  const speechPool=profile==='stand'?SPEECH:profile==='teletype-standing'?[['gestures-standing__IDLE-082'],['gestures-standing__IDLE-084']]:SOCIAL_CATALOG.styles.filter(s=>s.profile===profile).map(s=>[s.id]);
+  let speech=chosen&&styleAllowed(chosen.style,context.intent,context.relation,context.pose)?phrase([chosen.style],chosen.key,duration,context):null;const unavailableChoice=!!chosen&&!speech;
+  if(!speech)for(let j=0;j<speechPool.length&&!speech;j++)speech=phrase(speechPool[(seed+index+j)%speechPool.length],social.id+'|'+index,duration,context);
   if(!speech)return {id:social.id,index,role:'unavailable',speaker,listener,start,end:time+1,segs:[],T:1,offset:0,source:'visual_choreography',unavailable:true};
   // Immutable boundaries depend only on pair identity and turn index, never choice history.
   // Fill spare time with complete neutral phrases; never truncate a chosen native take.
   const capacity=CAPACITY+((seed+index*11)%5)*1.2;
   let endOfSpeech=speech.T;
   for(let fill=0;fill<10;fill++) {
-   const options=[...SPEECH,['gestures-standing__IDLE-085'],['gestures-standing__IDLE-086'],['gestures-standing__IDLE-082']];
+   const options=profile==='stand'?[...SPEECH,['gestures-standing__IDLE-085'],['gestures-standing__IDLE-086'],['gestures-standing__IDLE-082']]:speechPool;
    let next=null;
-   for(let j=0;j<options.length;j++){const p=phrase(options[(seed+index+fill+j)%options.length],social.id+'|fill|'+index+'|'+fill,duration);if(p&&clipIdentity(speech.segs.at(-1).n)!==clipIdentity(p.segs[0].n)&&endOfSpeech+p.T-0.35<=capacity+1e-6){next=p;break;}}
+   for(let j=0;j<options.length;j++){const p=phrase(options[(seed+index+fill+j)%options.length],social.id+'|fill|'+index+'|'+fill,duration,context);if(p&&clipIdentity(speech.segs.at(-1).n)!==clipIdentity(p.segs[0].n)&&endOfSpeech+p.T-0.35<=capacity+1e-6){next=p;break;}}
    if(!next)break;
-   const at=endOfSpeech-0.35;speech.segs.push(...next.segs.map(seg=>({...seg,s:seg.s+at})));endOfSpeech=at+next.T;
+   const at=endOfSpeech-0.35;speech.segs.push(...next.segs.map(seg=>({...seg,s:seg.s+at,phraseEnd:seg.phraseEnd+at})));endOfSpeech=at+next.T;
   }
   const pause=0.6+((seed+index*7)%5)*0.17,T=capacity+pause,end=start+T*1000;
   if(time<end) {
    const role=actor===speaker?'speaker':'listener';
-   return {id:social.id,index,start,end,speaker,listener,role,segs:role==='speaker'?speech.segs:[],T,offset:Math.max(0,(time-start)/1000),speechEnd:start+endOfSpeech*1000,selected:!!chosen,choice:chosen||null,unavailableChoice,source:'visual_choreography'};
+   return {id:social.id,index,start,end,speaker,listener,role,context,segs:role==='speaker'?speech.segs:[],T,offset:Math.max(0,(time-start)/1000),speechEnd:start+endOfSpeech*1000,selected:!!chosen&&!unavailableChoice,choice:chosen||null,unavailableChoice,source:'visual_choreography'};
   }
   start=end;
  }
@@ -63,13 +67,14 @@ export function turnAt(social,actor,time,duration) {
 }
 export function turnPlan(social,actor,time,clock,duration) {
  const turn=turnAt(social,actor,time,duration);if(!turn)return null;
- return {kind:'stand',social:true,base:conversationBase(social,actor),baseAt:social.agreedAt??social.firstParticipation??time,turn,key:social.id+'|turn|'+turn.index,t0:clock-turn.offset,segs:turn.segs,T:turn.T,selected:turn.selected};
+ const profile=social.visual?.profiles?.[actor]||social.assignment?.playbackProfile||'stand';
+ return {kind:['stand','teletype-standing'].includes(profile)?'stand':profile.startsWith('desk')?'desk':'bench',social:true,profile,base:conversationBase(social,actor),baseAt:social.agreedAt??social.firstParticipation??time,turn,key:social.id+'|turn|'+turn.index,t0:clock-turn.offset,segs:turn.segs,T:turn.T,selected:turn.selected};
 }
 export function finishTurnPlan(g,u) {
  // Keep the whole current native speech phrase/reaction; do not wait through an empty rest.
  const active=g.segs.filter(s=>u>=s.s&&u<s.s+s.d);
- const end=g.turn?.role==='speaker'&&active.length?Math.max(...g.segs.map(s=>s.s+s.d)):active.length?Math.max(...active.map(s=>s.s+s.d)):u+0.35;
- return {...g,segs:g.turn?.role==='listener'?g.segs.filter(s=>s.s<=u):g.segs,T:Math.min(g.T,Math.max(u+0.35,end)),wrapped:true};
+ const end=g.turn?.role==='speaker'&&active.length?Math.max(...active.map(s=>s.phraseEnd??s.s+s.d)):active.length?Math.max(...active.map(s=>s.s+s.d)):u+0.35;
+ return {...g,segs:g.segs.filter(s=>Number.isFinite(s.phraseEnd)?s.phraseEnd<=end+1e-6:s.s<end),T:Math.min(g.T,Math.max(u+0.35,end)),wrapped:true};
 }
 
 export function sampleTurnPlan(g,u) {

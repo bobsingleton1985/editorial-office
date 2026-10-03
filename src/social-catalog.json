@@ -374,10 +374,10 @@
       ],
       "nativeSpeed": 1,
       "authorLoop": "цикл",
-      "available": false,
-      "blockedReason": "Соответствующий профиль стула/стола; сохранение посадки, направления к партнёру и свободных рук",
+      "available": true,
       "poseStart": "сидя · на стуле",
-      "poseEnd": "сидя · на стуле"
+      "poseEnd": "сидя · на стуле",
+      "playbackProfile": "seated-chair-chain"
     },
     {
       "id": "talk-seated/SEAT-020",
@@ -392,10 +392,10 @@
       ],
       "nativeSpeed": 1,
       "authorLoop": "цикл",
-      "available": false,
-      "blockedReason": "Соответствующий профиль стула/стола; сохранение посадки, направления к партнёру и свободных рук",
+      "available": true,
       "poseStart": "сидя · на стуле",
-      "poseEnd": "сидя · на стуле"
+      "poseEnd": "сидя · на стуле",
+      "playbackProfile": "seated-chair-chain"
     },
     {
       "id": "talk-seated/SEAT-021",
@@ -410,10 +410,10 @@
       ],
       "nativeSpeed": 1,
       "authorLoop": "цикл",
-      "available": false,
-      "blockedReason": "Соответствующий профиль стула/стола; сохранение посадки, направления к партнёру и свободных рук",
+      "available": true,
       "poseStart": "сидя · на стуле",
-      "poseEnd": "сидя · на стуле"
+      "poseEnd": "сидя · на стуле",
+      "playbackProfile": "seated-chair-chain"
     },
     {
       "id": "talk-seated/SEAT-022",
@@ -428,10 +428,10 @@
       ],
       "nativeSpeed": 1,
       "authorLoop": "разовый",
-      "available": false,
-      "blockedReason": "Соответствующий профиль стула/стола; сохранение посадки, направления к партнёру и свободных рук",
+      "available": true,
       "poseStart": "сидя · на стуле",
-      "poseEnd": "сидя · на стуле"
+      "poseEnd": "сидя · на стуле",
+      "playbackProfile": "seated-chair-chain"
     },
     {
       "id": "talk-seated/SEAT-023",
@@ -446,10 +446,10 @@
       ],
       "nativeSpeed": 1,
       "authorLoop": "разовый",
-      "available": false,
-      "blockedReason": "Соответствующий профиль стула/стола; сохранение посадки, направления к партнёру и свободных рук",
+      "available": true,
       "poseStart": "сидя · на стуле",
-      "poseEnd": "сидя · на стуле"
+      "poseEnd": "сидя · на стуле",
+      "playbackProfile": "seated-chair-chain"
     },
     {
       "id": "talk-seated/SEAT-024",
@@ -464,10 +464,10 @@
       ],
       "nativeSpeed": 1,
       "authorLoop": "цикл",
-      "available": false,
-      "blockedReason": "Соответствующий профиль стула/стола; сохранение посадки, направления к партнёру и свободных рук",
+      "available": true,
       "poseStart": "сидя · на стуле",
-      "poseEnd": "сидя · на стуле"
+      "poseEnd": "сидя · на стуле",
+      "playbackProfile": "seated-chair-chain"
     },
     {
       "id": "talk-seated/SEAT-025",
@@ -482,10 +482,10 @@
       ],
       "nativeSpeed": 1,
       "authorLoop": "цикл",
-      "available": false,
-      "blockedReason": "Соответствующий профиль стула/стола; сохранение посадки, направления к партнёру и свободных рук",
+      "available": true,
       "poseStart": "сидя · на стуле",
-      "poseEnd": "сидя · на стуле"
+      "poseEnd": "сидя · на стуле",
+      "playbackProfile": "seated-chair-chain"
     },
     {
       "id": "talk-seated/SEAT-027",
@@ -500,10 +500,10 @@
       ],
       "nativeSpeed": 1,
       "authorLoop": "разовый",
-      "available": false,
-      "blockedReason": "Соответствующий профиль стула/стола; сохранение посадки, направления к партнёру и свободных рук",
+      "available": true,
       "poseStart": "сидя · на стуле",
-      "poseEnd": "сидя · на стуле"
+      "poseEnd": "сидя · на стуле",
+      "playbackProfile": "seated-chair-chain"
     },
     {
       "id": "talk-seated/SEAT-028",
@@ -518,10 +518,10 @@
       ],
       "nativeSpeed": 1,
       "authorLoop": "разовый",
-      "available": false,
-      "blockedReason": "Соответствующий профиль стула/стола; сохранение посадки, направления к партнёру и свободных рук",
+      "available": true,
       "poseStart": "сидя · на стуле",
-      "poseEnd": "сидя · на стуле"
+      "poseEnd": "сидя · на стуле",
+      "playbackProfile": "seated-chair-chain"
     },
     {
       "id": "talk-seated/SEAT-029",
@@ -536,10 +536,10 @@
       ],
       "nativeSpeed": 1,
       "authorLoop": "цикл",
-      "available": false,
-      "blockedReason": "Соответствующий профиль стула/стола; сохранение посадки, направления к партнёру и свободных рук",
+      "available": true,
       "poseStart": "сидя · на стуле",
-      "poseEnd": "сидя · на стуле"
+      "poseEnd": "сидя · на стуле",
+      "playbackProfile": "seated-chair-chain"
     },
     {
       "id": "talk-seated/SEAT-030",
@@ -554,10 +554,10 @@
       ],
       "nativeSpeed": 1,
       "authorLoop": "цикл",
-      "available": false,
-      "blockedReason": "Соответствующий профиль стула/стола; сохранение посадки, направления к партнёру и свободных рук",
+      "available": true,
       "poseStart": "сидя · на стуле",
-      "poseEnd": "сидя · на стуле"
+      "poseEnd": "сидя · на стуле",
+      "playbackProfile": "seated-chair-chain"
     },
     {
       "id": "talk-seated/SEAT-032",
@@ -572,10 +572,10 @@
       ],
       "nativeSpeed": 1,
       "authorLoop": "разовый",
-      "available": false,
-      "blockedReason": "Соответствующий профиль стула/стола; сохранение посадки, направления к партнёру и свободных рук",
+      "available": true,
       "poseStart": "сидя · на стуле",
-      "poseEnd": "сидя · на стуле"
+      "poseEnd": "сидя · на стуле",
+      "playbackProfile": "seated-chair-chain"
     },
     {
       "id": "talk-seated/SEAT-033",
@@ -590,10 +590,10 @@
       ],
       "nativeSpeed": 1,
       "authorLoop": "разовый",
-      "available": false,
-      "blockedReason": "Соответствующий профиль стула/стола; сохранение посадки, направления к партнёру и свободных рук",
+      "available": true,
       "poseStart": "сидя · на стуле",
-      "poseEnd": "сидя · на стуле"
+      "poseEnd": "сидя · на стуле",
+      "playbackProfile": "seated-chair-chain"
     },
     {
       "id": "talk-seated/SEAT-146",
@@ -608,10 +608,10 @@
       ],
       "nativeSpeed": 1,
       "authorLoop": "цикл",
-      "available": false,
-      "blockedReason": "Соответствующий профиль стула/стола; сохранение посадки, направления к партнёру и свободных рук",
+      "available": true,
       "poseStart": "сидя · за столом",
-      "poseEnd": "сидя · за столом"
+      "poseEnd": "сидя · за столом",
+      "playbackProfile": "desk-front"
     },
     {
       "id": "talk-seated/SEAT-147",
@@ -626,10 +626,10 @@
       ],
       "nativeSpeed": 1,
       "authorLoop": "цикл",
-      "available": false,
-      "blockedReason": "Соответствующий профиль стула/стола; сохранение посадки, направления к партнёру и свободных рук",
+      "available": true,
       "poseStart": "сидя · за столом",
-      "poseEnd": "сидя · за столом"
+      "poseEnd": "сидя · за столом",
+      "playbackProfile": "desk-front"
     },
     {
       "id": "talk-seated/SEAT-158",
@@ -2396,6 +2396,110 @@
         "emotions-loud/IDLE-057"
       ],
       "repeat": false
+    },
+    {
+      "id": "desk-front__SEAT-146",
+      "title": "Говорить за столом — 1",
+      "entries": [
+        "talk-seated/SEAT-146"
+      ],
+      "repeat": false,
+      "profile": "desk-front",
+      "chairTransition": false
+    },
+    {
+      "id": "desk-front__SEAT-147",
+      "title": "Говорить за столом — 2",
+      "entries": [
+        "talk-seated/SEAT-147"
+      ],
+      "repeat": false,
+      "profile": "desk-front",
+      "chairTransition": false
+    },
+    {
+      "id": "bench-front__SEAT-018",
+      "title": "Спокойно говорить вперёд",
+      "entries": [
+        "talk-seated/SEAT-022",
+        "talk-seated/SEAT-018",
+        "talk-seated/SEAT-023"
+      ],
+      "repeat": false,
+      "profile": "bench-front",
+      "chairTransition": true
+    },
+    {
+      "id": "bench-front__SEAT-020",
+      "title": "Говорить вперёд, широкие жесты",
+      "entries": [
+        "talk-seated/SEAT-022",
+        "talk-seated/SEAT-020",
+        "talk-seated/SEAT-023"
+      ],
+      "repeat": false,
+      "profile": "bench-front",
+      "chairTransition": true
+    },
+    {
+      "id": "bench-front__SEAT-021",
+      "title": "Говорить вперёд, жесты руками",
+      "entries": [
+        "talk-seated/SEAT-022",
+        "talk-seated/SEAT-021",
+        "talk-seated/SEAT-023"
+      ],
+      "repeat": false,
+      "profile": "bench-front",
+      "chairTransition": true
+    },
+    {
+      "id": "bench-left__SEAT-024",
+      "title": "Говорить соседу слева — 1",
+      "entries": [
+        "talk-seated/SEAT-027",
+        "talk-seated/SEAT-024",
+        "talk-seated/SEAT-028"
+      ],
+      "repeat": false,
+      "profile": "bench-left",
+      "chairTransition": true
+    },
+    {
+      "id": "bench-left__SEAT-025",
+      "title": "Говорить соседу слева — 2",
+      "entries": [
+        "talk-seated/SEAT-027",
+        "talk-seated/SEAT-025",
+        "talk-seated/SEAT-028"
+      ],
+      "repeat": false,
+      "profile": "bench-left",
+      "chairTransition": true
+    },
+    {
+      "id": "bench-right__SEAT-029",
+      "title": "Говорить соседу справа — 1",
+      "entries": [
+        "talk-seated/SEAT-032",
+        "talk-seated/SEAT-029",
+        "talk-seated/SEAT-033"
+      ],
+      "repeat": false,
+      "profile": "bench-right",
+      "chairTransition": true
+    },
+    {
+      "id": "bench-right__SEAT-030",
+      "title": "Говорить соседу справа — 2",
+      "entries": [
+        "talk-seated/SEAT-032",
+        "talk-seated/SEAT-030",
+        "talk-seated/SEAT-033"
+      ],
+      "repeat": false,
+      "profile": "bench-right",
+      "chairTransition": true
     }
   ],
   "furniture": "standing at mutually facing window places; seated and furniture-dependent variants blocked until compatible profiles are verified",

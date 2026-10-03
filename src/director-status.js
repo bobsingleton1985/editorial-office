@@ -1,3 +1,4 @@
+import {relationshipView} from './relationship-view.js';
 // ☰ panel section «Режиссёр (Jev)»: is the newsroom online, who made the last decision (Jev or the fallback rule), and when.
 const el = (t, cls, txt) => { const e = document.createElement(t); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
 function ago(ms) { const s = Math.max(0, Math.round(ms / 1000)); if (s < 60) return 'только что'; const m = Math.round(s / 60); if (m < 60) return m + ' мин назад'; return Math.round(m / 60) + ' ч назад'; }
@@ -138,7 +139,7 @@ export function addDirectorStatus(section, get, loadJournal) {
     const st = e?.state || (list.length === 1 ? world?.state : null), sub = el('div', 'sub', list.length > 1 && e ? `Шкалы потребностей: ${e.name || id}` : 'Шкалы потребностей');
     const ctl = setNeed && net.online && e && st ? {set:(k,val)=>setNeed(id,k,val),refresh:render} : null;
     const needs = st && typeof st.at === 'number' ? scales(st, now, ctl) : el('div', 'hint', 'Шкалы появятся после следующего решения режиссёра.');
-    box.replaceChildren(sub, needs, tb, el('div', 'hint', 'Jev думает, только пока редакцию кто-то смотрит. Время редакции (и шкалы) идёт тоже только при зрителях.' + (ctl ? ' Потяните шкалу — человек пересмотрит, чем заняться (это увидят все зрители).' : '')));
+    box.replaceChildren(sub, needs, relationshipView(e,names()), tb, el('div', 'hint', 'Jev думает, только пока редакцию кто-то смотрит. Время редакции (и шкалы) идёт тоже только при зрителях.' + (ctl ? ' Потяните шкалу — человек пересмотрит, чем заняться (это увидят все зрители).' : '')));
     if(focused) Array.from(box.querySelectorAll('input.nr')).find(i=>i.getAttribute('aria-label')===focused)?.focus({preventScroll:true});
   }
   setInterval(() => { if (sec.open) render(); }, 1000);

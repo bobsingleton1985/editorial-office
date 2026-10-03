@@ -1,3 +1,5 @@
+import {CONVERSATION_PLACES} from './conversation-places.mjs';
+import { TTY_READ_SPOT } from './teletype-reading-data.js';
 // Where people can be in the office v29 (three.js plan coords: x = Blender x, z = -Blender y; th = turn about +Y, 0 faces +Z).
 // Pack furniture is metres; the office is in Blender units of 0.644 m, so pack lengths are multiplied by S.
 export const S = 1 / 0.644;
@@ -29,6 +31,7 @@ export const BENCH = {
 };
 // places to stand
 export const SPOTS = {
+  teletypeRead: {...TTY_READ_SPOT},
   window: { x: -4.55, z: 2.5, th: -Math.PI / 2, label: 'у окна' },
   window2: { x: -4.55, z: 1.6, th: -Math.PI / 2 + 0.35, label: 'у окна, второе место' },   // smoking together (owner 30.09): 0.9 m from the first, turned 20° towards it
   teletype: { x: 3.85, z: -0.9, th: Math.PI / 2, label: 'у телетайпа' },
@@ -49,3 +52,6 @@ TV_ZONE.forEach((p, i) => { SPOTS['tv' + (i ? i + 1 : '')] = p; });
 export const TV_KNOB = { x: TV_C.x + TV_L.x * -0.44 + TV_N.x * 0.03, y: 0.64, z: TV_C.z + TV_L.z * -0.44 + TV_N.z * 0.03, n: TV_N };
 SPOTS.tvKnob = { x: TV_KNOB.x + TV_N.x * 0.6, z: TV_KNOB.z + TV_N.z * 0.6, th: Math.atan2(-TV_N.x, -TV_N.z), label: 'у ручки телевизора' };
 export const RADIUS = 0.49;                          // body radius for walking around furniture: arm swing of the walk + 6 cm (was 0.2 m × S = 0.31: the hand went into the sofa)
+
+for(const p of Object.values(CONVERSATION_PLACES))if(p.visitor)SPOTS[p.visitor.id]={...p.visitor,label:'собеседник у стола'};
+SPOTS.conversationTeletypePartner={...CONVERSATION_PLACES.conversationTeletypePartner,th:2.867425202,label:'собеседник у телетайпа'};
