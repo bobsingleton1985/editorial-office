@@ -10,16 +10,15 @@
   html,body { margin:0; height:100%; background:#1b1714; color:var(--ink); overflow:hidden;
     font:15px/1.4 Georgia, "Times New Roman", serif; -webkit-font-smoothing:antialiased; }
   #view, #view canvas { position:fixed; inset:0; width:100%; height:100%; display:block; touch-action:none; }
-  .panel { position:fixed; left:16px; top:16px; max-width:min(420px, calc(100% - 92px)); padding:12px 14px;
+  .panel { position:fixed; left:16px; top:16px; max-width:min(420px, calc(100% - 92px)); padding:8px 10px;
     background:var(--panel); border:1px solid var(--line); border-radius:10px; backdrop-filter:blur(6px); }
-  h1 { margin:0; font-size:20px; letter-spacing:.06em; text-transform:uppercase; font-weight:normal; }
   .sub { color:var(--muted); font-size:13px; margin-top:2px; }
-  #who { margin-top:6px; font:13px/1.35 -apple-system, "Segoe UI", Roboto, sans-serif; color:var(--muted); }
+  #who { font:13px/1.35 -apple-system, "Segoe UI", Roboto, sans-serif; color:var(--muted); }
   #who:empty { display:none; }
-  #status { margin-top:8px; font:13px/1.35 -apple-system, "Segoe UI", Roboto, sans-serif; }
+  #status { font:13px/1.35 -apple-system, "Segoe UI", Roboto, sans-serif; }
   .track { height:3px; background:var(--line); border-radius:2px; margin-top:6px; overflow:hidden; }
   #bar { height:100%; width:0; background:var(--accent); transition:width .15s; }
-  body.ready .track { display:none; }
+  body.ready #status, body.ready .track { display:none; }
   #nojs { margin-top:8px; font:12px/1.35 -apple-system, "Segoe UI", Roboto, sans-serif; color:#e7b37a; }
   body.js #nojs { display:none; }
   .bottom { position:fixed; left:16px; right:16px; bottom:max(16px, env(safe-area-inset-bottom)); display:flex;
@@ -69,19 +68,16 @@
 <body>
 <div id="view"></div>
 <div class="panel">
-  <h1>Editorial</h1>
-  <div class="sub">Редакция, Нью-Йорк, 1956 · тестовая версия</div>
   <div id="status">Загрузка…</div>
   <div id="who"></div>
   <div class="track"><div id="bar"></div></div>
   <div id="nojs">Если эта надпись не исчезает 20 секунд, скрипты сайта не загрузились. Вероятно, мешают ограничения сети.</div>
-  <div class="hint">Покрутить — одним пальцем, приблизить — двумя.</div>
 </div>
 <div class="bottom">
   <button id="tty" disabled>📠 Пришло сообщение</button>
   <span id="fps">…</span>
 </div>
 <noscript><div class="panel" style="top:auto;bottom:16px">Для офиса нужен JavaScript.</div></noscript>
-<script src="app.js?v=72-conversation-turns" defer></script>
+<script src="app.js?v=73-compact-status" defer></script>
 </body>
 </html>
