@@ -120,7 +120,7 @@ export function addDirectorStatus(section, get, loadJournal) {
   function render() {
     if(editing.size)return; // native pointer capture releases even outside the row
     const focused = box.contains(document.activeElement) && document.activeElement.matches?.('input.nr') ? document.activeElement.getAttribute('aria-label') : null;
-    const { net, world, now, focus, setFocus, setNeed } = get(), list = peopleOf(world);
+    const { net, world, executionStatus, now, focus, setFocus, setNeed } = get(), list = peopleOf(world);
     const id = list.some(([k]) => k === focus) ? focus : list[0]?.[0], e = list.find(([k]) => k === id)?.[1];
     const key = list.map(([k, x]) => k + ':' + (x.name || '')).join('|') + '#' + id;
     if (key !== tabKey) { tabKey = key; tabs.replaceChildren(...(list.length > 1 ? list.map(([k, x]) => { const b = el('button', null, '👤 ' + (x.name || k)); b.setAttribute('aria-pressed', String(k === id));
@@ -130,10 +130,10 @@ export function addDirectorStatus(section, get, loadJournal) {
     if (e) {
       const who = e.source === 'jev' ? `Jev${e.confidence != null ? ` (уверенность ${Math.round(e.confidence * 100)} %)` : ''}` :
         e.source === 'rule' ? 'простое правило — Jev недоступен или исчерпан дневной лимит' : e.source === 'start' ? 'стартовое состояние' : (e.source || '—');
-      rows.push(['Последнее решение', who]);
+      rows.push(['Последняя команда', who]);
       rows.push(['Когда', typeof e.at === 'number' ? ago(now - e.at) : '—']);
-      if (e.label) rows.push(['Что делает', e.label]);
-      rows.push(['Jev сейчас', e.source === 'jev' ? '✅ работает' : e.source === 'rule' ? '⚠️ не отвечает, решает правило' : 'ждёт первого решения']);
+      rows.push(['Что делает сейчас', executionStatus?.(id)?.label || 'исполнение ещё не подтверждено']);
+      if (e.label) rows.push(['Назначено', e.label]);
     } else rows.push(['Последнее решение', 'ещё не получено']);
     const tb = el('table'); for (const [k, v] of rows) { const tr = el('tr'); tr.append(el('td', 'dim', k), el('td', null, v)); tb.append(tr); }
     const st = e?.state || (list.length === 1 ? world?.state : null), sub = el('div', 'sub', list.length > 1 && e ? `Шкалы потребностей: ${e.name || id}` : 'Шкалы потребностей');

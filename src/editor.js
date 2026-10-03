@@ -902,6 +902,7 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {
     if(ch.mode==='walk'||ch.mode==='turn')return 'идёт '+target;
     if(ch.mode==='trans'||ch.mode==='settle')return ch.motion;
     if(readRequested())return reading.status().ready?'читает ленту телетайпа':'стоит перед лентой телетайпа';
+    if(atGoal&&['smoke','smoke_coffee'].includes(ch.activity)&&!smoking?.active())return ch.seat?(SEATS[ch.seat]?.desk?'сидит за столом '+SEATS[ch.seat].desk:'сидит на скамье'):'стоит';
     if(atGoal&&cur?.activity==='wait'&&goal?.spot==='teletype')return 'стоит у телетайпа';
     return cur?.social&&ch.g?.turn?ch.motion:atGoal?(cur?.label||ch.motion):ch.motion;
   }

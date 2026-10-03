@@ -411,7 +411,7 @@ addRepertoire(PANEL.section, CHAR_BASE + 'assets/registry-live.json', () => {
   return st.mode === 'idle' ? 'spot' : null;
 });
 let lastWorld = null;
-openPerson = addDirectorStatus(PANEL.section, () => ({ net, world: latest||lastWorld, now: window.__simNow??(live ? live.now() : Date.now()), focus, setFocus: (id) => { focus = id; }, setNeed: RELAY && !DEMO ? sendNeed : null, open: () => { if ($('settings').hidden) $('menu').click(); } }),
+openPerson = addDirectorStatus(PANEL.section, () => ({ net, world: latest||lastWorld, executionStatus: id=>people[id]?.ed?.status(), now: window.__simNow??(live ? live.now() : Date.now()), focus, setFocus: (id) => { focus = id; }, setNeed: RELAY && !DEMO ? sendNeed : null, open: () => { if ($('settings').hidden) $('menu').click(); } }),
   RELAY ? () => fetch((RELAY === '/' ? '' : RELAY) + '/journal?n=150', { cache: 'no-store' }).then((r) => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }) : null);
 live = connectLive(RELAY, (w) => { lastWorld = w; ttyFrom(w); bulletinFrom(w); onWorld(w); }, (s) => { net = s; showWho(); }, { weather: applyWeather, blinds: (b) => applyBlinds(b, true) });
 
