@@ -1,3 +1,6 @@
+import {createPresentationWitness} from './presentation-witness.mjs';
+import {registerSimulationGraph,captureSimulation,createPoseBuffer,applySimulation} from './simulation-stream.js';
+import {createStartupDownloads} from './startup-downloads.mjs';
 import { createColleagueGaze } from './colleague-gaze.js';
 import {prepareHeroine} from './heroine.js';
 import {conversationGazeChars} from './social-turns.js';
@@ -35,6 +38,11 @@ import { createTalk } from './talk.js';
 import { parseWhisky } from './whisky.js';
 
 const Q = new URLSearchParams(location.search);
+const AUTHORITY = window.__SERVER_SIMULATION === true;
+const REMOTE = !AUTHORITY && Q.get('simulation') !== 'local';
+const poseBuffer = createPoseBuffer();
+const simulationNotice=document.createElement('div');simulationNotice.setAttribute('role','status');simulationNotice.style.cssText='position:fixed;bottom:56px;right:20px;padding:10px 14px;color:#eadbc0;background:#28241dee;border-radius:8px;z-index:100';simulationNotice.hidden=!REMOTE;simulationNotice.textContent='Получаем состояние редакции…';document.body.appendChild(simulationNotice); let simulationGraph=null, simulationMeta=null, simulationCast=null,simulationIncompatible=false;
+window.__simulationMode = AUTHORITY ? 'authority' : REMOTE ? 'viewer' : 'local';
 const GLB = Q.get('m') || 'assets/office-v31c.glb', GLB_SIZE = 3909868;   // v31: banker lamps (green glass, glow baked to a texture); v30: the lunch table
 const RELAY_URL = 'https://135-106-229-50.sslip.io';     // shared newsroom: relay on the VPS (also hosts the character files)
 const DEMO = window.__DEMO || Q.get('demo') || '';            // a scripted newsroom without the director (review pages)
@@ -73,6 +81,15 @@ r.localClippingEnabled = true;                               // the typewriter s
 r.outputColorSpace = THREE.SRGBColorSpace;
 $('view').appendChild(r.domElement);
 const sc = new THREE.Scene();
+let sceneShadersReady=false;
+async function warmGroups(groups) {
+  if(AUTHORITY || !r.extensions.has('KHR_parallel_shader_compile'))return;
+  const saved=groups.filter(Boolean).map(g=>[g,g.visible]);
+  for(const [g]of saved)g.visible=false;
+  try { for(const [g]of saved)await r.compileAsync(g,cam,sc); }
+  catch(error){console.warn('shader preparation fallback',error);}
+  finally {for(const [g,visible]of saved)g.visible=visible;}
+}
 sc.background = new THREE.Color(0x1b1714);
 const pm = new THREE.PMREMGenerator(r);
 sc.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture;
@@ -174,7 +191,7 @@ PANEL = buildPanel(S, (s) => { if (s.quality !== qMode) { qMode = s.quality; QL.
   { resetTo: () => presetFor(outside().sky) });
 { wxBox = document.createElement('div'); const bb = document.createElement('div');
   PANEL.outside.append(wxBox, bb); blindsUI = buildBlindsUI(bb); }
-const sound = createSound();                                   // ☰ → «Звук»: the phone ring (off until the viewer switches it on)
+const sound = createSound();const simulationAudio={};if(AUTHORITY){sound.phone=(k,t,onFor,cycle)=>{simulationAudio[k]={t,onFor,cycle};};}                                   // ☰ → «Звук»: the phone ring (off until the viewer switches it on)
 { const d = PANEL.section('Звук', 'sound'), l = document.createElement('label'), cb = document.createElement('input'), sp = document.createElement('span');
   l.className = 'row'; cb.type = 'checkbox'; cb.id = 'sound-phone'; cb.checked = sound.on; sp.textContent = '🔔 Звонок телефона';
   cb.addEventListener('change', () => sound.set(cb.checked)); l.append(sp, cb); d.append(l); window.__sound = sound; }
@@ -302,29 +319,42 @@ function showWho() {
   let t = !net.online ? (net.reason === 'no_relay' ? 'редакция пока не на связи' : 'нет связи с редакцией') : net.viewers ? `смотрят: ${net.viewers}` : '';
   who.replaceChildren(...lines.map((l) => { const d = document.createElement('div'); d.textContent = l; return d; }), ...(t ? [Object.assign(document.createElement('div'), { textContent: t })] : []));
 }
-const get = (u) => fetch(u).then((r) => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); });
+const downloads=createStartupDownloads(u=>fetch(u).then(r=>{if(!r.ok)throw Error('HTTP '+r.status);return r.arrayBuffer();}));
+const get=downloads.get;
+function prefetchBodies(w) {
+  const keep=new Set();
+  for(const [id,e]of Object.entries(charsOf(w))) {
+    if(!/^[a-z][a-z0-9_]{0,30}$/.test(id)||people[id])continue;
+    const url=id==='heroine'?CHAR_BASE+'assets/heroine-v77/heroine/heroine-v15-head15-dress1k.glb':glbOf(e);
+    if(url&&url!==CHAR){keep.add(url);downloads.prefetch(url).catch(()=>{});}
+  }
+  downloads.retain(keep);
+}
 const opt = (u) => get(u).catch(() => null);                          // add-ons are optional: without them he just sits
 const ld = () => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
 async function loadShared(office) {                                   // once: the clips' file, the add-ons, the things on the desks
   showWho();
+  prefetchBodies(pending||latest);
+  const socialPromise=loadSocialAssets(get,b=>ld().parseAsync(b.slice(0),'')).catch(e=>{console.warn('social unavailable:',e);return null;});
   const [buf, tracks, tbuf, wbuf, sbuf, cbuf, dbuf, gbuf, lbuf, pbuf, pcbuf, wkbuf, whbuf, fubuf, wrbuf, jzbuf, tsbuf, dnbuf] = await Promise.all([get(CHAR), fetch(CHAR_BASE + 'assets/chair-tracks-v30.json').then((r) => r.json()), opt(CHAR_TYPE), opt(TYPEWRITER), SMOKE ? opt(SMOKE) : null, COFFEE ? opt(COFFEE) : null, opt(DRINK_L), opt(GESTURES), LUNCH ? opt(LUNCH) : null, opt(PHONE), opt(PHONE_CLIPS), WALKS ? opt(WALKS) : null, WHISKY ? opt(WHISKY) : null, opt(FEETUP), opt(WRITE), opt(JAZZ), opt(TVSWITCH), opt(DANCE)]);
   const parse = (b) => (b ? ld().parseAsync(b.slice(0), '').catch(() => null) : null);
-  let social=null;try{social=await loadSocialAssets(get,b=>ld().parseAsync(b.slice(0),''));}catch(e){console.warn('social unavailable:',e);}
-  const B = { social, buf, tracks, sbuf, lbuf, wkbuf, wrbuf, feetup: await parse(fubuf), jazz: await parse(jzbuf), tvswitch: await parse(tsbuf), dance: await parse(dnbuf), typeClip: tbuf ? (await parse(tbuf))?.animations[0] : null, gestures: await parse(gbuf) };
-  if (wbuf) { typewriters = createTypewriters(sc, await ld().parseAsync(wbuf, ''), DESKS, PACK_S);
-    for (const g of typewriters.groups) L.attach(g); for (const g of typewriters.groups) SC.addDynamic(g); }
+  const social=await socialPromise;
+  const [feetup,jazz,tvswitch,dance,typeG,gestures,coffeeAddon,drinkLAddon,typewriterG,phoneG,phoneClips]=await Promise.all([parse(fubuf),parse(jzbuf),parse(tsbuf),parse(dnbuf),parse(tbuf),parse(gbuf),parse(cbuf),parse(dbuf),wbuf?ld().parseAsync(wbuf,''):null,pbuf&&pcbuf?ld().parseAsync(pbuf,''):null,parse(pcbuf)]);
+  const B={social,buf,tracks,sbuf,lbuf,wkbuf,wrbuf,feetup,jazz,tvswitch,dance,typeClip:typeG?.animations[0]??null,gestures};
+  if (wbuf) { typewriters = createTypewriters(sc, typewriterG, DESKS, PACK_S);
+    for (const g of typewriters.groups) L.attach(g); for (const g of typewriters.groups) SC.addDynamic(g); await warmGroups(typewriters.groups); }
   let phones = null;
-  if (pbuf && pcbuf) { phones = createPhones(sc, await ld().parseAsync(pbuf, ''), DESKS, PACK_S, sound);     // phones on every desk; without the clips no phones
-    for (const g of phones.groups) L.attach(g); for (const g of phones.groups) SC.addDynamic(g); window.__phones = phones; B.phoneClips = await parse(pcbuf); }
+  if (pbuf && pcbuf) { phones = createPhones(sc, phoneG, DESKS, PACK_S, sound);     // phones on every desk; without the clips no phones
+    for (const g of phones.groups) L.attach(g); for (const g of phones.groups) SC.addDynamic(g); window.__phones = phones; B.phoneClips = phoneClips; await warmGroups(phones.groups); }
   let crowd = null;                                                              // walking together (Recast crowd); ?crowd=0 — the old one-person paths
-  if (Q.get('crowd') !== '0') { try { crowd = await createCrowd(GRID, CHAIR_KEYS.map((k) => k==='D'?diningChairAvoidanceBox():chairBox(k, CHAIR_REST)), RADIUS); window.__crowd = crowd; } catch (e) { console.warn('crowd unavailable:', e); } }
-  shared = createShared({ scene: sc, office, typewriters, phones, coffeeAddon: await parse(cbuf), drinkLAddon: await parse(dbuf), crowd,
+  if (!REMOTE && Q.get('crowd') !== '0') { try { crowd = await createCrowd(GRID, CHAIR_KEYS.map((k) => k==='D'?diningChairAvoidanceBox():chairBox(k, CHAIR_REST)), RADIUS); window.__crowd = crowd; } catch (e) { console.warn('crowd unavailable:', e); } }
+  shared = createShared({ scene: sc, office, typewriters, phones, coffeeAddon, drinkLAddon, crowd,
     whisky: (() => { try { return whbuf ? parseWhisky(whbuf) : null; } catch (e) { console.warn('whisky recording unreadable:', e); return null; } })() });
-  for (const g of shared.groups) { L.attach(g); SC.addDynamic(g); } SC.markDirty();
+  for (const g of shared.groups) { L.attach(g); SC.addDynamic(g); } await warmGroups(shared.groups); SC.markDirty();
   window.__tw = typewriters; window.__shared = shared;
   talk = createTalk({ scene: sc, addDynamic: (o) => SC.addDynamic(o), chars: () => conversationGazeChars(charsOf(latest),people), people: () => people, now: () => window.__simNow ?? live.now(), show: () => S.bubbles !== false });
   window.__talk = talk;
-  gaze=createColleagueGaze({people:()=>people,now:()=>window.__simNow??live.now(),office,params:{enabled:Q.get('gaze')!=='0'}});
+  gaze=REMOTE ? null : createColleagueGaze({people:()=>people,now:()=>window.__simNow??live.now(),office,params:{enabled:Q.get('gaze')!=='0'}});
   window.__look = (pos, tgt) => { const c = new THREE.PerspectiveCamera(35, innerWidth / innerHeight, 0.05, 100); c.position.copy(B3(...pos)); c.lookAt(B3(...tgt)); c.layers.enableAll(); r.render(sc, c); return r.domElement.toDataURL('image/jpeg', 0.85); };
   base = B; setInterval(showWho, 1000);
   if (pending) { const w = pending; pending = null; onWorld(w); }
@@ -343,11 +373,11 @@ async function loadPerson(id, e) {
       ed=createEditor(sc,officeScene,her.gltf,base.tracks,her.extra);
     } else {
     const url = glbOf(e), parse = (b) => (b ? ld().parseAsync(b.slice(0), '').catch(() => null) : null);
-    const clips = await ld().parseAsync(base.buf.slice(0), '');                       // his own copy of the shared clips (the page edits clips in place)
-    const bodyG = url && url !== CHAR ? await ld().parseAsync(await get(url), '') : clips;
+    const [clips,loadedBody,smoke,lunch,walks,write]=await Promise.all([ld().parseAsync(base.buf.slice(0),''),url&&url!==CHAR?get(url).then(b=>ld().parseAsync(b,'')):null,parse(base.sbuf),parse(base.lbuf),parse(base.wkbuf),parse(base.wrbuf)]);                       // his own copy of the shared clips (the page edits clips in place)
+    const bodyG=loadedBody||clips;
     const extra = { shared, id, chairBack: Number.isFinite(e.chairBack) ? Math.max(-0.2, Math.min(0.2, e.chairBack)) : 0, home: e.home, mouth: e.mouth, phoneMouth: e.phoneMouth,
       social:base.social,socialPartner:(id)=>{const ed=people[id]?.ed,h=ed?.holder;if(!h)return null;h.updateMatrixWorld(true);const head=ed.root.getObjectByName('head'),face=head?.getWorldPosition(new THREE.Vector3());return {x:h.position.x,z:h.position.z,face:face?{x:face.x,y:face.y,z:face.z}:null};},
-      socialOccupancy:id=>socialSeatOccupancy(charsOf(latest),people,id),socialWorld:()=>charsOf(latest),talk,gaze, typeClip: base.typeClip, gestures: base.gestures, smoke: await parse(base.sbuf), lunch: await parse(base.lbuf), walks: await parse(base.wkbuf), feetup: base.feetup, write: await parse(base.wrbuf), jazz: base.jazz, tvswitch: base.tvswitch, dance: base.dance, camera: cam, renderer: r,
+      socialOccupancy:id=>socialSeatOccupancy(charsOf(latest),people,id),socialWorld:()=>charsOf(latest),talk,gaze, typeClip: base.typeClip, gestures: base.gestures, smoke, lunch, walks, feetup: base.feetup, write, jazz: base.jazz, tvswitch: base.tvswitch, dance: base.dance, camera: cam, renderer: r,
       ...(e.walkPolicy === 'mixamo-only' ? { drunk: false } : {}),
       ...(Q.has('drunk') && e.walkPolicy !== 'mixamo-only' ? { drunk: Q.get('drunk') !== '0' } : {}),
       ...(base.phoneClips ? { phones: shared.phonesFor(id), phoneClips: base.phoneClips } : {}) };
@@ -356,7 +386,8 @@ async function loadPerson(id, e) {
     if (ed.lunchGroup) { L.attach(ed.lunchGroup); SC.addDynamic(ed.lunchGroup); } for (const g of ed.writeGroups) { L.attach(g); SC.addDynamic(g); }
     for(const g of ed.nativeGroups||[]){L.attach(g);SC.addDynamic(g);}
     L.attach(ed.holder); SC.addDynamic(ed.holder); if (ed.fx) SC.addDynamic(ed.fx); SC.markDirty();
-    P.ed = ed; P.loading = false; if (!editor) { editor = ed; window.__editor = ed; }
+    await warmGroups([ed.holder,ed.lunchGroup,...ed.writeGroups,...(ed.nativeGroups||[])]);
+    P.ed = ed; P.loading = false; if(REMOTE)ed.holder.visible=false; if (!editor) { editor = ed; window.__editor = ed; }
     window.__people = people;
     // Initial commands are applied together, in time order, after all bodies load.
   } catch (e2) { P.error = String(e2); P.loading = false; console.warn('person', id, e2); window.__err = String(e2); }
@@ -375,18 +406,22 @@ function reportExecution(dt) {
 }
 let loadingPeople = false;const activatedPeople=new Set();
 function onWorld(w) {
+  const cast=Object.keys(charsOf(w)).sort().join(',');
+  if(simulationCast!==null&&cast!==simulationCast){if(AUTHORITY)throw Error('Simulation cast changed; restart required');simulationIncompatible=true;window.__simulationStatus='incompatible';simulationNotice.hidden=false;simulationNotice.textContent='Состав редакции изменился. Обновите страницу.';return;}
   latest = w;
-  if (!base) { pending = w; return; }
-  shared.initChairs(w.chairs);
-  if (loadingPeople) {for(const [id] of Object.entries(charsOf(w)))if(activatedPeople.has(id))people[id].ed?.apply(w,window.__simNow??live.now());return;}
+  if (!base) { pending = w; if(officeScene)prefetchBodies(w); return; }
+  if(!REMOTE)shared.initChairs(w.chairs);
+  if (loadingPeople) {for(const [id] of Object.entries(charsOf(w)))if(!REMOTE && activatedPeople.has(id))people[id].ed?.apply(w,window.__simNow??live.now());return;}
   const entries=Object.entries(charsOf(w)).filter(([id])=>/^[a-z][a-z0-9_]{0,30}$/.test(id));
   const missing=entries.filter(([id])=>!people[id]);
   if(missing.length) {
     loadingPeople=true;
-    for(const [id] of entries)if(activatedPeople.has(id))people[id].ed?.apply(w.chars?w:{...w,chars:{[id]:charsOf(w)[id]}},window.__simNow??live.now());
+    for(const [id] of entries)if(!REMOTE && activatedPeople.has(id))people[id].ed?.apply(w.chars?w:{...w,chars:{[id]:charsOf(w)[id]}},window.__simNow??live.now());
     Promise.allSettled(missing.map(([id,e])=>loadPerson(id,e))).then(()=>{loadingPeople=false;if(latest)onWorld(latest);});
     return;
   }
+  if(!simulationGraph && entries.every(([id])=>people[id]?.ed)) initSimulationGraph();
+  if(REMOTE){showWho();return;}
   // A late viewer must replay the earlier departure before the later arrival.
   // Applying in model-download order can reserve a future destination over the earlier start.
   entries.sort(([a,x],[b,y])=>(x.at-y.at)||a.localeCompare(b));
@@ -420,7 +455,7 @@ addRepertoire(PANEL.section, CHAR_BASE + 'assets/registry-live.json', () => {
 let lastWorld = null;
 openPerson = addDirectorStatus(PANEL.section, () => ({ net, world: latest||lastWorld, executionStatus: id=>people[id]?.ed?.status(), now: window.__simNow??(live ? live.now() : Date.now()), focus, setFocus: (id) => { focus = id; }, setNeed: RELAY && !DEMO ? sendNeed : null, open: () => { if ($('settings').hidden) $('menu').click(); } }),
   RELAY ? () => fetch((RELAY === '/' ? '' : RELAY) + '/journal?n=150', { cache: 'no-store' }).then((r) => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }) : null);
-live = connectLive(RELAY, (w) => { lastWorld = w; ttyFrom(w); bulletinFrom(w); onWorld(w); }, (s) => { net = s; showWho(); }, { weather: applyWeather, blinds: (b) => applyBlinds(b, true) });
+live = AUTHORITY ? {now:()=>window.__simNow??Date.now(),execution:body=>window.__simulationExecution?.(body)} : connectLive(RELAY, (w) => { lastWorld = w; ttyFrom(w); bulletinFrom(w); onWorld(w); }, (s) => { net = s; showWho(); }, { simulation:p=>{if(!poseBuffer.push(p))window.__simulationResync?.();}, weather: applyWeather, blinds: (b) => applyBlinds(b, true) });
 
 if (DEMO === 'lunch') {   // review: at the desk → lunch on the bench, all six dishes one after another → back to work, round and round
   const CH = { A: 0, B: 0.1174, C: 0.1174 }, T = { A: -0.25, B: 0.1174, C: 0.1174 }, R = { A: 0.1174, B: 0.1174, C: 0.1174 };
@@ -563,13 +598,14 @@ function step(dt, draw = true) {
     sched.update(); bulletinTV?.update(dt); tv.update(dt);
     if (tvMat) tvMat.emissiveIntensity = 1 + tv.uniforms.flicker.value - 0.5 * tv.uniforms.snow.value;
   }
-  { const now = window.__simNow ?? live.now(); gaze?.beginFrame(); talk?.beginFrame(); eachPerson((ed) => ed.update(dt, now, draw)); talk?.flush(); gaze?.flush(); shared?.applyProps(); tvMusic(now); }
+  if(REMOTE){displaySimulation(dt);tvMusic(live.now());}
+  else { const now = window.__simNow ?? live.now(); gaze?.beginFrame(); talk?.beginFrame(); eachPerson((ed) => ed.update(dt, now, draw)); talk?.flush(); gaze?.flush(); shared?.applyProps(); tvMusic(now); }
   talk?.update((cam.top - cam.bottom) / cam.zoom);                  // bubbles over the heads (invitations)   // __simNow: automated checks run on their own clock
-  typewriters?.update(dt);                                      // paper feed of the desk typewriters
+  if(!REMOTE)typewriters?.update(dt);                                      // paper feed of the desk typewriters
   if (!draw) return;
   let moving = false; eachPerson((ed) => { moving = moving || ed.moving(); });
-  L.update(dt, moving && QL.level.live, SC.enabled); ctl.update(); SC.render();
-  if(live?.execution && !DEMO && window.__simNow===undefined) reportExecution(dt);
+  L.update(dt, moving && QL.level.live, SC.enabled); ctl.update(); if(sceneShadersReady){SC.render();if(REMOTE)reportPresentation(dt);}
+  if(!REMOTE && live?.execution && !DEMO && window.__simNow===undefined) reportExecution(dt);
   cpuMs += (performance.now() - t0 - cpuMs) * 0.1;
   fAcc += dt; fN++;
   if (fAcc >= 2) {
@@ -578,17 +614,20 @@ function step(dt, draw = true) {
     fAcc = 0; fN = 0;
   }
 }
-requestAnimationFrame(tick);
+if(!AUTHORITY)requestAnimationFrame(tick);
 
 fetchGLB(GLB).then(({ buffer, got }) => {
   status.textContent = 'Собираю сцену…';
-  new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).parse(buffer, '', (g) => {
+  new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).parseAsync(buffer, '').then(async (g) => {
     setup(g);
+    status.textContent='Подготавливаю изображение офиса…';
+    if(!AUTHORITY && r.extensions.has('KHR_parallel_shader_compile')) {try{await r.compileAsync(sc,cam);}catch(error){console.warn('room shader preparation fallback',error);}}
+    sceneShadersReady=true;
     const s = ((performance.now() - T0) / 1000).toFixed(1).replace('.', ',');
     status.textContent = `Офис загружен: ${mb(got)} МБ за ${s} с`;
     document.body.classList.add('ready');
     window.__ready = true;
-  }, (e) => { status.textContent = 'Ошибка сборки сцены: ' + e.message; window.__err = String(e); });
+  }).catch((e) => { status.textContent = 'Ошибка сборки сцены: ' + e.message; window.__err = String(e); });
 }).catch((e) => { status.textContent = 'Не удалось загрузить офис: ' + e.message; window.__err = String(e); });
 
 if (DEMO === 'invite') {   // review stand (owner 30.09): one calls the other for a smoke; the answer is yes / no / not now — a bubble (the thing + the answer) and the head
@@ -638,4 +677,71 @@ if (DEMO === 'invite') {   // review stand (owner 30.09): one calls the other fo
     later((ans === 'no' ? 4.5 : tb) + 66 + 12, () => { busy = false; paint(); });
   }
   paint(); window.__invite = { run, tick, who: (w) => { who0 = w; paint(); }, C };
+}
+
+function initSimulationGraph(){
+  const roots={};
+  for(const [id,p]of Object.entries(people).sort(([a],[b])=>a.localeCompare(b))){
+    const ed=p.ed;if(!ed)continue; roots['actor:'+id]=ed.holder;
+    if(ed.lunchGroup)roots['lunch:'+id]=ed.lunchGroup;
+    if(ed.fx)roots['fx:'+id]=ed.fx;
+    ed.writeGroups?.forEach((g,i)=>roots['write:'+id+':'+i]=g);
+    ed.nativeGroups?.forEach((g,i)=>roots['native:'+id+':'+i]=g);
+  }
+  shared?.groups.forEach((g,i)=>roots['shared:'+i]=g);
+  for(const [k,c]of Object.entries(shared?.chairs||{}))roots['chair:'+k]=c.node;
+  typewriters?.groups.forEach((g,i)=>roots['typewriter:'+i]=g);
+  window.__phones?.groups.forEach((g,i)=>roots['phone:'+i]=g);
+  simulationGraph=registerSimulationGraph(roots);simulationCast=Object.keys(people).sort().join(',');
+  if(REMOTE)for(const [id,p]of Object.entries(people)){
+    p.ed.status=()=>simulationMeta?.actors?.[id]?.status||{mode:'idle',motion:'ожидает сервер',activity:'wait'};
+    p.ed.socialStatus=()=>simulationMeta?.actors?.[id]?.social||{};
+    p.ed.conversationStatus=()=>simulationMeta?.actors?.[id]?.conversation||null;
+    p.ed.moving=()=>simulationMeta?.actors?.[id]?.moving||false;
+    p.ed.knobTurn=()=>simulationMeta?.actors?.[id]?.knob||0;
+  }
+  window.__simulationReady=true;
+}
+let presentationClock=null,presentationEpoch=null;
+function displaySimulation(dt){
+  if(!simulationGraph||simulationIncompatible)return;
+  let frame=poseBuffer.sample(live.now());
+  if(frame){if(presentationEpoch!==frame.epoch||presentationClock===null){presentationEpoch=frame.epoch;presentationClock=Math.min(live.now(),frame.latestAt+250);}else presentationClock=Math.min(presentationClock+dt*1000,frame.latestAt+250);if(presentationClock-250<frame.oldestAt)presentationClock=Math.min(live.now(),frame.latestAt+250);const stale=frame.stale;frame=poseBuffer.sample(presentationClock);frame.stale=stale;}
+  if(!frame){window.__simulationStatus='waiting';simulationNotice.hidden=false;simulationNotice.textContent='Получаем состояние редакции…';return;}
+  try{simulationMeta=applySimulation(simulationGraph,frame);window.__simulationStatus=frame.stale?'stale':'live';simulationNotice.hidden=!frame.stale;simulationNotice.textContent='Связь с редакцией задерживается';}
+  catch(e){window.__simulationStatus='incompatible';simulationNotice.hidden=false;simulationNotice.textContent='Версия сцены изменилась. Обновите страницу.';window.__err=String(e);return;}
+  for(const k of Object.keys(DESKS)){const cue=simulationMeta?.audio?.[k];sound.phone(k,frame.stale?-1:(cue?.t??-1),cue?.onFor??2,cue?.cycle??6);}
+  // Pixel size of smoke is camera-dependent presentation, never server state.
+  for(const o of simulationGraph.nodes)for(const m of o.material?[].concat(o.material):[])
+    if(m.uniforms?.uPPU)m.uniforms.uPPU.value=r.domElement.height/((cam.top-cam.bottom)/cam.zoom);
+  presentationPoses={};for(const [id,v]of Object.entries(simulationMeta.actors||{})){const x=frame.a.meta.actors[id]?.performancePose,y=frame.b.meta.actors[id]?.performancePose;if(x){const same=y&&x.id===y.id&&x.seq===y.seq;presentationPoses[id]={...x,t:same?x.t+(y.t-x.t)*frame.alpha:x.t,weight:same?x.weight+(y.weight-x.weight)*frame.alpha:x.weight};}}
+  window.__simulationFrame={epoch:frame.epoch,seq:frame.seq,at:frame.a.at,bAt:frame.b.at,alpha:frame.alpha,clock:presentationClock,oldestAt:frame.oldestAt,latestAt:frame.latestAt,stale:frame.stale};
+}
+window.__simulationTick=(dt,at)=>{
+  if(!AUTHORITY)throw Error('Only the server worker may simulate');
+  window.__simNow=at;
+  if(!simulationGraph)return null;
+  sched?.update();gaze?.beginFrame();talk?.beginFrame();eachPerson(ed=>ed.update(dt,at,false));talk?.flush();gaze?.flush();shared?.applyProps();typewriters?.update(dt);tvMusic(at);
+  reportExecution(dt);
+};
+let capturePrevious=null;
+window.__simulationCapture=()=>{
+  const actors={};eachPerson((ed,id)=>actors[id]={status:ed.status(),social:ed.socialStatus(),performancePose:ed.performancePose(),conversation:ed.conversationStatus(),moving:ed.moving(),knob:ed.knobTurn()});
+  const snapshot=captureSimulation(simulationGraph,{actors,audio:simulationAudio,worldSeq:latest?.seq,gaze:gaze?.status()});
+  const next=snapshot.states.map(s=>JSON.stringify(s));
+  const out=capturePrevious?{protocol:snapshot.protocol,changes:snapshot.states.flatMap((s,i)=>next[i]===capturePrevious[i]?[]:[[i,s]]),meta:snapshot.meta}:snapshot;
+  capturePrevious=next;return out;
+};
+window.__simulationInspect=()=>({nodes:simulationGraph?.nodes.length||0,mode:window.__simulationMode,status:window.__simulationStatus,meta:simulationMeta,presentation:Object.fromEntries([...presentationWitnesses].map(([id,w])=>[id,{...w.snapshot(),diagnostic:w.debug()}]))});
+
+let presentationPoses={},presentationSent=0;const presentationWitnesses=new Map();
+function reportPresentation(dt){
+  const actors={};for(const [id,p]of Object.entries(people)){
+    let witness=presentationWitnesses.get(id);if(!witness){witness=createPresentationWitness();presentationWitnesses.set(id,witness);}
+    const pose=presentationPoses[id];
+    if(pose)witness.observe({...pose,dt,rendered:window.__simulationStatus==='live'&&document.visibilityState==='visible'});else witness.reset();
+    const diagnostic=witness.debug();if(diagnostic?.reason&&typeof diagnostic.reason==='object'&&!diagnostic.reason.frame)diagnostic.reason.frame=window.__simulationFrame;
+    if(pose)actors[id]={seq:pose.seq,witness:witness.snapshot()};
+  }
+  const now=performance.now();if(now-presentationSent>500){presentationSent=now;live.presentation?.({actors});}
 }

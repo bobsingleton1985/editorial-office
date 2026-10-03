@@ -19,12 +19,12 @@ export function socialDuration(actorKind,name) {
 }
 export async function loadSocialAssets(get, parse) {
   const entries=catalog.entries.filter(e=>e.available), paths=[...new Set(entries.map(e=>e.asset))], assets={};
-  for(const path of paths) {
+  await Promise.all(paths.map(async path=> {
     const buffer=await get(path), expected=entries.find(e=>e.asset===path).sha256;
     const hash=await sha256(buffer);
     if(hash!==expected)throw Error('social asset changed: '+path);
     assets[path]=await parse(buffer);
-  }
+  }));
   for(const e of entries) {
     const clip=assets[e.asset].animations.find(c=>c.name===e.animation);
     if(!clip || Math.abs(clip.duration-e.range[1])>1/30)throw Error('social range mismatch: '+e.id);

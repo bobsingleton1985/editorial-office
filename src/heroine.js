@@ -8,13 +8,17 @@ import {heroineRestPools} from './heroine-rest-repertoire.mjs';
 export const HEROINE_SCALE=1/(.959280767191607/1.5537539445117445);
 export async function prepareHeroine(load,shared,id,assetBase='',overrides={}){
   const H=assetBase+'heroine/';const navNames=['sit_idle',...['L02a','L03a','R02a'].flatMap(t=>['desk_sit_'+t,'desk_stand_'+t]),...['L01','L02','R01','R02'].flatMap(t=>['booth_sit_'+t,'booth_stand_'+t])];
-  const model=await load(H+'heroine-v15-head15.glb');
+  const modelPromise=load(H+'heroine-v15-head15-dress1k.glb');
   const named=async(path,name)=>{const c=(await load(path)).animations[0].clone();c.name=name;return c;};
-  const animations=await Promise.all([named(H+'clip-MX-WALK.glb','walk'),named(H+'clip-SEAT-001.glb','stand_idle'),...navNames.map(n=>named(n==='sit_idle'&&overrides.sitIdle?overrides.sitIdle:assetBase+'heroine-nav/clip-'+n+'.glb',n))]);
-  const [fork,soup,stir,plate,forkProp,knifeProp,food]=await Promise.all([named(H+'clip-HER-FORK02-owner-v03.glb','fork'),named(H+'clip-HER-SOUP-owner-v02.glb','soup'),named(H+'clip-HER-STIR-owner-v02.glb','stir'),load(H+'plate-food-owner-v03a.glb'),load(H+'fork-owner-v03.glb'),load(H+'knife-owner-v03.glb'),load(H+'key-props-food.glb')]);
+  const animationsPromise=Promise.all([named(H+'clip-MX-WALK.glb','walk'),named(H+'clip-SEAT-001.glb','stand_idle'),...navNames.map(n=>named(n==='sit_idle'&&overrides.sitIdle?overrides.sitIdle:assetBase+'heroine-nav/clip-'+n+'.glb',n))]);
+  const foodPromise=Promise.all([named(H+'clip-HER-FORK02-owner-v03.glb','fork'),named(H+'clip-HER-SOUP-owner-v02.glb','soup'),named(H+'clip-HER-STIR-owner-v02.glb','stir'),load(H+'plate-food-owner-v03a.glb'),load(H+'fork-owner-v03.glb'),load(H+'knife-owner-v03.glb'),load(H+'key-props-food.glb')]);
+  const manifestPromise=fetch(H+'manifest.json').then(r=>{if(!r.ok)throw Error('HTTP '+r.status);return r.json();});
+  const bankPromise=load(overrides.repertoireBank||(overrides.repertoireBase||assetBase+'heroine-repertoire/')+'heroine-repertoire-v01.glb');
+  const propsPromise=Promise.all([load(H+'key-props-bottle.glb'),load(H+'key-props-glass.glb'),fetch(H+'pour-grip-v04.json').then(r=>r.json())]);
+  const [model,animations,[fork,soup,stir,plate,forkProp,knifeProp,food],manifest]=await Promise.all([modelPromise,animationsPromise,foodPromise,manifestPromise]);
   const mixer=new THREE.AnimationMixer(model.scene);const a=mixer.clipAction(fork).play();mixer.update(0);model.scene.updateMatrixWorld(true);
   const utensils=[['l',forkProp],['r',knifeProp]].map(([side,g])=>{g.scene.updateMatrixWorld(true);return {side,object:g.scene,local:model.scene.getObjectByName('hand_'+side).matrixWorld.clone().invert().multiply(g.scene.matrixWorld),dish:'sandwich'};});a.stop();
-  const manifest=await(await fetch(H+'manifest.json')).json(),e=manifest.entries.find(x=>x.id==='HER-SOUP'),k=e.pelvis_height_scale;
+  const e=manifest.entries.find(x=>x.id==='HER-SOUP'),k=e.pelvis_height_scale;
   const spoon=new THREE.Group();spoon.add(food.scene.getObjectByName('P_spoon').clone(true));spoon.children[0].scale.multiplyScalar(k);const sf=spoon.getObjectByName('P_spoonful');if(sf)sf.visible=false;
   const sa=mixer.clipAction(soup).play();mixer.update(0);model.scene.updateMatrixWorld(true);
   const point=n=>model.scene.getObjectByName(n).getWorldPosition(new THREE.Vector3());
@@ -23,7 +27,7 @@ export async function prepareHeroine(load,shared,id,assetBase='',overrides={}){
   utensils.push({side:'r',object:spoon,dish:'soup',local:model.scene.getObjectByName('hand_r').matrixWorld.clone().invert().multiply(spoon.matrixWorld)});sa.stop();
   const part=n=>{const p=food.scene.getObjectByName(n).clone(true);p.position.multiplyScalar(k);p.scale.multiplyScalar(k);return p;};
   const repertoireBase=overrides.repertoireBase||assetBase+'heroine-repertoire/';
-  const repertoireBank=await load(overrides.repertoireBank||repertoireBase+'heroine-repertoire-v01.glb');
+  const repertoireBank=await bankPromise;
   const bankClip=id=>{const c=repertoireBank.animations.find(c=>c.name===id);if(!c)throw Error('HER repertoire bank missing '+id);return c.clone();};
   const ids=['HER-POUR','HER-DANCE1','HER-DANCE2','MX-DANCE','IDLE-081','IDLE-082','IDLE-085','MX-SHRUG','MX-NOD','BAR-025','BAR-029','HER-POSE1','HER-LOVE1','XS-LAUGH','XS-JOY','HER-SEDUCTIVE','SEAT-018'];
   const nativeClips=await Promise.all(ids.map(async id=>{const entry=manifest.entries.find(e=>e.id===id);return {id,activity:'heroine_'+id.replace(/^HER-/,'').toLowerCase().replace(/[^a-z0-9]/g,'_'),label:entry.label,seated:!!entry.seated,clip:id==='IDLE-085'?bankClip(id):await named(overrides.nativeAssets?.[id]||H+entry.glb,id)};}));
@@ -31,6 +35,6 @@ export async function prepareHeroine(load,shared,id,assetBase='',overrides={}){
   const allClips=[...nativeClips,...repertoireClips];
   const gestureNames={"HI-02":"stand_idle_02",tbl_to_chair:'tbl_to_chair',chair_to_tbl:'chair_to_tbl',sit_idle_02:'sit_idle_02'};
   const gestures={animations:repertoireClips.filter(e=>gestureNames[e.id]).map(e=>{const c=e.clip.clone();c.name=gestureNames[e.id];return c;})};
-  const [bottle,glass,cfg]=await Promise.all([load(H+'key-props-bottle.glb'),load(H+'key-props-glass.glb'),fetch(H+'pour-grip-v04.json').then(r=>r.json())]);
+  const [bottle,glass,cfg]=await propsPromise;
   return {gltf:{scene:model.scene,animations},extra:{gazeProfile:createHeroineGazeProfile(model.scene,repertoireBank),id,faceAxis:[0,0,1],home:'benchN',actorScale:HEROINE_SCALE,shared:{...shared,coffee:null,drinkL:null,whisky:null,whiskyRec:null},lunch:{clips:{fork,soup,stir},plate:plate.scene,bowl:part('P_bowl'),soup:part('P_soup0'),utensils},nativeClips,gestures,gestureSeated:['sit_idle_02','tbl_to_chair','chair_to_tbl'],restPools:heroineRestPools,social:createHeroineSocial(allClips),nativePropsFactory:args=>heroineProps(args,{bottle,glass,cfg},shared),lunchFactory:createHeroineLunch,lunchDishes:['soup','sandwich'],drunk:false}};
 }

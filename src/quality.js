@@ -5,8 +5,8 @@ const TV = /SMART-?TV|SmartTV|Tizen|Web0S|webOS|NetCast|BRAVIA|Android TV|Google
 // cache: the still room is drawn once into a texture; each frame only the moving things are drawn (see cache.js)
 // ratio: pixels per CSS pixel for the canvas (people and moving things); room: share of that resolution for the cached room picture
 export const LEVELS = [
-  { id: 'lowest', label: 'самое низкое', ratio: 2, room: 0.75, shadows: false, live: false, cache: true },
-  { id: 'low', label: 'низкое', ratio: 2, room: 1, shadows: false, live: false, cache: true },
+  { id: 'lowest', label: 'самое низкое', ratio: 1, room: 0.75, shadows: false, live: false, cache: true },
+  { id: 'low', label: 'низкое', ratio: 1, room: 1, shadows: false, live: false, cache: true },
   { id: 'medium', label: 'среднее', ratio: 1, shadows: true, live: false, cache: false },
   { id: 'high', label: 'высокое', ratio: 2, shadows: true, live: true, cache: false },   // live: shadows follow a moving character every frame
 ];

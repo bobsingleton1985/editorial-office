@@ -25,7 +25,7 @@ export function createPhones(scene, gltf, desks, S, sound = null) {   // sound: 
     // the cord: a coil lying behind the phone at rest, a hanging tube to the mouth end while the handset is up
     const cordMat = cord0 && cord0.isMesh ? cord0.material : new THREE.MeshStandardMaterial({ color: 0x080808, roughness: 0.3 });
     const cordStart = new THREE.Vector3(-0.07, 0.02, 0.04);              // where the coil meets the plinth (v02: Blender (−0.07, −0.04, 0.02) → glTF), body frame
-    const tube = new THREE.Mesh(new THREE.BufferGeometry(), cordMat); tube.visible = false; tube.castShadow = true; scene.add(tube);
+    const tube = new THREE.Mesh(new THREE.BufferGeometry(), cordMat); tube.userData.simulationGeometry=true; tube.visible = false; tube.castShadow = true; scene.add(tube);
     M[k] = { g, body, holder, rest, earLocal, mouthLocal, cord0, cordStart, tube, up: false };
   }
   const _v = new THREE.Vector3(), _q = new THREE.Quaternion(), _s = new THREE.Vector3();

@@ -1,3 +1,4 @@
+import {updateGazeBounds} from './gaze-bounds.js';
 import * as THREE from 'three';
 
 // Early review: authored neck/head tracks from accepted IDLE-002 / IDLE-211.
@@ -49,7 +50,7 @@ export function createColleagueGaze({ people, now, office, params = {} }) {
     ray.set(a.pos,d.normalize());ray.near=0.08;ray.far=distance-0.2;
     if(ray.intersectObjects(occluders,false).some(h=>visible(h.object) && h.distance<ray.far)) return null;
     for(const [third,p] of Object.entries(people())) { if(third===id || third===other || !p.ed)continue;
-      p.ed.holder.updateMatrixWorld(true);p.ed.root.traverse(o=>{if(o.isSkinnedMesh){o.skeleton.update();o.computeBoundingSphere();}});
+      p.ed.holder.updateMatrixWorld(true);p.ed.root.traverse(o=>{if(o.isSkinnedMesh){o.skeleton.update();updateGazeBounds(o);}});
       if(ray.intersectObject(p.ed.root,true).some(h=>visible(h.object) && h.distance<ray.far))return null;
     }
     return {turn:chosen, yaw, distance};

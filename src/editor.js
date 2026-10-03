@@ -977,6 +977,7 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {
     return cur?.social&&ch.g?.turn?ch.motion:atGoal?(cur?.label||ch.motion):ch.motion;
   }
   return {
+    performancePose:()=>{if(!cur?.performance||!nativeState)return null;const e=native[nativeState.id];return {id:cur.performance.id,seq:cur.seq,activity:ch.activity,duration:cur.performance.duration||e.clip.duration,t:(nativeState.offset||0)+nativeState.t,weight:Object.entries(A).filter(([k])=>k.startsWith('native_')).reduce((n,[,a])=>n+a.getEffectiveWeight(),0),music:extra.musicPlaying?.()===true};},
     id: ID, faceAxis:[...(extra.faceAxis||[0,-1,0])], apply, update, holder, nativeGroups:nativeProps?[nativeProps.group]:[],
     conversationStatus:()=>{const t=ch.g?.turn;if(!t||!cur?.social||ch.g.wrapped)return null;const partner=extra.socialPartner?.(cur.social.partner);return {conversationId:t.id,turn:t.index,at:t.start,revision:t.index,role:t.role,speaker:t.speaker,listener:t.listener,phase:ch.socialAbs*1000<t.speechEnd?'gesture':'pause',source:t.source,targetActor:cur.social.partner,targetFace:partner?.face||null};}, SEATS, nav, chairs, fx: smoking ? smoking.fx : null, root,
     mugs: [], lunchGroup: lunch ? lunch.group : null, writeGroups: writing ? writing.groups : [], knobTurn: () => knobTurn,
