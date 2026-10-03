@@ -1,3 +1,4 @@
+import {moneyPanel} from './money-view.js';
 import {relationshipView} from './relationship-view.js';
 // ☰ panel section «Режиссёр (Jev)»: is the newsroom online, who made the last decision (Jev or the fallback rule), and when.
 const el = (t, cls, txt) => { const e = document.createElement(t); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
@@ -99,7 +100,7 @@ function scales(state, now, ctl) {
   }
   const t = state.task;
   if (t) {
-    const run = t.working ? Math.max(0, (now - Math.max(state.at, t.from || state.at)) / 60000) : 0, done = Math.min(t.need, t.done + run);
+    const run = t.working&&!t.confirmedOnly ? Math.max(0, (now - Math.max(state.at, t.from || state.at)) / 60000) : 0, done = Math.min(t.need, t.done + run);
     const row = el('div', 'nd task'), bar = el('div', 'nb'), fill = el('i');
     fill.style.width = (100 * done / t.need).toFixed(1) + '%'; bar.append(fill);
     row.append(el('span', null, `Правка «${t.title}»`), el('span', 'nv', `${done.toFixed(1).replace('.', ',')} из ${t.need} мин${t.working ? '' : ' · отложена'}`), bar); box.append(row);
@@ -116,7 +117,7 @@ export function addDirectorStatus(section, get, loadJournal) {
   if (!document.getElementById('ptabs-css')) { const st = document.createElement('style'); st.id = 'ptabs-css'; st.textContent = '#settings .ptabs button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }'; document.head.append(st); }
   const names = () => Object.fromEntries(peopleOf(get().world).map(([id, e]) => [id, e.name || id]));
   if (loadJournal) { const b = el('div', 'btns'), btn = el('button', null, '📜 Журнал действий'); btn.addEventListener('click', () => openJournal(loadJournal, get().focus, names())); b.append(btn); sec.append(b); }
-  let tabKey = '';
+  let tabKey = '', renderedActor=null;const moneyOpen=new Map();
   function render() {
     if(editing.size)return; // native pointer capture releases even outside the row
     const focused = box.contains(document.activeElement) && document.activeElement.matches?.('input.nr') ? document.activeElement.getAttribute('aria-label') : null;
@@ -144,7 +145,9 @@ export function addDirectorStatus(section, get, loadJournal) {
     if(e?.sleep)sleepInfo.append(el('div',null,({entering:'Готовится ко сну',asleep:'Спит',waking:'Просыпается'}[e.sleep.phase]||'Сон')+` · подтверждено сна: ${Math.round(e.sleep.confirmedMs/1000)} с`));
     const lastSleep=e?.memory?.filter(x=>x.event==='sleep_finished').at(-1);
     if(lastSleep)sleepInfo.append(el('div',null,`Помнит: спал за столом ${Math.round(lastSleep.participatingSeconds)} с; усталость ${Math.round(lastSleep.fatigueBefore)} → ${Math.round(lastSleep.fatigueAfter)}. ${lastSleep.reason==='restored'?'Проснулся после восстановления сил.':'Закончился период сна.'}`));
-    box.replaceChildren(sub, needs, sleepInfo, relationshipView(e,names()), tb, el('div', 'hint', 'Jev думает, только пока редакцию кто-то смотрит. Время редакции (и шкалы) идёт тоже только при зрителях.' + (ctl ? ' Потяните шкалу — человек пересмотрит, чем заняться (это увидят все зрители).' : '')));
+    const previousMoney=box.querySelector('[data-life-section=money]');if(previousMoney&&renderedActor)moneyOpen.set(renderedActor,previousMoney.open);
+    const finances=moneyPanel(e,names());finances.open=moneyOpen.get(id)??false;renderedActor=id;
+    box.replaceChildren(sub, needs, sleepInfo, relationshipView(e,names()), finances, tb, el('div', 'hint', 'Jev думает, только пока редакцию кто-то смотрит. Время редакции (и шкалы) идёт тоже только при зрителях.' + (ctl ? ' Потяните шкалу — человек пересмотрит, чем заняться (это увидят все зрители).' : '')));
     if(focused) Array.from(box.querySelectorAll('input.nr')).find(i=>i.getAttribute('aria-label')===focused)?.focus({preventScroll:true});
   }
   setInterval(() => { if (sec.open) render(); }, 1000);

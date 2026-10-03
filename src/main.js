@@ -1,3 +1,4 @@
+import { createColleagueGaze } from './colleague-gaze.js';
 import {prepareHeroine} from './heroine.js';
 import {conversationGazeChars} from './social-turns.js';
 import {createNeedSender} from './need-control.js';
@@ -288,7 +289,7 @@ function setup(g) {
 // ---------- the people of the newsroom, driven by the shared director: world.chars = {id: {name, glb, chairBack, home, seq, from, cmd, at, label, …}}.
 // A new person needs no change here: the director names him, his body comes from the VPS, the clips are shared (one skeleton).
 // Old worlds ({editor}) are the columnist alone.
-let talk = null, editor = null, live = null, pending = null, net = { online: false }, typewriters = null, shared = null, base = null, officeScene = null;
+let gaze = null, talk = null, editor = null, live = null, pending = null, net = { online: false }, typewriters = null, shared = null, base = null, officeScene = null;
 const people = {}, order = [];                                     // id → {ed, name, loading}; order: as the director lists them
 const PLACE = { deskA: 'за столом A', deskB: 'за столом B', deskC: 'за столом C', benchS: 'на скамье', benchM: 'на скамье', benchN: 'на скамье', window: 'у окна', window2: 'у окна', teletype: 'у телетайпа' };
 const charsOf = (w) => w?.chars || (w?.editor ? { columnist: { name: 'Колумнист', ...w.editor, seq: w.seq } } : {});
@@ -323,6 +324,7 @@ async function loadShared(office) {                                   // once: t
   window.__tw = typewriters; window.__shared = shared;
   talk = createTalk({ scene: sc, addDynamic: (o) => SC.addDynamic(o), chars: () => conversationGazeChars(charsOf(latest),people), people: () => people, now: () => window.__simNow ?? live.now(), show: () => S.bubbles !== false });
   window.__talk = talk;
+  gaze=createColleagueGaze({people:()=>people,now:()=>window.__simNow??live.now(),office,params:{enabled:Q.get('gaze')!=='0'}});
   window.__look = (pos, tgt) => { const c = new THREE.PerspectiveCamera(35, innerWidth / innerHeight, 0.05, 100); c.position.copy(B3(...pos)); c.lookAt(B3(...tgt)); c.layers.enableAll(); r.render(sc, c); return r.domElement.toDataURL('image/jpeg', 0.85); };
   base = B; setInterval(showWho, 1000);
   if (pending) { const w = pending; pending = null; onWorld(w); }
@@ -343,7 +345,7 @@ async function loadPerson(id, e) {
     const bodyG = url && url !== CHAR ? await ld().parseAsync(await get(url), '') : clips;
     const extra = { shared, id, chairBack: Number.isFinite(e.chairBack) ? Math.max(-0.2, Math.min(0.2, e.chairBack)) : 0, home: e.home, mouth: e.mouth, phoneMouth: e.phoneMouth,
       social:base.social,socialPartner:(id)=>{const ed=people[id]?.ed,h=ed?.holder;if(!h)return null;h.updateMatrixWorld(true);const head=ed.root.getObjectByName('head'),face=head?.getWorldPosition(new THREE.Vector3());return {x:h.position.x,z:h.position.z,face:face?{x:face.x,y:face.y,z:face.z}:null};},
-      socialOccupancy:id=>socialSeatOccupancy(charsOf(latest),people,id),socialWorld:()=>charsOf(latest),talk, typeClip: base.typeClip, gestures: base.gestures, smoke: await parse(base.sbuf), lunch: await parse(base.lbuf), walks: await parse(base.wkbuf), feetup: base.feetup, write: await parse(base.wrbuf), jazz: base.jazz, tvswitch: base.tvswitch, dance: base.dance, camera: cam, renderer: r,
+      socialOccupancy:id=>socialSeatOccupancy(charsOf(latest),people,id),socialWorld:()=>charsOf(latest),talk,gaze, typeClip: base.typeClip, gestures: base.gestures, smoke: await parse(base.sbuf), lunch: await parse(base.lbuf), walks: await parse(base.wkbuf), feetup: base.feetup, write: await parse(base.wrbuf), jazz: base.jazz, tvswitch: base.tvswitch, dance: base.dance, camera: cam, renderer: r,
       ...(e.walkPolicy === 'mixamo-only' ? { drunk: false } : {}),
       ...(Q.has('drunk') && e.walkPolicy !== 'mixamo-only' ? { drunk: Q.get('drunk') !== '0' } : {}),
       ...(base.phoneClips ? { phones: shared.phonesFor(id), phoneClips: base.phoneClips } : {}) };
@@ -365,7 +367,7 @@ function reportExecution(dt) {
   const active=pairs.length>0&&pairs.every(p=>Object.values(p.actors).every(a=>a.ready));
   reportElapsed=active&&signature===reportPrevious&&dt<0.25?Math.min(2000,reportElapsed+dt*1000):0;reportPrevious=signature;
   if(now-reportSend<1000)return;reportSend=now;
-  const actors={};eachPerson((ed,id)=>{const s=ed.socialStatus();actors[id]={loaded:s.loaded,seq:s.seq,activity:s.activity,executing:s.executing,executionEnd:s.executionEnd,mode:s.mode,seat:s.seat,x:s.x,z:s.z,profiles:s.profiles,sleepAvailable:s.sleepAvailable,sleep:s.sleep,diningChairClear:s.diningChairClear,readingAvailable:s.readingAvailable};});
+  const actors={};eachPerson((ed,id)=>{const s=ed.socialStatus();actors[id]={moneyWitness:s.moneyWitness,moneyWorkMs:s.moneyWorkMs,loaded:s.loaded,seq:s.seq,activity:s.activity,executing:s.executing,executionEnd:s.executionEnd,mode:s.mode,seat:s.seat,x:s.x,z:s.z,profiles:s.profiles,sleepAvailable:s.sleepAvailable,sleep:s.sleep,diningChairClear:s.diningChairClear,readingAvailable:s.readingAvailable};});
   const styles=base?.social?.styles.map(x=>x.id)||[];
   live.execution({pairs:pairs.map(p=>({...p,elapsedMs:reportElapsed})),capabilities:{actors,styles}});reportElapsed=0;
 }
@@ -559,7 +561,7 @@ function step(dt, draw = true) {
     sched.update(); bulletinTV?.update(dt); tv.update(dt);
     if (tvMat) tvMat.emissiveIntensity = 1 + tv.uniforms.flicker.value - 0.5 * tv.uniforms.snow.value;
   }
-  { const now = window.__simNow ?? live.now(); talk?.beginFrame(); eachPerson((ed) => ed.update(dt, now)); talk?.flush(); shared?.applyProps(); tvMusic(now); }
+  { const now = window.__simNow ?? live.now(); gaze?.beginFrame(); talk?.beginFrame(); eachPerson((ed) => ed.update(dt, now)); talk?.flush(); gaze?.flush(); shared?.applyProps(); tvMusic(now); }
   talk?.update((cam.top - cam.bottom) / cam.zoom);                  // bubbles over the heads (invitations)   // __simNow: automated checks run on their own clock
   typewriters?.update(dt);                                      // paper feed of the desk typewriters
   if (!draw) return;

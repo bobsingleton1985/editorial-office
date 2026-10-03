@@ -848,6 +848,7 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {
   const readRequested = () => ch.activity==='read_wire' && (cur?.cmd||cur?.from)?.spot==='teletypeRead';
   const readPermitted = () => readRequested() && ch.mode==='idle' && !ch.seat && !ch.g && !ch.queue && !ch.hold && !ch.blockedGoal && ch.speed===0 && !smoking?.active() && !ch.wh && dist(holderPose(),SPOTS.teletypeRead)<.2;
   const itemFocus = () => readRequested() || !!ch.g?.phone || eating() || sipping() || !!smoking?.active() || !!ch.wh || !!ch.g?.tv || !!ch.g?.segs.some(a => /^(write_|feet_|.*(scratch|neck|doze|lean))/.test(a.n));
+  const gazePlayer=extra.gaze?.attach(ID,Bn,holder,extra.social,()=>({free:['idle','seated'].includes(ch.mode)&&['wait','work','rest_desk','rest_lounge'].includes(ch.activity)&&!cur?.sleep&&!cur?.social&&!ch.queue&&!ch.hold&&!itemFocus()&&!ch.g&&!extra.talk?.wants(ID)}));
   function frame(dt, ff) {
     ch.clk += dt; ch.tAbs += dt; ch.socialAbs += dt; updateChar(dt); nativeFrame(dt); stepWeights(dt);
     if (smoking) smoking.pre(dt, smokeWant(), A);
@@ -856,11 +857,12 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {
       if (M && cur?.activity === 'smoke_coffee' && ch.mode === 'seated') { const s = smoking.sipTime(), t = s >= 0 ? s : smoking.sipsBefore(smoking.clockT()) > 0 ? M.D : 0;
         if (Math.abs(t - M.t) > 1e-6) { M.t = t; M.a.time = Math.min(t, M.D); M.m.update(0); M.off.position.copy(mugOffset(t)); } } }
     if (!ff) {
+      if(typing()&&A.type?.getEffectiveWeight()>.5&&ch.mode==='seated'&&!ch.queue&&!ch.hold&&(cur?.cmd||cur?.from)?.seat===ch.seat)ch.moneyWorkMs=(ch.moneyWorkMs||0)+Math.min(.1,Math.max(0,dt))*1000;
       const t0 = A.type ? A.type.time : 0;
       reading.restore();
       if (IK) armRestore();
       mixer.update(dt);
-      if (IK) { holder.updateMatrixWorld(true); armSave(); } extra.talk?.capture(ID,Bn); if (smoking) smoking.post(dt);
+      if (IK) { holder.updateMatrixWorld(true); armSave(); } extra.talk?.capture(ID,Bn); gazePlayer?.capture(); if (smoking) smoking.post(dt);
       { const d = ch.seat && SEATS[ch.seat].desk, M = d && mugL[d], st = smoking ? smoking.sipTime() : -1;      // the hand takes the mug back to where it stood
         const c = M && st >= 0 && cur?.activity === 'smoke_coffee' ? handFix(st) : null;
         if (c) smoking.ikL(c.applyMatrix3(new THREE.Matrix3().setFromMatrix4(M.g.matrix)).multiplyScalar(smoking.sipW())); }
@@ -877,6 +879,7 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {
     }
   }
   function fastForward(sec, socialEnd) {
+    extra.gaze?.reset(ID);
     ch.replaying=true;
     reading.reset(); // remove our pose before the mixer evaluates a different clock/clip
     extra.talk?.reset(ID);                         // late join / hidden tab: replay the command at 30 steps a second, draw once
@@ -892,12 +895,14 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {
   }
   function apply(w, serverNow) {                      // w = {seq, chars: {id: {seq, from, cmd, at, state, …}}, chairs} (or the old {seq, editor, state})
     const e = w?.chars?.[ID] || (ID === 'columnist' || ID === 'editor' ? w?.editor : null); if (!e) return;
+    gazePlayer?.restore();
+    if(!cur||cur.seq!==(e.seq??w.seq)||cur.activity!==(e.activity||''))extra.gaze?.reset(ID);
     reading.restore(); // restore before place/snapWeights/fastForward can evaluate mixer
     extra.talk?.reset(ID);
     { const st = e.state || (w.chars ? null : w.state), dn = st?.needs?.drunk; if (dn && Number.isFinite(st.at)) drunkSt = { v: +dn.v || 0, rate: +dn.rate || 0, at: st.at }; else if (st) drunkSt = null; }   // his own needs
     if(ch.socialPending || (cur && ch.g?.social && !e.social)){ch.socialPending=w;if(cur)cur.social=null;if(ch.g)ch.g=finishTurnPlan(ch.g,ch.clk-ch.g.t0);return;}
     const eseq = e.seq ?? w.seq; if (cur && cur.seq === eseq) {if(cur.activity!==(e.activity||'')){ch.executionEnd=null;ch.lunchSeq=-1;}cur.social=e.social;cur.sleep=e.sleep;cur.activity=e.activity||'';cur.label=e.label||'';cur.source=e.source||'';ch.activity=cur.activity;if(!readRequested())reading.reset();return;}
-    ch.sleepVisual=null;ch.sleepLocal=null;ch.executionEnd=null;
+    ch.sleepVisual=null;ch.sleepLocal=null;ch.executionEnd=null;ch.moneyWorkMs=0;
     if(ch.benchWait){ch.benchWait=null;ch.blockedGoal=null;SH.setNative(ID,null);}
     if(ch.g?.sleep)ch.g=null;
     reading.reset(); // a new command cannot report the previous reading as active
@@ -955,9 +960,9 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {
     socialStatus: () => {
       holder.updateMatrixWorld(true);const l=Bn.thigh_l.getWorldPosition(new THREE.Vector3()),r=Bn.thigh_r.getWorldPosition(new THREE.Vector3());
       const goal=cur?.cmd||cur?.from;const atGoal=goal?.seat?ch.seat===goal.seat:!!goal?.spot&&!!SPOTS[goal.spot]&&dist(holderPose(),SPOTS[goal.spot])<0.35;
-      const physicallyActing=ch.activity==='sleep_desk'?ch.sleepVisual?.phase==='asleep'&&A.g_sit_doze?.getEffectiveWeight()>.9:(ch.activity?.startsWith('her:')||ch.activity?.startsWith('heroine_'))?!!nativeState&&nativeState.t<native[nativeState.id].clip.duration:ch.activity==='read_wire'?reading.status().ready:ch.activity==='smoke'?!!smoking?.active():ch.activity==='lunch'?eating():ch.activity==='whisky'?!!ch.wh:ch.activity==='phone'?!!ch.g?.phone:true;
+      const physicallyActing=ch.activity==='work'?typing()&&A.type?.getEffectiveWeight()>.5:ch.activity==='coffee'?sipping():ch.activity==='smoke_coffee'?!!smoking&&smoking.sipTime()>=0:ch.activity==='sleep_desk'?ch.sleepVisual?.phase==='asleep'&&A.g_sit_doze?.getEffectiveWeight()>.9:(ch.activity?.startsWith('her:')||ch.activity?.startsWith('heroine_'))?!!nativeState&&nativeState.t<native[nativeState.id].clip.duration:ch.activity==='read_wire'?reading.status().ready:ch.activity==='smoke'?!!smoking?.active():ch.activity==='lunch'?eating():ch.activity==='whisky'?!!ch.wh:ch.activity==='phone'?!!ch.g?.phone:true;
       const forward=new THREE.Vector3(0,1,0).cross(new THREE.Vector3(r.x-l.x,0,r.z-l.z).normalize());
-      return {executionEnd:atGoal&&ch.executionEnd?.seq===cur?.seq&&ch.executionEnd.activity===ch.activity&&['idle','seated'].includes(ch.mode)&&!ch.queue?ch.executionEnd:null,sleepAvailable:deskSleepAvailable(gDur),sleep:ch.sleepVisual?{id:ch.sleepVisual.sleepId,phase:ch.sleepVisual.phase,poseStartedAt:ch.sleepVisual.startedAt,elapsedMs:ch.sleepLocal?.elapsedMs||0}:null,activity:ch.activity,executing:atGoal&&physicallyActing&&!!cur&&!ch.socialPending&&!ch.g?.social&&!ch.queue&&(ch.mode==='idle'||ch.mode==='seated'),seq:cur?.seq,conversationId:cur?.social?.id,loaded:socialLoaded||ID==='heroine'&&Object.keys(native).length>0,expression:(()=>{const t=ch.g?.turn,c=t?.choice;if(t?.role!=='speaker'||ch.g?.wrapped||!c?.intentEventId||!cur?.social||cur.social.intent?.revision!==c.intentRevision)return null;const style=extra.social.styles.find(s=>s.id===c.style),names=style?.entries.map(socialAlias)||[];if(!names.some(n=>A['g_'+n]?.getEffectiveWeight()>=.5))return null;return {id:c.intentEventId,intentRevision:c.intentRevision,intent:c.intent,style:c.style};})(),mode:ch.mode,seat:ch.seat,diningChairClear:(()=>{const b=diningChairAvoidanceBox(),x=holder.position.x,z=holder.position.z;return ch.seat!=='diningChair'&&!(ch.mode==='trans'&&ch.trans?.desk==='D')&&ch.chairTail?.desk!=='D'&&(x<b[0]-RADIUS||x>b[2]+RADIUS||z<b[1]-RADIUS||z>b[3]+RADIUS);})(),readingAvailable:reading.available,profiles:socialLoaded?['stand','teletype-standing',...(GEST.sit_idle_02&&GEST[socialAlias('talk-seated/SEAT-146')]?['desk-front']:[]),...(GEST.sit_idle_02&&GEST.tbl_to_chair&&GEST.chair_to_tbl&&GEST[socialAlias('talk-seated/SEAT-024')]?['bench-left','bench-right']:[])]:[],ready:socialLoaded&&!!cur?.social&&!!ch.g?.social&&!ch.g?.turn?.unavailable&&socialAtGoal()&&ch.activity==='conversation'&&(ch.mode==='idle'||ch.mode==='seated')&&!ch.queue&&!ch.hold&&!smoking?.active()&&!sipping()&&!eating()&&!ch.wh,
+      return {moneyWitness:1,moneyWorkMs:ch.moneyWorkMs||0,executionEnd:atGoal&&ch.executionEnd?.seq===cur?.seq&&ch.executionEnd.activity===ch.activity&&['idle','seated'].includes(ch.mode)&&!ch.queue?ch.executionEnd:null,sleepAvailable:deskSleepAvailable(gDur),sleep:ch.sleepVisual?{id:ch.sleepVisual.sleepId,phase:ch.sleepVisual.phase,poseStartedAt:ch.sleepVisual.startedAt,elapsedMs:ch.sleepLocal?.elapsedMs||0}:null,activity:ch.activity,executing:atGoal&&physicallyActing&&!!cur&&!ch.socialPending&&!ch.g?.social&&!ch.queue&&(ch.mode==='idle'||ch.mode==='seated'),seq:cur?.seq,conversationId:cur?.social?.id,loaded:socialLoaded||ID==='heroine'&&Object.keys(native).length>0,expression:(()=>{const t=ch.g?.turn,c=t?.choice;if(t?.role!=='speaker'||ch.g?.wrapped||!c?.intentEventId||!cur?.social||cur.social.intent?.revision!==c.intentRevision)return null;const style=extra.social.styles.find(s=>s.id===c.style),names=style?.entries.map(socialAlias)||[];if(!names.some(n=>A['g_'+n]?.getEffectiveWeight()>=.5))return null;return {id:c.intentEventId,intentRevision:c.intentRevision,intent:c.intent,style:c.style};})(),mode:ch.mode,seat:ch.seat,diningChairClear:(()=>{const b=diningChairAvoidanceBox(),x=holder.position.x,z=holder.position.z;return ch.seat!=='diningChair'&&!(ch.mode==='trans'&&ch.trans?.desk==='D')&&ch.chairTail?.desk!=='D'&&(x<b[0]-RADIUS||x>b[2]+RADIUS||z<b[1]-RADIUS||z>b[3]+RADIUS);})(),readingAvailable:reading.available,profiles:socialLoaded?['stand','teletype-standing',...(GEST.sit_idle_02&&GEST[socialAlias('talk-seated/SEAT-146')]?['desk-front']:[]),...(GEST.sit_idle_02&&GEST.tbl_to_chair&&GEST.chair_to_tbl&&GEST[socialAlias('talk-seated/SEAT-024')]?['bench-left','bench-right']:[])]:[],ready:socialLoaded&&!!cur?.social&&!!ch.g?.social&&!ch.g?.turn?.unavailable&&socialAtGoal()&&ch.activity==='conversation'&&(ch.mode==='idle'||ch.mode==='seated')&&!ch.queue&&!ch.hold&&!smoking?.active()&&!sipping()&&!eating()&&!ch.wh,
         x:holder.position.x,z:holder.position.z,ax:new THREE.Vector3(0,-1,0).applyQuaternion(Bn.head.getWorldQuaternion(new THREE.Quaternion())).x,az:new THREE.Vector3(0,-1,0).applyQuaternion(Bn.head.getWorldQuaternion(new THREE.Quaternion())).z,fx:forward.x,fz:forward.z,styles:socialLoaded?extra.social.styles.map(x=>x.id):[]};
     },
     status: () => ({sleep:ch.sleepVisual?{id:ch.sleepVisual.sleepId,phase:ch.sleepVisual.phase,elapsedMs:ch.sleepLocal?.elapsedMs||0}:null,reading:reading.status(), id: ID, activity: cur?.activity || '', label: executionLabel(), commandLabel:cur?.label||'', blocked:!!ch.blockedGoal, motion: ch.motion, gesture: ch.g ? ch.g.segs.map((a) => a.n).join('+') : null, mode: ch.mode, seat: ch.seat, source: cur?.source || '', smoke: smoking ? smoking.status() : null, lunch: lunch ? { dish: lunch.dish(), seat: lunch.seat(), t: +ch.lunchT.toFixed(2) } : null, coffee: coffee ? { t: +ch.coffeeT.toFixed(2), sip: ch.sip === null ? null : +ch.sip.toFixed(2), w: W.drink ? +W.drink.cur.toFixed(2) : 0 } : null, whisky: ch.wh ? { kind: ch.wh.kind, t: +ch.wh.t.toFixed(2) } : null, drunk: +(ch.dk || 0).toFixed(2) }),
