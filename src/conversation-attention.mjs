@@ -19,5 +19,5 @@ export function resolveConversationAttention(chars, people, id, time) {
        left.role!==(id===speaker?'speaker':'listener') || right.role!==(partnerId===speaker?'speaker':'listener'))return null;
   }
   return {conversationId:social.id,at:turn.at,revision:turn.revision,source:turn.source,
-    roles:{speaker,listener},role:id===speaker?'speaker':'listener',targetActor:id===listener?speaker:null,targetBone:'head'};
+    roles:{speaker,listener},role:id===speaker?'speaker':'listener',targetActor:partnerId,targetBone:'head'};
 }

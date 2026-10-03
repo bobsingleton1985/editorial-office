@@ -66,9 +66,11 @@ export function createTalk({ scene, addDynamic, chars, people, now, show = () =>
   function lookWant(id, T) {
     let best = null, w = 0, listener = false;
     const attention=resolveConversationAttention(readChars(),people(),id,T);
-    if(attention)return {who:attention.targetActor,w:attention.role==='listener'?1:0,listener:attention.role==='listener',dialogue:true,attention};
+    // The overlay flag is shared by both roles; the canonical attention.role remains unchanged.
+    if(attention)return {who:attention.targetActor,w:1,listener:true,dialogue:true,attention};
     // Only the explicit mutually ready pre-start posture addresses both actors.
-    // Once participation has started, canonical alternating roles own the gaze.
+    // Both canonical roles address their partner. Native seated speech targets a seated peer;
+    // releasing the overlay on the speaker would aim below a standing partner’s face.
     const pair=readChars()?.[id]?.social, partner=pair&&readChars()?.[pair.partner]?.social;
     const ownStatus=people()[id]?.ed?.conversationStatus?.(),otherStatus=people()[pair?.partner]?.ed?.conversationStatus?.();
     if(pair?.firstParticipation===null&&partner?.id===pair.id&&partner.partner===id&&ownStatus?.role==='waiting'&&otherStatus?.role==='waiting')

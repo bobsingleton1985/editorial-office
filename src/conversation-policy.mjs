@@ -17,9 +17,9 @@ export function styleAllowed(style,intent='calm',relation='neutral',pose='standi
  if(tense.includes(style))return intent==='tense'||intent==='confront';
  return confront.includes(style)&&intent==='confront';
 }
-export function intentOptions(relation,stress,signals=[]){
+export function intentOptions(relation,fatigue,signals=[]){
  const basis=[];
- if(stress>=60)basis.push({kind:'own_stress',value:stress});
+ if(fatigue>=65)basis.push({kind:'own_fatigue',value:fatigue});
  if(relation?.stance==='guarded'&&relation.basis)basis.push({kind:'own_relationship',revision:relation.revision,evidence:relation.basis});
  const recent=signals.filter(x=>x.kind==='directed_objection');
  const tenseSignal=signals.filter(x=>x.kind==='self_tension').at(-1);
