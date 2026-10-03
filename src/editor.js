@@ -976,7 +976,47 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {
     if(atGoal&&cur?.activity==='wait'&&goal?.spot==='teletype')return 'стоит у телетайпа';
     return cur?.social&&ch.g?.turn?ch.motion:atGoal?(cur?.label||ch.motion):ch.motion;
   }
+  // Read-only audio witness after mixer, IK and prop placement. No commands or pose mutation.
+  const audioFloor={l:Infinity,r:Infinity};
+  // Foot joint floor heights measured on this rig's actual accepted walk clips.
+  for(const audioClip of [WK.clip,DR?.clip].filter(Boolean)){
+    smix.stopAllAction();const action=smix.clipAction(audioClip).reset().play();
+    for(let t=0;t<audioClip.duration;t+=1/30){action.time=t;smix.update(0);sg.updateMatrixWorld(true);for(const side of ['l','r'])audioFloor[side]=Math.min(audioFloor[side],sclone.getObjectByName('foot_'+side).getWorldPosition(new THREE.Vector3()).y);}
+    action.stop();
+  }
+  const audioLabels=new Map((extra.social?.entries||[]).map(e=>['g_'+socialAlias(e.id),e.animation||e.label||'']));
+  const audioPoint=new THREE.Vector3();
+  function audioState() {
+    const actions={};for(const [name,a] of Object.entries(A)){const weight=a.getEffectiveWeight();if(weight>.05)actions[name]={time:a.time,duration:a.getClip().duration,weight};}
+    const gy=n=>Bn[n]?(Bn[n].getWorldPosition(audioPoint),audioPoint.y):0;
+    const left=Bn.hand_l?.getWorldPosition(new THREE.Vector3()),right=Bn.hand_r?.getWorldPosition(new THREE.Vector3());
+    const activeNames=Object.keys(actions).filter(n=>actions[n].weight>.55);
+    const clapNames=activeNames.filter(n=>/IDLE[_-](052|055)|HR_CLAP_(52|55)/.test(n));
+    const gestureLabel=activeNames.map(n=>audioLabels.get(n)||n).join(' ');
+    const meal=eating()?lunch.mix(ch.lunchT).find(x=>x.n&&x.w>.5):null;
+    const turn=ch.g?.turn,u=ch.g?ch.clk-ch.g.t0:0;
+    const phrase=turn?.phrases?.filter(x=>u>=x.at).at(-1);
+    const desk=ch.seat&&SEATS[ch.seat]?.desk;
+    const chairKey=ch.trans?.desk||ch.chairTail?.desk||desk||(ch.seat&&SEATS[ch.seat]?.chair);
+    const chairNode=chairKey&&chairs[chairKey]?.node;
+    const nativeVocal=nativeState&&/LAUGH|JOY|SURPRIS|FIST-PUMP/.test(nativeState.id)&&actions['native_'+nativeState.id]?.weight>.55;
+    const phoneVocal=ch.g?.phone&&activeNames.some(n=>/^g_(stand_)?phone_0[123]$/.test(n));
+    return {id:ID,seq:cur?.seq??null,time:ch.clk,rendered:ch.frameRendered!==false,replaying:!!ch.replaying,
+      x:holder.position.x,z:holder.position.z,actions,typing:typing()&&ch.mode==='seated',
+      writing:desk&&writing?writing.audio(desk):null,
+      walking:ch.mode==='walk'||ch.mode==='trans',feet:{l:gy('foot_l'),r:gy('foot_r')},footFloor:audioFloor,
+      palms:left&&right?left.distanceTo(right):Infinity,clapping:clapNames.length>0,clapVariant:clapNames.some(n=>/055|CLAP_55/.test(n))?'b':'a',
+      chair:chairNode?{key:chairKey,position:chairNode.getWorldPosition(new THREE.Vector3()).toArray()}:null,cupLift:desk&&coffee?.lift?coffee.lift(desk):null,
+      pouring:!!nativeProps?.audio?.().pouring||(ch.wh?.kind==='bar'&&WR?.bar?.phase.filter(x=>x[0]<=ch.wh.t*WR.fps).at(-1)?.[1]==='pour'),
+      brushing:activeNames.some(n=>/feet_brush|IDLE_040/.test(n)),
+      meal:meal?{name:meal.n,index:meal.i,frame:meal.lt*30+1,weight:meal.w}:null,
+      vocal:nativeVocal?{key:'native:'+cur.seq+':'+nativeState.id,index:cur.seq,role:'speaker',active:true,elapsed:nativeState.t,style:nativeState.id}:phoneVocal?{key:'phone:'+cur.seq,index:cur.seq,role:'speaker',active:true,elapsed:u,style:'talk'}:null,
+      speech:turn&&cur?.social&&!ch.g.wrapped?{key:turn.id+':'+turn.index+':'+(phrase?.at||0),index:turn.index,role:turn.role,
+        active:ch.activity==='conversation'&&socialAtGoal()&&!ch.hold&&!ch.queue&&!turn.unavailable&&ch.socialAbs*1000<turn.speechEnd&&Object.keys(actions).some(n=>n.startsWith('g_')&&actions[n].weight>.5),
+        elapsed:Math.max(0,u-(phrase?.at||0)),intent:turn.context?.intent,style:(phrase?.style||turn.choice?.style||'')+' '+gestureLabel}:null};
+  }
   return {
+    audioState,
     performancePose:()=>{if(!cur?.performance||!nativeState)return null;const e=native[nativeState.id];return {id:cur.performance.id,seq:cur.seq,activity:ch.activity,duration:cur.performance.duration||e.clip.duration,t:(nativeState.offset||0)+nativeState.t,weight:Object.entries(A).filter(([k])=>k.startsWith('native_')).reduce((n,[,a])=>n+a.getEffectiveWeight(),0),music:extra.musicPlaying?.()===true};},
     id: ID, faceAxis:[...(extra.faceAxis||[0,-1,0])], apply, update, holder, nativeGroups:nativeProps?[nativeProps.group]:[],
     conversationStatus:()=>{const t=ch.g?.turn;if(!t||!cur?.social||ch.g.wrapped)return null;const partner=extra.socialPartner?.(cur.social.partner);return {conversationId:t.id,turn:t.index,at:t.start,revision:t.index,role:t.role,speaker:t.speaker,listener:t.listener,phase:ch.socialAbs*1000<t.speechEnd?'gesture':'pause',source:t.source,targetActor:cur.social.partner,targetFace:partner?.face||null};}, SEATS, nav, chairs, fx: smoking ? smoking.fx : null, root,

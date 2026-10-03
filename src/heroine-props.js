@@ -16,5 +16,5 @@ export function heroineProps({B,scene,office,S},data,shared){
  else if(f>c.release_frames[0]){const w=sm((f-c.release_frames[0])/(c.release_frames[1]-c.release_frames[0]));p.lerp(endP,w);q.slerp(new THREE.Quaternion().fromArray(c.table_end.quaternion),w);}
  bottle.position.copy(p);bottle.quaternion.copy(q);bottle.scale.copy(scale);group.updateMatrixWorld(true);
  }
- return {group,post};
+ return {group,post,audio:()=>({pouring:group.visible&&new THREE.Vector3(0,1,0).applyQuaternion(bottle.getWorldQuaternion(new THREE.Quaternion())).y<.1})};
 }

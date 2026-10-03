@@ -1,0 +1,738 @@
+{
+  "assets": {
+    "typekey": {
+      "url": "assets/newsroom-audio-v01/typekey.mp3",
+      "duration": 0.14
+    },
+    "step1": {
+      "url": "assets/newsroom-audio-v01/step1.mp3",
+      "duration": 0.2338548752834467
+    },
+    "step2": {
+      "url": "assets/newsroom-audio-v01/step2.mp3",
+      "duration": 0.24
+    },
+    "chair": {
+      "url": "assets/newsroom-audio-v01/chair.mp3",
+      "duration": 3.0
+    },
+    "cup": {
+      "url": "assets/newsroom-audio-v01/cup.mp3",
+      "duration": 0.6999773242630386
+    },
+    "pour": {
+      "url": "assets/newsroom-audio-v01/pour.mp3",
+      "duration": 5.0
+    },
+    "phone": {
+      "url": "assets/newsroom-audio-v01/phone.mp3",
+      "duration": 2.0
+    },
+    "cloth": {
+      "url": "assets/newsroom-audio-v01/cloth.mp3",
+      "duration": 0.6410430839002268
+    },
+    "pencil1": {
+      "url": "assets/newsroom-audio-v01/pencil1.mp3",
+      "duration": 8.0
+    },
+    "pencil2": {
+      "url": "assets/newsroom-audio-v01/pencil2.mp3",
+      "duration": 8.0
+    },
+    "pencildown": {
+      "url": "assets/newsroom-audio-v01/pencildown.mp3",
+      "duration": 0.3
+    },
+    "stir": {
+      "url": "assets/newsroom-audio-v01/stir.mp3",
+      "duration": 8.0
+    },
+    "cutlery": {
+      "url": "assets/newsroom-audio-v01/cutlery.mp3",
+      "duration": 2.0
+    },
+    "clink": {
+      "url": "assets/newsroom-audio-v01/clink.mp3",
+      "duration": 0.4
+    },
+    "bite": {
+      "url": "assets/newsroom-audio-v01/bite.mp3",
+      "duration": 0.45
+    },
+    "soup": {
+      "url": "assets/newsroom-audio-v01/soup.mp3",
+      "duration": 0.6
+    },
+    "clap1": {
+      "url": "assets/newsroom-audio-v01/clap1.mp3",
+      "duration": 0.34997732426303857
+    },
+    "clap2": {
+      "url": "assets/newsroom-audio-v01/clap2.mp3",
+      "duration": 0.34997732426303857
+    },
+    "city": {
+      "url": "assets/newsroom-audio-v01/city.wav",
+      "duration": 62.0
+    },
+    "editor-talk": {
+      "url": "assets/newsroom-audio-v01/editor-talk.mp3",
+      "duration": 41.65659863945578
+    },
+    "editor-flirt": {
+      "url": "assets/newsroom-audio-v01/editor-flirt.mp3",
+      "duration": 26.23854875283447
+    },
+    "editor-argument": {
+      "url": "assets/newsroom-audio-v01/editor-argument.mp3",
+      "duration": 18.901043083900227
+    },
+    "editor-joy": {
+      "url": "assets/newsroom-audio-v01/editor-joy.mp3",
+      "duration": 13.421133786848072
+    },
+    "editor-surprise": {
+      "url": "assets/newsroom-audio-v01/editor-surprise.mp3",
+      "duration": 2.5
+    },
+    "editor-displeasure": {
+      "url": "assets/newsroom-audio-v01/editor-displeasure.mp3",
+      "duration": 3.0727891156462586
+    },
+    "columnist-talk": {
+      "url": "assets/newsroom-audio-v01/columnist-talk.mp3",
+      "duration": 41.65659863945578
+    },
+    "columnist-flirt": {
+      "url": "assets/newsroom-audio-v01/columnist-flirt.mp3",
+      "duration": 26.23854875283447
+    },
+    "columnist-argument": {
+      "url": "assets/newsroom-audio-v01/columnist-argument.mp3",
+      "duration": 18.901043083900227
+    },
+    "columnist-joy": {
+      "url": "assets/newsroom-audio-v01/columnist-joy.mp3",
+      "duration": 13.421133786848072
+    },
+    "columnist-surprise": {
+      "url": "assets/newsroom-audio-v01/columnist-surprise.mp3",
+      "duration": 2.5
+    },
+    "columnist-displeasure": {
+      "url": "assets/newsroom-audio-v01/columnist-displeasure.mp3",
+      "duration": 3.0727891156462586
+    },
+    "reporter-talk": {
+      "url": "assets/newsroom-audio-v01/reporter-talk.mp3",
+      "duration": 41.65659863945578
+    },
+    "reporter-flirt": {
+      "url": "assets/newsroom-audio-v01/reporter-flirt.mp3",
+      "duration": 26.23854875283447
+    },
+    "reporter-argument": {
+      "url": "assets/newsroom-audio-v01/reporter-argument.mp3",
+      "duration": 18.901043083900227
+    },
+    "reporter-joy": {
+      "url": "assets/newsroom-audio-v01/reporter-joy.mp3",
+      "duration": 13.421133786848072
+    },
+    "reporter-surprise": {
+      "url": "assets/newsroom-audio-v01/reporter-surprise.mp3",
+      "duration": 2.5
+    },
+    "reporter-displeasure": {
+      "url": "assets/newsroom-audio-v01/reporter-displeasure.mp3",
+      "duration": 3.0727891156462586
+    },
+    "heroine-talk": {
+      "url": "assets/newsroom-audio-v01/heroine-talk.mp3",
+      "duration": 41.65659863945578
+    },
+    "heroine-flirt": {
+      "url": "assets/newsroom-audio-v01/heroine-flirt.mp3",
+      "duration": 26.23854875283447
+    },
+    "heroine-argument": {
+      "url": "assets/newsroom-audio-v01/heroine-argument.mp3",
+      "duration": 18.901043083900227
+    },
+    "heroine-joy": {
+      "url": "assets/newsroom-audio-v01/heroine-joy.mp3",
+      "duration": 13.421133786848072
+    },
+    "heroine-surprise": {
+      "url": "assets/newsroom-audio-v01/heroine-surprise.mp3",
+      "duration": 2.5
+    },
+    "heroine-displeasure": {
+      "url": "assets/newsroom-audio-v01/heroine-displeasure.mp3",
+      "duration": 3.0727891156462586
+    }
+  },
+  "sources": [
+    {
+      "id": "typekey",
+      "source": "sound-candidates-v01/listen/full/24-typewriter-approved.mp3",
+      "source_sha256": "2fe3e20598419f4c11fef54f8c62301a3fc1717e554c06b40d18757d5877c381",
+      "excerpt": [
+        0.12501133786848073,
+        0.26501133786848075
+      ],
+      "sha256": "a3db92937c77d519b74179563fa2f471366284990f53d331ccb8f0080233e61e",
+      "gain": 2.7295038460443406,
+      "loop_crossfade": false,
+      "processing": "Mono; gain calibrated after two 1800Hz lowpass filters; shared runtime filters apply room treatment."
+    },
+    {
+      "id": "step1",
+      "source": "sound-candidates-v01/listen/full/13-footstep00.ogg",
+      "source_sha256": "6fe61ef1fc3bcf0e253bf2eb64759db6cb69e2fe452f4d88cc597ecf78a3d601",
+      "excerpt": [
+        0.015011337868480726,
+        0.24886621315192745
+      ],
+      "sha256": "3631b12813b7f5dca3432bf2140f4d957d68b6fb6ffc4f509b4a1935913fc6c8",
+      "gain": 0.2254880655554373,
+      "loop_crossfade": false,
+      "processing": "Mono; gain calibrated after two 1800Hz lowpass filters; shared runtime filters apply room treatment."
+    },
+    {
+      "id": "step2",
+      "source": "sound-candidates-v01/listen/full/14-footstep05.ogg",
+      "source_sha256": "817957e1f95d97fd36870064c41673895575cde17bccb245f50364c86ed10198",
+      "excerpt": [
+        0.005011337868480726,
+        0.24501133786848073
+      ],
+      "sha256": "0a0ad10793864b5dc606f348345b5718e8d6e7b0dd731e72689aedb9aae6542d",
+      "gain": 0.36275376198532844,
+      "loop_crossfade": false,
+      "processing": "Mono; gain calibrated after two 1800Hz lowpass filters; shared runtime filters apply room treatment."
+    },
+    {
+      "id": "chair",
+      "source": "sound-candidates-v01/listen/full/11-chair-drag.mp3",
+      "source_sha256": "cea8dc845307ae813b6bea00d58d533e4cabc6a0d1d67e40e23b5413d213a3f2",
+      "excerpt": [
+        3.16,
+        6.16
+      ],
+      "sha256": "9fd1fd34e0da213ddc98281702c17dd2032d2cd306e2e6462507397294fa4ba2",
+      "gain": 0.4233124588618405,
+      "loop_crossfade": false,
+      "processing": "Mono; gain calibrated after two 1800Hz lowpass filters; shared runtime filters apply room treatment."
+    },
+    {
+      "id": "cup",
+      "source": "sound-candidates-v01/listen/full/16-shaking_cup_short.wav",
+      "source_sha256": "a9c7c553843b82d37eda5897fe71732105db9e2b137218956b3837d9100c998e",
+      "excerpt": [
+        0.3550113378684807,
+        1.0549886621315192
+      ],
+      "sha256": "c5f67ef2060c15a7c86396271220e1f28a74ed90221f00b6ed34903eb63424ea",
+      "gain": 0.23471226941537687,
+      "loop_crossfade": false,
+      "processing": "Mono; gain calibrated after two 1800Hz lowpass filters; shared runtime filters apply room treatment."
+    },
+    {
+      "id": "pour",
+      "source": "sound-candidates-v01/listen/full/19-pour-close.mp3",
+      "source_sha256": "a06a0e0002f241e799da2036add78c68d98d773fd2a45715836300cb7fca6e65",
+      "excerpt": [
+        0.34,
+        5.34
+      ],
+      "sha256": "f26d3a2c6f8a9e2d9948185d80eda985fffa1caf5a27cb6c339441f5fe46acbb",
+      "gain": 0.9151394779580864,
+      "loop_crossfade": false,
+      "processing": "Mono; gain calibrated after two 1800Hz lowpass filters; shared runtime filters apply room treatment."
+    },
+    {
+      "id": "phone",
+      "source": "sound-candidates-v01/listen/full/22-phone-bell.mp3",
+      "source_sha256": "aaae21f68247e10660ae08cf4579f3109119b33a334315922c2b80bdf501e2f5",
+      "excerpt": [
+        7.22,
+        9.22
+      ],
+      "sha256": "85aa8bc9150ee3ee872413eb0e0d7fd1abfac3fa2a17494408a1ff42342c33dd",
+      "gain": 0.7358323957190573,
+      "loop_crossfade": false,
+      "processing": "Mono; gain calibrated after two 1800Hz lowpass filters; shared runtime filters apply room treatment."
+    },
+    {
+      "id": "cloth",
+      "source": "sound-candidates-v01/listen/full/18-cloth1.ogg",
+      "source_sha256": "ddb93a3671233f95da0e0b10367f082f7eb42fa6caaddcf776410aa8833c747d",
+      "excerpt": [
+        0.02,
+        0.6610430839002267
+      ],
+      "sha256": "e85f080c518a25da1ea859531614405ca2ae2bc7d97cb5f5ed2e7419735de74c",
+      "gain": 0.3840474618934934,
+      "loop_crossfade": false,
+      "processing": "Mono; gain calibrated after two 1800Hz lowpass filters; shared runtime filters apply room treatment."
+    },
+    {
+      "id": "pencil1",
+      "source": "sound-candidates-v03/listen/full/44-pencil-soft.mp3",
+      "source_sha256": "e1125517e7d5080089efb4fa5be6ab44dd783fd2b24cee972619811683373c4f",
+      "excerpt": [
+        0.0,
+        8.0
+      ],
+      "sha256": "c6ac127dc1cbfd9a2dd675039edceb565aeb408549caf3785c819ca8710749c6",
+      "gain": 4.3222801648996585,
+      "loop_crossfade": false,
+      "processing": "Mono; gain calibrated after two 1800Hz lowpass filters; shared runtime filters apply room treatment."
+    },
+    {
+      "id": "pencil2",
+      "source": "sound-candidates-v03/listen/full/45-pencil-fast.mp3",
+      "source_sha256": "4ff0ab13e56a2515cc19dc0ea2cb8c4f59bb34481cd4e485a8932653569dc238",
+      "excerpt": [
+        0.06,
+        8.06
+      ],
+      "sha256": "9a383781b03e409cd1a8351ec8e1e95bd73095803bbd3a4980ff06b1f0b01fd1",
+      "gain": 21.39518548111525,
+      "loop_crossfade": false,
+      "processing": "Mono; gain calibrated after two 1800Hz lowpass filters; shared runtime filters apply room treatment."
+    },
+    {
+      "id": "pencildown",
+      "source": "sound-candidates-v03/listen/full/46-pencil-down.mp3",
+      "source_sha256": "227123162d4e716ac3d7f8dca1cf18cc6f3a63f4fddfc86017a545bad2556210",
+      "excerpt": [
+        2.4550113378684806,
+        2.755011337868481
+      ],
+      "sha256": "d615d1c6537c5bf516f0b7384e499e47e9f0b4b453b7ed9fdbe21410328e85bf",
+      "gain": 31.996314814478072,
+      "loop_crossfade": false,
+      "processing": "Mono; gain calibrated after two 1800Hz lowpass filters; shared runtime filters apply room treatment."
+    },
+    {
+      "id": "stir",
+      "source": "sound-candidates-v03/listen/full/47-spoon-bowl.mp3",
+      "source_sha256": "249bcc9d21cae54f9f9468916361d461c72c5bb01432a3536427c5ecf8b97292",
+      "excerpt": [
+        1.09,
+        9.09
+      ],
+      "sha256": "95f74cc81cc29092e606526d948d8505eb3bc22886c921c4204e70763a574f33",
+      "gain": 1.4786298010503107,
+      "loop_crossfade": false,
+      "processing": "Mono; gain calibrated after two 1800Hz lowpass filters; shared runtime filters apply room treatment."
+    },
+    {
+      "id": "cutlery",
+      "source": "sound-candidates-v03/listen/full/48-cutlery-scrape.mp3",
+      "source_sha256": "7698da15b9090d405d5f55b2d536bc830107b5b3258a81eebda9ea050ff5c22f",
+      "excerpt": [
+        7.71,
+        9.71
+      ],
+      "sha256": "20b3856d9c7032aa2d8947a55628f2cd0c44c161fd9e933b1fab6710ab3b3bc1",
+      "gain": 0.6167483080497701,
+      "loop_crossfade": false,
+      "processing": "Mono; gain calibrated after two 1800Hz lowpass filters; shared runtime filters apply room treatment."
+    },
+    {
+      "id": "clink",
+      "source": "sound-candidates-v03/listen/full/49-cutlery-down.mp3",
+      "source_sha256": "1220805e429b231a945deb7980bc55b69939fe33a93cbe9aae484af7eace7f20",
+      "excerpt": [
+        0.04501133786848072,
+        0.44501133786848074
+      ],
+      "sha256": "4a1c2b3f08058eb23635ee22c5806bf806a93691266afd9167d25ae2ebc0edb0",
+      "gain": 2.0282402351593936,
+      "loop_crossfade": false,
+      "processing": "Mono; gain calibrated after two 1800Hz lowpass filters; shared runtime filters apply room treatment."
+    },
+    {
+      "id": "bite",
+      "source": "sound-candidates-v03/listen/full/50-cookie.mp3",
+      "source_sha256": "c8d7bb85533ea104078d737146cfef12787a95e1b2c00f1205a94589379a6e78",
+      "excerpt": [
+        1.7150113378684808,
+        2.1650113378684805
+      ],
+      "sha256": "62cdd5ad6d93250de4c97f71f962769c92fd206922de14700f95858c92fb7587",
+      "gain": 6.314455358586271,
+      "loop_crossfade": false,
+      "processing": "Mono; gain calibrated after two 1800Hz lowpass filters; shared runtime filters apply room treatment."
+    },
+    {
+      "id": "soup",
+      "source": "sound-candidates-v03/listen/full/51-soup.mp3",
+      "source_sha256": "a9d48df2ba46a9777fd4140e86375d47f5b008606d959e1b09428eac16db5292",
+      "excerpt": [
+        0.5350113378684808,
+        1.1350113378684807
+      ],
+      "sha256": "64b41d7ea35fdeda95eff4bcafa65e63749fe10ce18aa4092f77e31c53625459",
+      "gain": 1.1240863132162886,
+      "loop_crossfade": false,
+      "processing": "Mono; gain calibrated after two 1800Hz lowpass filters; shared runtime filters apply room treatment."
+    },
+    {
+      "id": "clap1",
+      "source": "sound-candidates-v03/listen/full/52-clap-single.mp3",
+      "source_sha256": "9abf4aef4f1ea27032cbcbd203e14180c843ac8dd75999f31f8d5f513b32e943",
+      "excerpt": [
+        0.0,
+        0.34997732426303857
+      ],
+      "sha256": "da576c5d370be06ec33d904c44b98b5ad1292790a21cd1b6ef1f140816457aac",
+      "gain": 0.571345074085875,
+      "loop_crossfade": false,
+      "processing": "Mono; gain calibrated after two 1800Hz lowpass filters; shared runtime filters apply room treatment."
+    },
+    {
+      "id": "clap2",
+      "source": "sound-candidates-v03/listen/full/53-clap-solo.mp3",
+      "source_sha256": "01ab4cd7af3d18f49857efd87ec74a956b9d486f2d6e45dcbb64e3f5967a9bec",
+      "excerpt": [
+        0.6050113378684807,
+        0.9549886621315192
+      ],
+      "sha256": "8dfdf83452fb2ce0594ece91523e4455cf39810417f19b4319b1d62bafe71f6d",
+      "gain": 0.39009253584684966,
+      "loop_crossfade": false,
+      "processing": "Mono; gain calibrated after two 1800Hz lowpass filters; shared runtime filters apply room treatment."
+    },
+    {
+      "id": "city",
+      "source": "city-ambience-v01/listen/full/city5.mp3",
+      "source_sha256": "e08689e5dd76fa0a629a0a612cd906023146563690bad4a3daa020d01dfd3446",
+      "excerpt": [
+        135.0,
+        200.0
+      ],
+      "sha256": "5883940274066b233f70b72551d6ef3b096ce8148b47077100f88a0f4eecaeb2",
+      "gain": 1.2368331474495602,
+      "loop_crossfade": true,
+      "processing": "Mono; gain calibrated after two 1800Hz lowpass filters; shared runtime filters apply room treatment."
+    },
+    {
+      "id": "editor-talk",
+      "source": "ordinary-conversation-v01/editor-conversation.mp3",
+      "source_sha256": "ebdc5f287a8a2bb27aaaa45bf13ab87d843840ffe240a3080f76880c054999b4",
+      "excerpt": [
+        0.0,
+        41.65659863945578
+      ],
+      "sha256": "00aafaa386f244a8dc29837eec1620f5dc7854983eb2e18859072fe17dd8485a",
+      "gain": 0.5491518025976521,
+      "loop_crossfade": false,
+      "processing": "Mono; gain calibrated after two 1800Hz lowpass filters; shared runtime filters apply room treatment."
+    },
+    {
+      "id": "editor-flirt",
+      "source": "flirt-v01/editor-flirt.mp3",
+      "source_sha256": "676021749537dc44beb841519c8de87cc842ce1b01f570b2ba0e4acbef5f4eed",
+      "excerpt": [
+        0.0,
+        26.23854875283447
+      ],
+      "sha256": "e871e50445fab962546d675fe217abf10c5eb6db0f5e02c5c0bbe30d147c57d7",
+      "gain": 0.34906497819511173,
+      "loop_crossfade": false,
+      "processing": "Mono; gain calibrated after two 1800Hz lowpass filters; shared runtime filters apply room treatment."
+    },
+    {
+      "id": "editor-argument",
+      "source": "argument-v01/editor-argument.mp3",
+      "source_sha256": "5fa9bc9c7c8b0be90896a32bf4957e4d9570168c4994bd7f18ac21b74f9c8b76",
+      "excerpt": [
+        0.0,
+        18.901043083900227
+      ],
+      "sha256": "ce8b54a261e100979046c48ad24f1ce02c3ac88efc936adf1055df2a5802168c",
+      "gain": 0.41955407241260995,
+      "loop_crossfade": false,
+      "processing": "Mono; gain calibrated after two 1800Hz lowpass filters; shared runtime filters apply room treatment."
+    },
+    {
+      "id": "editor-joy",
+      "source": "joy-laughter-v01/editor-joy-laughter.mp3",
+      "source_sha256": "44f4b2e7027ed87b745a94cca675ec03d23de210040e67d972992897513ff6bd",
+      "excerpt": [
+        0.0,
+        13.421133786848072
+      ],
+      "sha256": "9a710cd338dfc8f28969e2a73b985dba1040a6b81c4a243e1a413c1a0f176860",
+      "gain": 0.26945700505675807,
+      "loop_crossfade": false,
+      "processing": "Mono; gain calibrated after two 1800Hz lowpass filters; shared runtime filters apply room treatment."
+    },
+    {
+      "id": "editor-surprise",
+      "source": "surprise-displeasure-v01/editor-surprise.wav",
+      "source_sha256": "fe92b97c70fcea2934a466817f3a4c5ca96e81e76559aaaff67c202516597d82",
+      "excerpt": [
+        0.0,
+        2.5
+      ],
+      "sha256": "f28152e5cec43489b2a6a95b4c499fa5392effa3749a5602c00b284d46e92238",
+      "gain": 0.3423286249696636,
+      "loop_crossfade": false,
+      "processing": "Mono; gain calibrated after two 1800Hz lowpass filters; shared runtime filters apply room treatment."
+    },
+    {
+      "id": "editor-displeasure",
+      "source": "surprise-displeasure-v01/editor-displeasure.wav",
+      "source_sha256": "f7a344d9b42a91fde63a9ee776fa8ed1acc4da200a70fe8be41395b5197a5dbc",
+      "excerpt": [
+        0.0,
+        3.0727891156462586
+      ],
+      "sha256": "4f64a308227adcce4af4101d4c67aa1c29c75525e384143e6cc164c077410572",
+      "gain": 0.9151600465611065,
+      "loop_crossfade": false,
+      "processing": "Mono; gain calibrated after two 1800Hz lowpass filters; shared runtime filters apply room treatment."
+    },
+    {
+      "id": "columnist-talk",
+      "source": "ordinary-conversation-v01/columnist-conversation.mp3",
+      "source_sha256": "7b60c3dce207007a6dfee94c9e868afa76fee6232cdf02526e9c5991a86a4dca",
+      "excerpt": [
+        0.0,
+        41.65659863945578
+      ],
+      "sha256": "f94ca1fb494cfba561ca2abf4507e2368feb14e5d6da591034c53304d84145c8",
+      "gain": 0.3669295875809985,
+      "loop_crossfade": false,
+      "processing": "Mono; gain calibrated after two 1800Hz lowpass filters; shared runtime filters apply room treatment."
+    },
+    {
+      "id": "columnist-flirt",
+      "source": "flirt-v01/columnist-flirt.mp3",
+      "source_sha256": "25a5ebaefe545b56ea1fb7eddf5b726a70e57b9c55205cef835b350ccb68c8e7",
+      "excerpt": [
+        0.0,
+        26.23854875283447
+      ],
+      "sha256": "78ef9c431c33cb639873224699913367ca224f8fa0fbba32504e2ba992d05ff0",
+      "gain": 0.29274024522270775,
+      "loop_crossfade": false,
+      "processing": "Mono; gain calibrated after two 1800Hz lowpass filters; shared runtime filters apply room treatment."
+    },
+    {
+      "id": "columnist-argument",
+      "source": "argument-v01/columnist-argument.mp3",
+      "source_sha256": "b116bd1a2cb7aaec66797672fe4c0870344195e476feebf962cc775f3d57a1bd",
+      "excerpt": [
+        0.0,
+        18.901043083900227
+      ],
+      "sha256": "cede4b126c39a18c6799b886125c59d84312244a097e5d8204c2bbe6419d187c",
+      "gain": 0.3371294141267009,
+      "loop_crossfade": false,
+      "processing": "Mono; gain calibrated after two 1800Hz lowpass filters; shared runtime filters apply room treatment."
+    },
+    {
+      "id": "columnist-joy",
+      "source": "joy-laughter-v01/columnist-joy-laughter.mp3",
+      "source_sha256": "01a0705475ccf68c5d9e6222ec36f8d6ae58c0e34d110b782ed974e0e24b2a08",
+      "excerpt": [
+        0.0,
+        13.421133786848072
+      ],
+      "sha256": "a0007b1a5275df871a16175e1bad8d2ddc8f3a249fcf23f3a1f7a5b5ae5c516a",
+      "gain": 0.2643795919714692,
+      "loop_crossfade": false,
+      "processing": "Mono; gain calibrated after two 1800Hz lowpass filters; shared runtime filters apply room treatment."
+    },
+    {
+      "id": "columnist-surprise",
+      "source": "surprise-displeasure-v01/columnist-surprise.wav",
+      "source_sha256": "b655de7a828ff7dbead3586e64bdf3e49f7c9921ef6452e2c403ef563090a67e",
+      "excerpt": [
+        0.0,
+        2.5
+      ],
+      "sha256": "455f925a73908e9ed151f4f54848a08e9de4da6185ae3f3443885fc86e74feab",
+      "gain": 0.2838845781461886,
+      "loop_crossfade": false,
+      "processing": "Mono; gain calibrated after two 1800Hz lowpass filters; shared runtime filters apply room treatment."
+    },
+    {
+      "id": "columnist-displeasure",
+      "source": "surprise-displeasure-v01/columnist-displeasure.wav",
+      "source_sha256": "32fb46274f2898d1d22be15c52cf0d7ae884c851822d444c04da75aa05e19047",
+      "excerpt": [
+        0.0,
+        3.0727891156462586
+      ],
+      "sha256": "9b3e958da335346049de70254777e367dbf6f892445c2d55e3f12c213f0923da",
+      "gain": 0.4649728538453617,
+      "loop_crossfade": false,
+      "processing": "Mono; gain calibrated after two 1800Hz lowpass filters; shared runtime filters apply room treatment."
+    },
+    {
+      "id": "reporter-talk",
+      "source": "ordinary-conversation-v01/reporter-conversation.mp3",
+      "source_sha256": "207c78f12c2eecb31ec0c50227e27e19b8b971110c31ee430a2f57061eb936ad",
+      "excerpt": [
+        0.0,
+        41.65659863945578
+      ],
+      "sha256": "e2964e12617cf017846fbae1629cd975710f1f3a43eb9308eb3d1d7fcc01aed8",
+      "gain": 0.2865960271766488,
+      "loop_crossfade": false,
+      "processing": "Mono; gain calibrated after two 1800Hz lowpass filters; shared runtime filters apply room treatment."
+    },
+    {
+      "id": "reporter-flirt",
+      "source": "flirt-v01/reporter-flirt.mp3",
+      "source_sha256": "45b714248bef26fb6dd2bffe9be6b14be58770b5dd904af27af334e8a59a4ea1",
+      "excerpt": [
+        0.0,
+        26.23854875283447
+      ],
+      "sha256": "0c1c6f5fe8488de1b7f2826cc77c9ea9a851dad704f0589219de5cefb0f8327d",
+      "gain": 0.2876171087713074,
+      "loop_crossfade": false,
+      "processing": "Mono; gain calibrated after two 1800Hz lowpass filters; shared runtime filters apply room treatment."
+    },
+    {
+      "id": "reporter-argument",
+      "source": "argument-v01/reporter-argument.mp3",
+      "source_sha256": "5ce6e0b9f1383e8bda050b456fe3243ae21de84a36a21e9ed1911523b81120fa",
+      "excerpt": [
+        0.0,
+        18.901043083900227
+      ],
+      "sha256": "013437943500ee077a2d0ec525dc5827c18d92704a1f1826024d4e09d0b063a9",
+      "gain": 0.298384275039754,
+      "loop_crossfade": false,
+      "processing": "Mono; gain calibrated after two 1800Hz lowpass filters; shared runtime filters apply room treatment."
+    },
+    {
+      "id": "reporter-joy",
+      "source": "joy-laughter-v01/reporter-joy-laughter.mp3",
+      "source_sha256": "50e9ca74f4b60141da5669fba22c75b1f23999db390ccfccb7495fe2ffdc7325",
+      "excerpt": [
+        0.0,
+        13.421133786848072
+      ],
+      "sha256": "89858f799e8225b6f604ca4de20bde833ba366250fc0bbed6e796b2b85e2b84c",
+      "gain": 0.26445144451713815,
+      "loop_crossfade": false,
+      "processing": "Mono; gain calibrated after two 1800Hz lowpass filters; shared runtime filters apply room treatment."
+    },
+    {
+      "id": "reporter-surprise",
+      "source": "surprise-displeasure-v01/reporter-surprise.wav",
+      "source_sha256": "d062e52e67f3a8c1c3d0010bb43b96612f0a41ebe65a4e011b63e9de95dc73a8",
+      "excerpt": [
+        0.0,
+        2.5
+      ],
+      "sha256": "18da6247c8d8dd5d69e119bd7cea58fc4dfe026febc69c40bef07e69caa4fc78",
+      "gain": 0.296578728741779,
+      "loop_crossfade": false,
+      "processing": "Mono; gain calibrated after two 1800Hz lowpass filters; shared runtime filters apply room treatment."
+    },
+    {
+      "id": "reporter-displeasure",
+      "source": "surprise-displeasure-v01/reporter-displeasure.wav",
+      "source_sha256": "6388fddc977e40942ecdb0c2b0791fa5b2330692afb0512ff7b26a0ff4b3dd66",
+      "excerpt": [
+        0.0,
+        3.0727891156462586
+      ],
+      "sha256": "5eeb64519ab2d950255fbd79f10cf3e7e5ba44f409279f686f10df0d1d81b5e2",
+      "gain": 0.43270683728159987,
+      "loop_crossfade": false,
+      "processing": "Mono; gain calibrated after two 1800Hz lowpass filters; shared runtime filters apply room treatment."
+    },
+    {
+      "id": "heroine-talk",
+      "source": "ordinary-conversation-v01/heroine-conversation.mp3",
+      "source_sha256": "efaa6f0a0f92d08acdcadfe80443e8f1f93a7c1a6ee761e58b84ff5174172517",
+      "excerpt": [
+        0.0,
+        41.65659863945578
+      ],
+      "sha256": "a1e31e98000c51b9b386134592a927fc3a650f02b7fd00ddb0a8e6397f88a55c",
+      "gain": 1.748711882886527,
+      "loop_crossfade": false,
+      "processing": "Mono; gain calibrated after two 1800Hz lowpass filters; shared runtime filters apply room treatment."
+    },
+    {
+      "id": "heroine-flirt",
+      "source": "flirt-v01/heroine-flirt.mp3",
+      "source_sha256": "be9da9d7880288d1fb5fa9efe9a0c68bf4f8c3c9f5c3018372cba3847ef80307",
+      "excerpt": [
+        0.0,
+        26.23854875283447
+      ],
+      "sha256": "0ba88c956a5c4b3ee55c9030137174b164600d4c684b2e1af68a9f2263787153",
+      "gain": 0.7486183163787363,
+      "loop_crossfade": false,
+      "processing": "Mono; gain calibrated after two 1800Hz lowpass filters; shared runtime filters apply room treatment."
+    },
+    {
+      "id": "heroine-argument",
+      "source": "argument-v01/heroine-argument.mp3",
+      "source_sha256": "eee14aa31a95e3a41b9325904502ccc74a8c9ab7ec81b0d0cedf1a3c3e8ac27f",
+      "excerpt": [
+        0.0,
+        18.901043083900227
+      ],
+      "sha256": "c75b0072069b0447f0aafc84b4d9a140e2362508598638299a2c152f698a8039",
+      "gain": 1.0505809668583483,
+      "loop_crossfade": false,
+      "processing": "Mono; gain calibrated after two 1800Hz lowpass filters; shared runtime filters apply room treatment."
+    },
+    {
+      "id": "heroine-joy",
+      "source": "joy-laughter-v01/heroine-joy-laughter.mp3",
+      "source_sha256": "66ad1fd0eadd349aed50dd10d196834b7aaa5d6ac4121321318ef47d6761f298",
+      "excerpt": [
+        0.0,
+        13.421133786848072
+      ],
+      "sha256": "7eb2f513930e93b7245b03edc6a91c4b65a36c30048be7527b11ce99e4a205e8",
+      "gain": 0.2753613382387485,
+      "loop_crossfade": false,
+      "processing": "Mono; gain calibrated after two 1800Hz lowpass filters; shared runtime filters apply room treatment."
+    },
+    {
+      "id": "heroine-surprise",
+      "source": "surprise-displeasure-v01/heroine-surprise.wav",
+      "source_sha256": "238f940bb96944323e4f891de1975b63f81a7d4d56723e1219bbc9371e485e32",
+      "excerpt": [
+        0.0,
+        2.5
+      ],
+      "sha256": "4057b7db976ef77f70ccbe26701d8cc243172418fe48a105f43c769773377248",
+      "gain": 0.473832793665914,
+      "loop_crossfade": false,
+      "processing": "Mono; gain calibrated after two 1800Hz lowpass filters; shared runtime filters apply room treatment."
+    },
+    {
+      "id": "heroine-displeasure",
+      "source": "surprise-displeasure-v01/heroine-displeasure.wav",
+      "source_sha256": "97ab2230862fd2a3311e83c810c873d099f90d95482cd8d6b04f5a727237ee5f",
+      "excerpt": [
+        0.0,
+        3.0727891156462586
+      ],
+      "sha256": "2235652217a2e35b366e65b530b76cfc0cb3340982f0c1319aa51554ca9df427",
+      "gain": 3.4295622744877465,
+      "loop_crossfade": false,
+      "processing": "Mono; gain calibrated after two 1800Hz lowpass filters; shared runtime filters apply room treatment."
+    }
+  ],
+  "license_evidence": "Source sound-pack manifests and saved CC0 pages; voice recordings supplied and accepted by owner, transformed through ElevenLabs."
+}

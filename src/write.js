@@ -114,5 +114,5 @@ export function createWriting({ scene, B, addon, DESKS, S }) {
     return seg.n === 'write_start' ? smooth((f - 10) / 8) : seg.n === 'write_stop' ? 1 - smooth((f - 14) / 7) : 1;
   }
   for (const k in M) show(k, false);
-  return { clips, show, post, hold, drop, clearance, segOf, tip: () => lastTip, groups: Object.values(M).flatMap((m) => [m.g, m.pencil]) };
+  return { clips, show, post, hold, drop, clearance, segOf, tip: () => lastTip, audio: k => {const m=M[k];return m&&lastTip?{down:!!m.pen&&!!m.on,x:lastTip.x,z:lastTip.z}:null;}, groups: Object.values(M).flatMap((m) => [m.g, m.pencil]) };
 }

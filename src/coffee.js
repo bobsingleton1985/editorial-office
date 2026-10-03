@@ -32,5 +32,7 @@ export function createCoffee({ scene, addon, DESKS, S }) {
   // the mug of desk k at time t of the clip (0 = standing on the desk)
   function set(k, t) { const d = desks[k]; if (!d || Math.abs(d.t - t) < 1e-6) return; d.t = t; d.a.time = Math.min(t, clip.duration); d.mixer.update(0); }
   const show = (k, v) => { const g = groups.find((x) => x.name === 'COFFEE ' + k); if (g && g.visible !== v) g.visible = v; };
-  return { bodyClip, duration: clip.duration, groups, set, show };
+  const restPoints=Object.fromEntries(Object.entries(desks).map(([k,d])=>{const g=groups.find(g=>g.name==='COFFEE '+k);return [k,g.children[0].position.clone()];}));
+  const lift=k=>{const g=groups.find(g=>g.name==='COFFEE '+k);return g?.visible?g.children[0].position.distanceTo(restPoints[k]):null;};
+  return { bodyClip, duration: clip.duration, groups, set, show, lift };
 }

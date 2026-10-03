@@ -27,6 +27,8 @@ import { GRID } from './navgrid.js';
 import { createTypewriters } from './typewriter.js';
 import { createPhones } from './phone.js';
 import { createSound } from './sound.js';
+import {createAnimationAudio} from './audio-sync.mjs';
+import {sampleAudioWitness} from './audio-stream.mjs';
 import { createWeather } from './weather.js';
 import { createBlinds } from './blinds.js';
 import { createSunbeams } from './sunbeams.js';
@@ -191,9 +193,9 @@ PANEL = buildPanel(S, (s) => { if (s.quality !== qMode) { qMode = s.quality; QL.
   { resetTo: () => presetFor(outside().sky) });
 { wxBox = document.createElement('div'); const bb = document.createElement('div');
   PANEL.outside.append(wxBox, bb); blindsUI = buildBlindsUI(bb); }
-const sound = createSound();const simulationAudio={};if(AUTHORITY){sound.phone=(k,t,onFor,cycle)=>{simulationAudio[k]={t,onFor,cycle};};}                                   // ☰ → «Звук»: the phone ring (off until the viewer switches it on)
+const sound = createSound();const animationAudio=createAnimationAudio(sound);const simulationAudio={};if(AUTHORITY){sound.phone=(k,t,onFor,cycle)=>{simulationAudio[k]={t,onFor,cycle};};}                                   // ☰ → «Звук»: the phone ring (off until the viewer switches it on)
 { const d = PANEL.section('Звук', 'sound'), l = document.createElement('label'), cb = document.createElement('input'), sp = document.createElement('span');
-  l.className = 'row'; cb.type = 'checkbox'; cb.id = 'sound-phone'; cb.checked = sound.on; sp.textContent = '🔔 Звонок телефона';
+  l.className = 'row'; cb.type = 'checkbox'; cb.id = 'sound-phone'; cb.checked = sound.on; sp.textContent = '🔊 Звуки редакции и города';
   cb.addEventListener('change', () => sound.set(cb.checked)); l.append(sp, cb); d.append(l); window.__sound = sound; }
 applyWeather();
 const diag = { textContent: '' }; window.__diag = diag;   // technical line (GPU, frame time): console only — window.__diag.textContent
@@ -572,12 +574,13 @@ function cityTime() {                                           // time of the c
 function tick(now) {
   const raw = (now - prev) / 1000, dt = Math.min(0.1, raw); prev = now;
   if (QL.tick(raw, window.__ready)) applyQuality();
-  if (!window.__pause) step(dt);
+  if (!window.__pause) step(dt); else animationAudio.begin(false);
   requestAnimationFrame(tick);
 }
 window.__dbg = () => ({ paper: paperMat && paperMat.map.offset.y, target: paperTarget, tv: sched ? sched.current : null, clocks: clockPivots.length, tty: tty.length, typebox: !!typebox });
 window.__step = (dt, n = 1, draw = true) => { for (let i = 0; i < n; i++) step(dt, draw && i === n - 1); };   // for automated checks
 function step(dt, draw = true) {
+  animationAudio.begin(!AUTHORITY && draw && !document.hidden && !window.__pause && window.__ready);
   const t0 = performance.now();
   if (mixer) mixer.update(dt);
   WX?.update(dt); SB?.update(dt, r.getPixelRatio()); NE?.update(dt);
@@ -599,9 +602,10 @@ function step(dt, draw = true) {
     if (tvMat) tvMat.emissiveIntensity = 1 + tv.uniforms.flicker.value - 0.5 * tv.uniforms.snow.value;
   }
   if(REMOTE){displaySimulation(dt);tvMusic(live.now());}
-  else { const now = window.__simNow ?? live.now(); gaze?.beginFrame(); talk?.beginFrame(); eachPerson((ed) => ed.update(dt, now, draw)); talk?.flush(); gaze?.flush(); shared?.applyProps(); tvMusic(now); }
+  else { const now = window.__simNow ?? live.now(); gaze?.beginFrame(); talk?.beginFrame(); eachPerson((ed) => ed.update(dt, now, draw)); talk?.flush(); gaze?.flush(); shared?.applyProps(); tvMusic(now); eachPerson(ed=>animationAudio.update(ed.audioState(),dt)); }
   talk?.update((cam.top - cam.bottom) / cam.zoom);                  // bubbles over the heads (invitations)   // __simNow: automated checks run on their own clock
   if(!REMOTE)typewriters?.update(dt);                                      // paper feed of the desk typewriters
+  animationAudio.end();
   if (!draw) return;
   let moving = false; eachPerson((ed) => { moving = moving || ed.moving(); });
   L.update(dt, moving && QL.level.live, SC.enabled); ctl.update(); if(sceneShadersReady){SC.render();if(REMOTE)reportPresentation(dt);}
@@ -706,11 +710,14 @@ let presentationClock=null,presentationEpoch=null;
 function displaySimulation(dt){
   if(!simulationGraph||simulationIncompatible)return;
   let frame=poseBuffer.sample(live.now());
-  if(frame){if(presentationEpoch!==frame.epoch||presentationClock===null){presentationEpoch=frame.epoch;presentationClock=Math.min(live.now(),frame.latestAt+250);}else presentationClock=Math.min(presentationClock+dt*1000,frame.latestAt+250);if(presentationClock-250<frame.oldestAt)presentationClock=Math.min(live.now(),frame.latestAt+250);const stale=frame.stale;frame=poseBuffer.sample(presentationClock);frame.stale=stale;}
+  if(frame){if(presentationEpoch!==frame.epoch||presentationClock===null){animationAudio.reset();sound.hushEvents();presentationEpoch=frame.epoch;presentationClock=Math.min(live.now(),frame.latestAt+250);}else presentationClock=Math.min(presentationClock+dt*1000,frame.latestAt+250);if(presentationClock-250<frame.oldestAt)presentationClock=Math.min(live.now(),frame.latestAt+250);const stale=frame.stale;frame=poseBuffer.sample(presentationClock);frame.stale=stale;}
   if(!frame){window.__simulationStatus='waiting';simulationNotice.hidden=false;simulationNotice.textContent='Получаем состояние редакции…';return;}
   try{simulationMeta=applySimulation(simulationGraph,frame);window.__simulationStatus=frame.stale?'stale':'live';simulationNotice.hidden=!frame.stale;simulationNotice.textContent='Связь с редакцией задерживается';}
   catch(e){window.__simulationStatus='incompatible';simulationNotice.hidden=false;simulationNotice.textContent='Версия сцены изменилась. Обновите страницу.';window.__err=String(e);return;}
   for(const k of Object.keys(DESKS)){const cue=simulationMeta?.audio?.[k];sound.phone(k,frame.stale?-1:(cue?.t??-1),cue?.onFor??2,cue?.cycle??6);}
+  if(frame.stale)animationAudio.reset();
+  else eachPerson((ed,id)=>animationAudio.update(sampleAudioWitness(frame,id),dt));
+  window.__audioStream={version:simulationMeta.soundVersion||null,available:Object.values(simulationMeta.actors||{}).filter(v=>v.sound).length,stale:frame.stale};
   // Pixel size of smoke is camera-dependent presentation, never server state.
   for(const o of simulationGraph.nodes)for(const m of o.material?[].concat(o.material):[])
     if(m.uniforms?.uPPU)m.uniforms.uPPU.value=r.domElement.height/((cam.top-cam.bottom)/cam.zoom);
@@ -726,8 +733,8 @@ window.__simulationTick=(dt,at)=>{
 };
 let capturePrevious=null;
 window.__simulationCapture=()=>{
-  const actors={};eachPerson((ed,id)=>actors[id]={status:ed.status(),social:ed.socialStatus(),performancePose:ed.performancePose(),conversation:ed.conversationStatus(),moving:ed.moving(),knob:ed.knobTurn()});
-  const snapshot=captureSimulation(simulationGraph,{actors,audio:simulationAudio,worldSeq:latest?.seq,gaze:gaze?.status()});
+  const actors={};eachPerson((ed,id)=>actors[id]={status:ed.status(),social:ed.socialStatus(),sound:ed.audioState(),performancePose:ed.performancePose(),conversation:ed.conversationStatus(),moving:ed.moving(),knob:ed.knobTurn()});
+  const snapshot=captureSimulation(simulationGraph,{actors,soundVersion:1,audio:simulationAudio,worldSeq:latest?.seq,gaze:gaze?.status()});
   const next=snapshot.states.map(s=>JSON.stringify(s));
   const out=capturePrevious?{protocol:snapshot.protocol,changes:snapshot.states.flatMap((s,i)=>next[i]===capturePrevious[i]?[]:[[i,s]]),meta:snapshot.meta}:snapshot;
   capturePrevious=next;return out;
