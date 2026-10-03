@@ -15,9 +15,21 @@ export function voiceMood(intent,style=''){
 export function createAnimationAudio(sound){
  const previous=new Map();let enabled=false;
  function reset(){previous.clear();}
+ function voice(s){const id=s.id;
+  const speech=s.speech||s.vocal;
+  if(speech&&speech.role==='speaker'&&speech.active&&!s.clapping){
+   const actor=voiceOf(id);if(['editor','columnist','reporter','heroine'].includes(actor)){
+    const mood=voiceMood(speech.intent,speech.style);if((mood==='surprise'&&speech.elapsed>2.5)||(mood==='displeasure'&&speech.elapsed>3))return;const key=id+':voice:'+speech.key+':'+mood;
+    if(mood==='surprise'||mood==='displeasure')sound.clip(key,actor+'-'+mood,{offset:Math.max(0,speech.elapsed||0),gain:.9});
+    else sound.loop(id+':voice:'+mood,actor+'-'+mood,{offset:(speech.index*7.137+id.length*1.319)%17,gain:.9,resume:true});
+   }
+  }
+ }
  function update(s,dt){
   if(!s)return;const old=previous.get(s.id);previous.set(s.id,s);
   if(old&&old.seq!==s.seq)sound.stopActor?.(s.id);
+  // Clip wraps, interpolation priming and phrase boundaries must not restart speech.
+  if(enabled&&s.rendered&&!s.replaying&&old&&old.seq===s.seq)voice(s);
   if(!enabled||!s.rendered||s.replaying||s.discontinuity||old?.discontinuity||!old||old.seq!==s.seq||s.time<=old.time||s.time-old.time>.3||dt<=0||dt>.25)return;
   const id=s.id,shot=(tag,asset,gain=1)=>sound.shot(id+':'+tag,asset,{gain});
   const crossed=(name,t)=>{const a=s.actions[name],b=old.actions[name];return a&&b&&a.weight>.55&&b.weight>.3&&(a.time>=b.time?(b.time<t&&a.time>=t):(a.duration>0&&b.time>a.duration*.7&&a.time<a.duration*.3&&(t>b.time||t<=a.time)));};
@@ -49,14 +61,7 @@ export function createAnimationAudio(sound){
    const bite={fr_1:85,fr_2:77,fl_1:75,fl_2:57}[name];if(bite&&hit(bite))shot('bite','bite',.6);
    if(name==='soup_stop'&&hit(21))shot('clink','clink',.6);
   }
-  const speech=s.speech||s.vocal;
-  if(speech&&speech.role==='speaker'&&speech.active&&!s.clapping){
-   const actor=voiceOf(id);if(['editor','columnist','reporter','heroine'].includes(actor)){
-    const mood=voiceMood(speech.intent,speech.style);if((mood==='surprise'&&speech.elapsed>2.5)||(mood==='displeasure'&&speech.elapsed>3))return;const key=id+':voice:'+speech.key+':'+mood;
-    if(mood==='surprise'||mood==='displeasure')sound.clip(key,actor+'-'+mood,{offset:Math.max(0,speech.elapsed||0),gain:.9});
-    else sound.loop(key,actor+'-'+mood,{offset:(speech.index*7.137+id.length*1.319)%17,gain:.9});
-   }
-  }
+
  }
  return {begin(active){const next=!!active&&sound.on;if(next!==enabled)reset();enabled=next;if(!next)reset();sound.beginFrame(next);},update,end(){sound.endFrame();},reset};
 }
