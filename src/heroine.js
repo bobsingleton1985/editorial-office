@@ -1,3 +1,4 @@
+import {createHeroineGazeProfile} from './heroine-gaze.mjs';
 import * as THREE from 'three';
 import {heroineProps} from './heroine-props.js';
 import {createHeroineLunch} from './heroine-lunch.js';
@@ -31,5 +32,5 @@ export async function prepareHeroine(load,shared,id,assetBase='',overrides={}){
   const gestureNames={"HI-02":"stand_idle_02",tbl_to_chair:'tbl_to_chair',chair_to_tbl:'chair_to_tbl',sit_idle_02:'sit_idle_02'};
   const gestures={animations:repertoireClips.filter(e=>gestureNames[e.id]).map(e=>{const c=e.clip.clone();c.name=gestureNames[e.id];return c;})};
   const [bottle,glass,cfg]=await Promise.all([load(H+'key-props-bottle.glb'),load(H+'key-props-glass.glb'),fetch(H+'pour-grip-v04.json').then(r=>r.json())]);
-  return {gltf:{scene:model.scene,animations},extra:{id,faceAxis:[0,0,1],home:'benchN',actorScale:HEROINE_SCALE,shared:{...shared,coffee:null,drinkL:null,whisky:null,whiskyRec:null},lunch:{clips:{fork,soup,stir},plate:plate.scene,bowl:part('P_bowl'),soup:part('P_soup0'),utensils},nativeClips,gestures,gestureSeated:['sit_idle_02','tbl_to_chair','chair_to_tbl'],restPools:heroineRestPools,social:createHeroineSocial(allClips),nativePropsFactory:args=>heroineProps(args,{bottle,glass,cfg},shared),lunchFactory:createHeroineLunch,lunchDishes:['soup','sandwich'],drunk:false}};
+  return {gltf:{scene:model.scene,animations},extra:{gazeProfile:createHeroineGazeProfile(model.scene,repertoireBank),id,faceAxis:[0,0,1],home:'benchN',actorScale:HEROINE_SCALE,shared:{...shared,coffee:null,drinkL:null,whisky:null,whiskyRec:null},lunch:{clips:{fork,soup,stir},plate:plate.scene,bowl:part('P_bowl'),soup:part('P_soup0'),utensils},nativeClips,gestures,gestureSeated:['sit_idle_02','tbl_to_chair','chair_to_tbl'],restPools:heroineRestPools,social:createHeroineSocial(allClips),nativePropsFactory:args=>heroineProps(args,{bottle,glass,cfg},shared),lunchFactory:createHeroineLunch,lunchDishes:['soup','sandwich'],drunk:false}};
 }

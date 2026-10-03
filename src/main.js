@@ -338,7 +338,7 @@ async function loadPerson(id, e) {
     if(id==='heroine') {
       const her=await prepareHeroine(path=>get(path).then(b=>ld().parseAsync(b,'')),shared,id,CHAR_BASE+'assets/heroine-v77/',{sitIdle:CHAR_BASE+'assets/heroine-seat-clearance-v80/clip-sit_idle-hands-v02.glb',repertoireBank:CHAR_BASE+'assets/heroine-repertoire-20261003-v01/heroine-repertoire-v01.glb'});
       her.extra.socialOccupancy=id=>socialSeatOccupancy(charsOf(latest),people,id);
-      her.extra.socialWorld=()=>charsOf(latest);her.extra.talk=talk;her.extra.musicPlaying=()=>sched?.current==='jazz';
+      her.extra.socialWorld=()=>charsOf(latest);her.extra.talk=talk;her.extra.gaze=gaze;her.extra.musicPlaying=()=>sched?.current==='jazz';
       her.extra.socialPartner=id=>{const ed=people[id]?.ed,h=ed?.holder;if(!h)return null;h.updateMatrixWorld(true);const face=ed.root.getObjectByName('head')?.getWorldPosition(new THREE.Vector3());return {x:h.position.x,z:h.position.z,face:face?{x:face.x,y:face.y,z:face.z}:null};};
       ed=createEditor(sc,officeScene,her.gltf,base.tracks,her.extra);
     } else {
@@ -369,7 +369,7 @@ function reportExecution(dt) {
   const active=pairs.length>0&&pairs.every(p=>Object.values(p.actors).every(a=>a.ready));
   reportElapsed=active&&signature===reportPrevious&&dt<0.25?Math.min(2000,reportElapsed+dt*1000):0;reportPrevious=signature;
   if(now-reportSend<1000)return;reportSend=now;
-  const actors={};eachPerson((ed,id)=>{const s=ed.socialStatus();actors[id]={meals:s.meals,mealDurations:s.mealDurations,moneyWitness:s.moneyWitness,moneyWorkMs:s.moneyWorkMs,loaded:s.loaded,seq:s.seq,activity:s.activity,executing:s.executing,executionEnd:s.executionEnd,mode:s.mode,seat:s.seat,x:s.x,z:s.z,profiles:s.profiles,styles:s.styles,conversationReady:s.ready,conversationId:s.conversationId,sleepAvailable:s.sleepAvailable,sleep:s.sleep,diningChairClear:s.diningChairClear,readingAvailable:s.readingAvailable};});
+  const actors={};eachPerson((ed,id)=>{const s=ed.socialStatus();actors[id]={performanceDurations:s.performanceDurations,performanceWitness:s.performanceWitness,meals:s.meals,mealDurations:s.mealDurations,moneyWitness:s.moneyWitness,moneyWorkMs:s.moneyWorkMs,loaded:s.loaded,seq:s.seq,activity:s.activity,executing:s.executing,executionEnd:s.executionEnd,mode:s.mode,seat:s.seat,x:s.x,z:s.z,profiles:s.profiles,styles:s.styles,conversationReady:s.ready,conversationId:s.conversationId,sleepAvailable:s.sleepAvailable,sleep:s.sleep,diningChairClear:s.diningChairClear,readingAvailable:s.readingAvailable};});
   const styles=[...new Set(Object.values(actors).flatMap(a=>a.styles||[]))];
   live.execution({pairs:pairs.map(p=>({...p,elapsedMs:reportElapsed})),capabilities:{actors,styles}});reportElapsed=0;
 }
@@ -563,7 +563,7 @@ function step(dt, draw = true) {
     sched.update(); bulletinTV?.update(dt); tv.update(dt);
     if (tvMat) tvMat.emissiveIntensity = 1 + tv.uniforms.flicker.value - 0.5 * tv.uniforms.snow.value;
   }
-  { const now = window.__simNow ?? live.now(); gaze?.beginFrame(); talk?.beginFrame(); eachPerson((ed) => ed.update(dt, now)); talk?.flush(); gaze?.flush(); shared?.applyProps(); tvMusic(now); }
+  { const now = window.__simNow ?? live.now(); gaze?.beginFrame(); talk?.beginFrame(); eachPerson((ed) => ed.update(dt, now, draw)); talk?.flush(); gaze?.flush(); shared?.applyProps(); tvMusic(now); }
   talk?.update((cam.top - cam.bottom) / cam.zoom);                  // bubbles over the heads (invitations)   // __simNow: automated checks run on their own clock
   typewriters?.update(dt);                                      // paper feed of the desk typewriters
   if (!draw) return;

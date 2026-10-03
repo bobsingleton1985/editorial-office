@@ -43,7 +43,7 @@ export function createColleagueGaze({ people, now, office, params = {} }) {
     const d=b.pos.clone().sub(a.pos), distance=d.length(), flat=Math.hypot(d.x,d.z);
     const yaw=wrap(Math.atan2(d.x,d.z)-Math.atan2(a.forward.x,a.forward.z))*DEG;
     if(distance<0.7 || distance>config.distance || Math.abs(yaw)>config.maxYaw || Math.abs(Math.atan2(d.y,flat)*DEG)>18) return null;
-    const options=TURNS.filter(t=>t.mode===a.mode);if(!options.length)return null;
+    const options=players.get(id).turns.filter(t=>t.mode===a.mode);if(!options.length)return null;
     const chosen=turn || options.reduce((best,t)=>Math.abs(t.bearing-yaw)<Math.abs(best.bearing-yaw)?t:best,options[0]);
     if(Math.abs(chosen.bearing-yaw)>config.angleTolerance) return null;
     ray.set(a.pos,d.normalize());ray.near=0.08;ray.far=distance-0.2;
@@ -96,13 +96,18 @@ export function createColleagueGaze({ people, now, office, params = {} }) {
         if(candidates.length) start(id,candidates[Math.floor(hash(id+Math.floor(t)+'colleague')*candidates.length)],'nearby'); }
     }
   }
-  function attach(id, B, holder, social, policy) {
-    if(!['columnist','reporter'].includes(id))return null;
+  function attach(id, B, holder, social, policy, profile=null) {
+    if(!['columnist','reporter','newspaper_editor','heroine'].includes(id))return null;
+    // HER uses its own transferred tracks and source hierarchy, never the male rig.
+    if(id==='heroine'&&!profile)return null;
+    const turns=profile?.turns||TURNS;
+    const source=profile?.source||social?.assets?.[ASSET];
+    if(!source?.scene)return null;
     const boneNames=['neck_01','head'], bones=boneNames.map(n=>B[n]);
     if(bones.some(b=>!b))return null;
     const bank={};
-    for(const animation of [SOURCE,SEATED_SOURCE]) {
-    const clip=social?.assets?.[ASSET]?.animations.find(c=>c.name===animation);
+    for(const animation of new Set(turns.map(t=>t.animation))) {
+    const clip=source.animations.find(c=>c.name===animation);
     if(!clip){log({id,blocked:'accepted source missing',animation});return null;}
     const tracks=boneNames.map(n=>clip.tracks.find(t=>t.name.endsWith(n+'.quaternion')));
     if(tracks.some(t=>!t)) return null;
@@ -110,7 +115,7 @@ export function createColleagueGaze({ people, now, office, params = {} }) {
     // Authored mask in the source's upright body frame. This preserves its
     // recorded head direction when the current spine leans over a typewriter.
     // No target-dependent steering: the colleague only selects a matching take.
-    const sourceRoot=social.assets[ASSET].scene, original=[];
+    const sourceRoot=source.scene, original=[];
     sourceRoot.traverse(o=>original.push([o,o.position.clone(),o.quaternion.clone(),o.scale.clone()]));
     for(const tr of clip.tracks){const match=/^(.*)\.(quaternion|position|scale)$/.exec(tr.name);if(!match)continue;
       const node=sourceRoot.getObjectByName(match[1]);if(node)node[match[2]].fromArray(tr.createInterpolant().evaluate(0));}
@@ -122,7 +127,7 @@ export function createColleagueGaze({ people, now, office, params = {} }) {
     bank[animation]={samplers,parentReference,sourceYaw};
     }
     const saved=['spine_03',...boneNames].map(n=>B[n]).filter(Boolean), clean=saved.map(b=>b.quaternion.clone());let dirty=false;
-    const player={policy,seen:new Map(),restore(){if(dirty){saved.forEach((b,i)=>b.quaternion.copy(clean[i]));dirty=false;}},
+    const player={policy,turns,seen:new Map(),restore(){if(dirty){saved.forEach((b,i)=>b.quaternion.copy(clean[i]));dirty=false;}},
       capture(){saved.forEach((b,i)=>clean[i].copy(b.quaternion));dirty=true;},
       post(){
         const s=state(id), a=s.active, pol=policy();if(!config.enabled){s.active=null;s.pending=null;return;}if(!a)return;
@@ -145,7 +150,7 @@ export function createColleagueGaze({ people, now, office, params = {} }) {
         }
         holder.updateMatrixWorld(true);
         // Reject unsafe base-pose combinations; never distort the authored turn to fit.
-        const f=new THREE.Vector3(0,-1,0).applyQuaternion(B.head.getWorldQuaternion(new THREE.Quaternion()));
+        const f=new THREE.Vector3().fromArray(profile?.faceAxis||[0,-1,0]).applyQuaternion(B.head.getWorldQuaternion(new THREE.Quaternion()));
         if(bodyForward && Math.abs(wrap(Math.atan2(f.x,f.z)-Math.atan2(bodyForward.x,bodyForward.z))*DEG)>config.maxYaw+1) {
           bones.forEach((b,i)=>b.quaternion.copy(base[i]));holder.updateMatrixWorld(true);s.active=null;log({at:t,id,blocked:'animated base exceeds safe final yaw'}); }
       }};
