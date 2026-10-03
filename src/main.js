@@ -48,7 +48,7 @@ const PHONE = 'assets/phone-v02.glb';                                     // 195
 const PHONE_CLIPS = CHAR_BASE + 'assets/editor2A-phoneL-web-v01.glb';    // add-on: taking the handset (left hand, the nearest), talking seated and standing, hanging up
 const LUNCH = Q.get('lunch') ?? CHAR_BASE + 'assets/editor2A-lunch-web-v02.glb';   // add-on: dishes, utensils, the eating clips
 const WALKS = Q.get('walks') ?? CHAR_BASE + 'assets/editor2A-walks-web-v02.glb';   // add-on: Mixamo Walking1 (his walk since 29.09) + the drunk walk
-const WHISKY = Q.get('whisky') ?? CHAR_BASE + 'assets/whisky-solo-v01.bin';     // whisky alone: the approved page v7 recorded (bar and desk), whisky.js
+const WHISKY = Q.get('whisky') ?? CHAR_BASE + 'assets/whisky-solo-v02.bin';     // whisky alone: the approved page v7 recorded (bar and desk), whisky.js
 const FEETUP = CHAR_BASE + 'assets/editor2A-feetup-web-v01.glb';     // add-on: feet on the desk (MC Seated SitChairTableFeetUp + the chair's track), «Ноги на стол» v5
 const WRITE = CHAR_BASE + 'assets/editor2A-write-web-v01.glb';       // add-on: writing by hand (MC Seated WriteLetter + the pack's pencil and sheet), «Пишет от руки» v6
 const JAZZ = CHAR_BASE + 'assets/editor2A-jazz-web-v01.glb';         // add-on: listening to music at the TV, standing (5 loops), «Джаз у телевизора» v4
@@ -335,7 +335,8 @@ async function loadPerson(id, e) {
     const extra = { shared, id, chairBack: Number.isFinite(e.chairBack) ? Math.max(-0.2, Math.min(0.2, e.chairBack)) : 0, home: e.home, mouth: e.mouth, phoneMouth: e.phoneMouth,
       social:base.social,socialPartner:(id)=>{const ed=people[id]?.ed,h=ed?.holder;if(!h)return null;h.updateMatrixWorld(true);const head=ed.root.getObjectByName('head'),face=head?.getWorldPosition(new THREE.Vector3());return {x:h.position.x,z:h.position.z,face:face?{x:face.x,y:face.y,z:face.z}:null};},
       socialOccupancy:id=>socialSeatOccupancy(charsOf(latest),people,id),socialWorld:()=>charsOf(latest),talk, typeClip: base.typeClip, gestures: base.gestures, smoke: await parse(base.sbuf), lunch: await parse(base.lbuf), walks: await parse(base.wkbuf), feetup: base.feetup, write: await parse(base.wrbuf), jazz: base.jazz, tvswitch: base.tvswitch, dance: base.dance, camera: cam, renderer: r,
-      ...(Q.has('drunk') ? { drunk: Q.get('drunk') !== '0' } : {}),
+      ...(e.walkPolicy === 'mixamo-only' ? { drunk: false } : {}),
+      ...(Q.has('drunk') && e.walkPolicy !== 'mixamo-only' ? { drunk: Q.get('drunk') !== '0' } : {}),
       ...(base.phoneClips ? { phones: shared.phonesFor(id), phoneClips: base.phoneClips } : {}) };
     const ed = createEditor(sc, officeScene, { scene: bodyG.scene, animations: clips.animations }, base.tracks, extra);
     if (ed.lunchGroup) { L.attach(ed.lunchGroup); SC.addDynamic(ed.lunchGroup); } for (const g of ed.writeGroups) { L.attach(g); SC.addDynamic(g); }

@@ -25,7 +25,7 @@ const BITE = { bg_1: { sw: 18, mouth: [6, 14, 20, 26] }, bg_2: { sw: 26, mouth: 
 const NOOD = { nd_1: { hump: [49, 53, 59, 63], sw: 61, bite: [61, 72], mouth: [58, 66, 73, 79] }, nd_2: { hump: [33, 37, 43, 47], sw: 45, bite: [45, 58], mouth: [42, 50, 61, 67] } };   // to the mouth over 8 frames, not 5 (owner: too fast)
 const SWEET = { fr_start: { s: 'r', g: 49, v: 83 }, fr_1: { s: 'r', g: 45, v: 85 }, fr_2: { s: 'r', g: 37, v: 77 }, fl_start: { s: 'l', g: 25, v: 53 }, fl_1: { s: 'l', g: 49, v: 75 }, fl_2: { s: 'l', g: 17, v: 57 } };
 // the chopsticks to the mouth and back are slowed down (owner: «too fast»): clip frames [a, b] play at speed k, easing over 4 frames
-const SLOW = { nd_1: [45, 85, 0.3], nd_2: [35, 70, 0.3],   // chopsticks: from lifting the noodles, to the mouth and back
+const SLOW = { steak: [40, 72, 0.35], soup_eat: [13, 54, 0.35], nd_1: [45, 85, 0.3], nd_2: [35, 70, 0.3],   // chopsticks: from lifting the noodles, to the mouth and back
   bg_1: [4, 30, 0.35], bg_2: [10, 38, 0.35], bg_3: [14, 41, 0.35] };   // burger and sandwich: to the mouth, the bite, back
 function makeWarp(n, cd) {
   const w = SLOW[n]; if (!w) return { real: cd, clip: (x) => x, toReal: (x) => x };
@@ -312,5 +312,5 @@ export function createLunch({ root, B, addon, strip, seatBase, S, clipsOut }) {
     dbg.tip = near ? (D[d]?.centerMk ? L(D[d].centerMk) : near).toArray() : null;
     if (D[d]?.centerMk && tip) { const c = L(D[d].centerMk).sub(mouthPoint()); const fw = mouthFwd(); c.y = 0; dbg.lat = Math.abs(c.x * fw.z - c.z * fw.x); } else dbg.lat = null;
   }
-  return { dbg, group: TF, clips: clipsOut, dur, begin, end, mix, post, done, active: () => !!meal, dish: () => meal?.dish || null, seat: () => meal?.seat || null, probeGrab, setFrame };
+  return { mealDuration: (dish) => timeline(dish).end + XF, dbg, group: TF, clips: clipsOut, dur, begin, end, mix, post, done, active: () => !!meal, dish: () => meal?.dish || null, seat: () => meal?.seat || null, probeGrab, setFrame };
 }
