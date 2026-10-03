@@ -18,7 +18,7 @@ const valid = (t) => t && Number.isFinite(t.at) && typeof t.to === 'string' && t
 
 export function createTalk({ scene, addDynamic, chars, people, now, show = () => true }) {
   const tex = {}, bub = {}, st = {}, poses = new Map(), staged = new Map();
-  let frameChars=null,frameHeads=null,frameTime=null,lastTime=null;
+  let frameChars=null,frameHeads=null,frameTime=null;
   const readChars=()=>frameChars??chars();
   function reset(id) {
     const p=poses.get(id);
@@ -30,7 +30,9 @@ export function createTalk({ scene, addDynamic, chars, people, now, show = () =>
   function beginFrame() {
     for(const id of poses.keys())reset(id);
     staged.clear();frameChars=null;frameHeads=null;frameTime=null;
-    const t=now();if(lastTime!==null && (t<lastTime || t-lastTime>2000))for(const id of Object.keys(st))delete st[id];lastTime=t;
+    // Relay clock corrections and hidden-tab catch-up do not end a conversation.
+    // Keep the bounded gaze transition; post() validates current pair/target/role.
+    // reset() above still restores every applied bone correction before the mixer.
   }
   function capture(id,B) {
     const bones=['spine_03','neck_01','head'].map(n=>B[n]).filter(Boolean);

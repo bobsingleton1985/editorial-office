@@ -7,7 +7,7 @@ import {turnPlan,finishTurnPlan,sampleTurnPlan} from './social-turns.js';
 import * as THREE from 'three';
 import { socialAlias } from './social-playback.js';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
-import { S, DESKS, BENCH, SPOTS, CHAIR_REST, CHAIR_TUCKED, TV_KNOB } from './layout.js';
+import { S as ROOM_S, DESKS, BENCH, SPOTS, CHAIR_REST, CHAIR_TUCKED, TV_KNOB } from './layout.js';
 import { createSmoking } from './smoke.js';
 import { SIP } from './coffee.js';
 import { createLunch, DISHES, DISH_NAME } from './lunch.js';
@@ -42,6 +42,7 @@ const deg = THREE.MathUtils.degToRad;
 // One person of the newsroom. extra: { shared (office-shared.js), id, chairBack, smoke, lunch, gestures, drinkL: add-on gltfs, typeClip, camera, renderer }.
 // gltf = {scene, animations}: the body of this person and the shared clips (one skeleton «MOTUS | rig» for everybody — the clips play by bone names).
 export function createEditor(scene, office, gltf, chairTracks, extra = {}) {
+  const S = extra.actorScale ?? ROOM_S;
   const root = gltf.scene, Bn = {}, ID = extra.id || 'editor', SH = extra.shared, BACK = +extra.chairBack || 0;   // BACK: his chair stands this far further from the desk (m, pack)
   const holder = new THREE.Group(), body = new THREE.Group(); body.scale.setScalar(S);
   holder.add(body); body.add(root); scene.add(holder); holder.name = 'PERSON ' + ID;
@@ -214,7 +215,7 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {
   // lunch (director's activity 'lunch', on the bench at the common table): the approved eating page, one dish per decision
   let lunch = null;
   if (extra.lunch) {
-    try { const out = {}; lunch = createLunch({ root, B: Bn, addon: extra.lunch, strip: stripClip, seatBase, S, clipsOut: out }); scene.add(lunch.group);
+    try { const out = {}; lunch = (extra.lunchFactory || createLunch)({ root, B: Bn, addon: extra.lunch, strip: stripClip, seatBase, S, clipsOut: out }); scene.add(lunch.group);
       const sb = seatBase, ci = Math.cos(sb.th), si = Math.sin(sb.th), invSB = P(-(sb.x * ci - sb.z * si), -(sb.x * si + sb.z * ci), -sb.th);
       lunch.frameOf = (T) => comp(T, invSB);
       lunch.probeGrab(mixer, () => lunch.frameOf(holderPose()));
@@ -226,6 +227,24 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {
   const WR = SH.whisky && SH.whiskyRec ? SH.whiskyRec : null, WP = WR ? SH.whisky : null;
   if (WR) { try { const has = (n) => !!Bn[n]; layer('wh_bar', bakedClip(WR, 'bar', has), false); layer('wh_desk', bakedClip(WR, 'desk', has), false); A.wh_bar.paused = A.wh_desk.paused = true; }
     catch (e) { console.warn('whisky clips unavailable:', e); } }
+  const native={};for(const e of extra.nativeClips||[]){const c=stripClip('native_'+e.id,e.clip,e.seated?seatBase:'first');native[e.id]={...e,...c};layer('native_'+e.id,c.clip,false);A['native_'+e.id].paused=true;}
+  const nativeProps=extra.nativePropsFactory?.({B:Bn,root,holder,scene,office,S});let nativeState=null;
+  function nativeFrame(dt){
+    const id=cur?.activity?.startsWith('her:')?cur.activity.slice(4):Object.keys(native).find(id=>native[id].activity===cur?.activity),e=native[id];
+    const ready=e&&(e.seated?ch.mode==='seated'&&ch.seat?.startsWith('bench'):ch.mode==='idle'&&!ch.seat);
+    if(!ready){
+      const hadWeight=Object.keys(W).some(k=>k.startsWith('native_')&&W[k].cur>0);
+      for(const k in W)if(k.startsWith('native_'))W[k].cur=W[k].target=0;
+      if(hadWeight&&['idle','seated'].includes(ch.mode)){const base=ch.seat?'sit_idle':'stand_idle';W[base].cur=W[base].target=1;}
+      nativeState=null;return;
+    }
+    if(!nativeState||nativeState.seq!==cur.seq||nativeState.id!==id)nativeState={id,seq:cur.seq,t:0};else nativeState.t+=dt;
+    const t=nativeState.t,d=e.clip.duration;
+    const w=Math.min(1,t/.3,Math.max(0,(d+.3-t)/.3));
+    for(const k in W){W[k].cur=W[k].target=k==='native_'+id?w:k===(e.seated?'sit_idle':'stand_idle')?1-w:0;}
+    A['native_'+id].time=Math.min(t,d-1e-6);A['native_'+id].paused=true;ch.motion=e.label;
+  }
+  function nativePost(){const e=nativeState&&native[nativeState.id],show=e&&nativeState.t<=e.clip.duration;nativeProps?.post(show?e.id:null,nativeState?.t||0,e?comp(holderPose(),inv(e.traj[0])):holderPose());}
   function fadeTo(name, t = FADE) { for (const k in W) W[k].target = k === name ? 1 : 0; W[name].rate = 1 / t; }
   function stepWeights(dt) { let sum = 0; for (const k in W) { const w = W[k]; w.cur += Math.sign(w.target - w.cur) * Math.min(Math.abs(w.target - w.cur), dt * (w.rate || 3)); sum += w.cur; }
     for (const k in W) A[k].setEffectiveWeight(sum > 0 ? W[k].cur / sum : 0); }
@@ -376,14 +395,19 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {
     if(ch.blockedGoal&&['idle','seated'].includes(ch.mode)&&!ch.g&&ch.clk>=ch.retryAt){const q=ch.blockedGoal;syncBoxes();command(q);}
     // settle: hands go back from the keys to the desk, then he may stand up
     if (ch.mode === 'settle') { if ((!W.type || W.type.cur <= 0.02) && !sipping() && !eating() && !ch.g) { ch.mode = 'seated'; const q = ch.queue; ch.queue = null; if (q) command(q); } }
-    if (ch.mode === 'seated' && W.type) {                              // switch between typing and resting without standing up
+    if (ch.mode === 'seated') {                              // switch between typing and resting without standing up
       const want = seatedLoop();
       if (W[want].target < 1) { if (want === 'type') { A.type.reset(); A.type.play(); } fadeTo(want, 0.9); }
       ch.motion = want === 'type' ? 'печатает' : 'сидит';
     }
     if (lunch) {
+      if(lunch.autoComplete&&lunch.active()&&(ch.activity!=='lunch'||lunch.done(ch.lunchT))){
+        ch.lunchSeq=cur?.seq;lunch.end();
+        for(const k in W)if(k.startsWith('L'))W[k].target=W[k].cur=0;
+        if(['seated','settle'].includes(ch.mode))W.sit_idle.target=W.sit_idle.cur=1;
+      }
       const bench = ch.seat && ch.seat.startsWith('bench') ? ch.seat : (ch.mode === 'trans' && ch.trans.kind === 'sit' && ch.trans.seatId.startsWith('bench') ? ch.trans.seatId : null);
-      if (bench && ch.activity === 'lunch' && (!lunch.active() || lunch.seat() !== bench)) { lunch.begin(DISHES[((cur?.seq ?? 0) % DISHES.length + DISHES.length) % DISHES.length], lunch.frameOf(SEATS[bench].pose), bench); ch.lunchT = 0; }
+      if (bench && ch.activity === 'lunch' && (!lunch.autoComplete||ch.lunchSeq!==cur?.seq) && (!lunch.active() || lunch.seat() !== bench)) { lunch.begin((extra.lunchDishes || DISHES)[((cur?.seq ?? 0) % (extra.lunchDishes || DISHES).length + (extra.lunchDishes || DISHES).length) % (extra.lunchDishes || DISHES).length], lunch.frameOf(SEATS[bench].pose), bench); ch.lunchT = 0; }
       if (lunch.active() && !(ch.seat === lunch.seat() || (ch.mode === 'trans' && (ch.trans.seatId === lunch.seat() || ch.trans.kind === 'stand')))) lunch.end();   // walked away: the table is cleared
       if (lunch.active() && ch.seat === lunch.seat() && (ch.mode === 'seated' || ch.mode === 'settle')) {
         ch.lunchT += dt;
@@ -791,7 +815,7 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {
   const readPermitted = () => readRequested() && ch.mode==='idle' && !ch.seat && !ch.g && !ch.queue && !ch.hold && !ch.blockedGoal && ch.speed===0 && !smoking?.active() && !ch.wh && dist(holderPose(),SPOTS.teletypeRead)<.2;
   const itemFocus = () => readRequested() || !!ch.g?.phone || eating() || sipping() || !!smoking?.active() || !!ch.wh || !!ch.g?.tv || !!ch.g?.segs.some(a => /^(write_|feet_|.*(scratch|neck|doze|lean))/.test(a.n));
   function frame(dt, ff) {
-    ch.clk += dt; ch.tAbs += dt; ch.socialAbs += dt; updateChar(dt); stepWeights(dt);
+    ch.clk += dt; ch.tAbs += dt; ch.socialAbs += dt; updateChar(dt); nativeFrame(dt); stepWeights(dt);
     if (smoking) smoking.pre(dt, smokeWant(), A);
     feetFrame(dt);
     { const d = ch.seat && SEATS[ch.seat].desk, M = d && mugL[d];                      // the left-hand mug follows the sip; before the first sip it stands at frame 1, after it at the last
@@ -811,7 +835,7 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {
       if (extra.talk) extra.talk.stage(ID, Bn, holder, typing() || eating() || sipping() || !!smoking?.active(), dt, !['idle','seated'].includes(ch.mode), itemFocus());   // invitations: look at each other, nod / shake
       if (lunch && lunch.active()) lunch.post(ch.lunchT, dt);
       if (mouth0) nudgeSips();
-      lidFrame(dt); hemFrame();
+      nativePost();lidFrame(dt); hemFrame();
       if (A.type && tw && ch.seat && SEATS[ch.seat].desk && W.type.cur > 0.6) {     // a letter on every fingertip strike
         const t1 = A.type.time, d = CL.type.clip.duration;
         for (const k of TYPE_KEYS) if ((t1 >= t0 && k > t0 && k <= t1) || (t1 < t0 && (k > t0 || k <= t1))) tw.key(SEATS[ch.seat].desk);
@@ -829,7 +853,7 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {
     for (let i = 0; i < n; i++) frame(1 / FPS, true);
     simT += sec;
     if (ch.mode === 'trans') A[ch.trans.clip].time = ch.trans.t;
-    snapWeights(); if (smoking) smoking.pre(0, smokeWant(), A); mixer.update(0); if (IK) { holder.updateMatrixWorld(true); armSave(); } holder.updateMatrixWorld(true); hemFrame();
+    snapWeights(); if (smoking) smoking.pre(0, smokeWant(), A); mixer.update(0); if (IK) { holder.updateMatrixWorld(true); armSave(); } holder.updateMatrixWorld(true); nativePost();hemFrame();
   }
   function apply(w, serverNow) {                      // w = {seq, chars: {id: {seq, from, cmd, at, state, …}}, chairs} (or the old {seq, editor, state})
     const e = w?.chars?.[ID] || (ID === 'columnist' || ID === 'editor' ? w?.editor : null); if (!e) return;
@@ -845,7 +869,7 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {
     ch.title = (/«(.+)»/.exec(e.label || '') || [])[1] || '';
     ch.activity = e.activity || (ch.work ? 'work' : ''); ch.coffeeT = 0; ch.fatigue = +e.fatigue || 0;
     if (lunch?.active()) {                             // a dish in front of him is eaten to the end (a new decision waits); a finished one is cleared
-      if (lunch.done(ch.lunchT)) { lunch.end(); ch.lunchT = 0; }
+      if (lunch.autoComplete || lunch.done(ch.lunchT)) { lunch.end(); ch.lunchT = 0; }
     } else ch.lunchT = 0;   // every decision starts its own coffee clock (live and late viewers alike)
     { const g = e.cmd?.seat || e.from?.seat; ch.goalDesk = g && SEATS[g] ? SEATS[g].desk : null; }
     // live viewer: he is already there (or on his way there) — go on from here; otherwise rebuild the start and catch up
@@ -882,16 +906,16 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {
     return cur?.social&&ch.g?.turn?ch.motion:atGoal?(cur?.label||ch.motion):ch.motion;
   }
   return {
-    id: ID, apply, update, holder,
+    id: ID, apply, update, holder, nativeGroups:nativeProps?[nativeProps.group]:[],
     conversationStatus:()=>{const t=ch.g?.turn;if(!t||!cur?.social||ch.g.wrapped)return null;const partner=extra.socialPartner?.(cur.social.partner);return {conversationId:t.id,turn:t.index,at:t.start,revision:t.index,role:t.role,speaker:t.speaker,listener:t.listener,phase:ch.socialAbs*1000<t.speechEnd?'gesture':'pause',source:t.source,targetActor:cur.social.partner,targetFace:partner?.face||null};}, SEATS, nav, chairs, fx: smoking ? smoking.fx : null, root,
     mugs: [], lunchGroup: lunch ? lunch.group : null, writeGroups: writing ? writing.groups : [], knobTurn: () => knobTurn,
     moving: () => ch.mode === 'walk' || ch.mode === 'turn' || ch.mode === 'trans' || !!ch.chairTail || !!smoking?.active() || sipping() || eating() || !!ch.g || ringing || !!ch.wh,
     socialStatus: () => {
       holder.updateMatrixWorld(true);const l=Bn.thigh_l.getWorldPosition(new THREE.Vector3()),r=Bn.thigh_r.getWorldPosition(new THREE.Vector3());
       const goal=cur?.cmd||cur?.from;const atGoal=goal?.seat?ch.seat===goal.seat:!!goal?.spot&&!!SPOTS[goal.spot]&&dist(holderPose(),SPOTS[goal.spot])<0.35;
-      const physicallyActing=ch.activity==='read_wire'?reading.status().ready:ch.activity==='smoke'?!!smoking?.active():ch.activity==='lunch'?eating():ch.activity==='whisky'?!!ch.wh:ch.activity==='phone'?!!ch.g?.phone:true;
+      const physicallyActing=(ch.activity?.startsWith('her:')||ch.activity?.startsWith('heroine_'))?!!nativeState&&nativeState.t<native[nativeState.id].clip.duration:ch.activity==='read_wire'?reading.status().ready:ch.activity==='smoke'?!!smoking?.active():ch.activity==='lunch'?eating():ch.activity==='whisky'?!!ch.wh:ch.activity==='phone'?!!ch.g?.phone:true;
       const forward=new THREE.Vector3(0,1,0).cross(new THREE.Vector3(r.x-l.x,0,r.z-l.z).normalize());
-      return {activity:ch.activity,executing:atGoal&&physicallyActing&&!!cur&&!ch.socialPending&&!ch.g?.social&&!ch.queue&&(ch.mode==='idle'||ch.mode==='seated'),seq:cur?.seq,conversationId:cur?.social?.id,loaded:socialLoaded,expression:(()=>{const t=ch.g?.turn,c=t?.choice;if(t?.role!=='speaker'||ch.g?.wrapped||!c?.intentEventId||!cur?.social||cur.social.intent?.revision!==c.intentRevision)return null;const style=extra.social.styles.find(s=>s.id===c.style),names=style?.entries.map(socialAlias)||[];if(!names.some(n=>A['g_'+n]?.getEffectiveWeight()>=.5))return null;return {id:c.intentEventId,intentRevision:c.intentRevision,intent:c.intent,style:c.style};})(),mode:ch.mode,seat:ch.seat,readingAvailable:reading.available,profiles:socialLoaded?['stand','teletype-standing',...(GEST.sit_idle_02&&GEST[socialAlias('talk-seated/SEAT-146')]?['desk-front']:[]),...(GEST.sit_idle_02&&GEST.tbl_to_chair&&GEST.chair_to_tbl&&GEST[socialAlias('talk-seated/SEAT-024')]?['bench-left','bench-right']:[])]:[],ready:socialLoaded&&!!cur?.social&&!!ch.g?.social&&!ch.g?.turn?.unavailable&&socialAtGoal()&&ch.activity==='conversation'&&(ch.mode==='idle'||ch.mode==='seated')&&!ch.queue&&!ch.hold&&!smoking?.active()&&!sipping()&&!eating()&&!ch.wh,
+      return {activity:ch.activity,executing:atGoal&&physicallyActing&&!!cur&&!ch.socialPending&&!ch.g?.social&&!ch.queue&&(ch.mode==='idle'||ch.mode==='seated'),seq:cur?.seq,conversationId:cur?.social?.id,loaded:socialLoaded||ID==='heroine'&&Object.keys(native).length>0,expression:(()=>{const t=ch.g?.turn,c=t?.choice;if(t?.role!=='speaker'||ch.g?.wrapped||!c?.intentEventId||!cur?.social||cur.social.intent?.revision!==c.intentRevision)return null;const style=extra.social.styles.find(s=>s.id===c.style),names=style?.entries.map(socialAlias)||[];if(!names.some(n=>A['g_'+n]?.getEffectiveWeight()>=.5))return null;return {id:c.intentEventId,intentRevision:c.intentRevision,intent:c.intent,style:c.style};})(),mode:ch.mode,seat:ch.seat,readingAvailable:reading.available,profiles:socialLoaded?['stand','teletype-standing',...(GEST.sit_idle_02&&GEST[socialAlias('talk-seated/SEAT-146')]?['desk-front']:[]),...(GEST.sit_idle_02&&GEST.tbl_to_chair&&GEST.chair_to_tbl&&GEST[socialAlias('talk-seated/SEAT-024')]?['bench-left','bench-right']:[])]:[],ready:socialLoaded&&!!cur?.social&&!!ch.g?.social&&!ch.g?.turn?.unavailable&&socialAtGoal()&&ch.activity==='conversation'&&(ch.mode==='idle'||ch.mode==='seated')&&!ch.queue&&!ch.hold&&!smoking?.active()&&!sipping()&&!eating()&&!ch.wh,
         x:holder.position.x,z:holder.position.z,ax:new THREE.Vector3(0,-1,0).applyQuaternion(Bn.head.getWorldQuaternion(new THREE.Quaternion())).x,az:new THREE.Vector3(0,-1,0).applyQuaternion(Bn.head.getWorldQuaternion(new THREE.Quaternion())).z,fx:forward.x,fz:forward.z,styles:socialLoaded?extra.social.styles.map(x=>x.id):[]};
     },
     status: () => ({reading:reading.status(), id: ID, activity: cur?.activity || '', label: executionLabel(), commandLabel:cur?.label||'', blocked:!!ch.blockedGoal, motion: ch.motion, gesture: ch.g ? ch.g.segs.map((a) => a.n).join('+') : null, mode: ch.mode, seat: ch.seat, source: cur?.source || '', smoke: smoking ? smoking.status() : null, lunch: lunch ? { dish: lunch.dish(), seat: lunch.seat(), t: +ch.lunchT.toFixed(2) } : null, coffee: coffee ? { t: +ch.coffeeT.toFixed(2), sip: ch.sip === null ? null : +ch.sip.toFixed(2), w: W.drink ? +W.drink.cur.toFixed(2) : 0 } : null, whisky: ch.wh ? { kind: ch.wh.kind, t: +ch.wh.t.toFixed(2) } : null, drunk: +(ch.dk || 0).toFixed(2) }),

@@ -1,3 +1,4 @@
+import {prepareHeroine} from './heroine.js';
 import {conversationGazeChars} from './social-turns.js';
 import {createNeedSender} from './need-control.js';
 import * as THREE from 'three';
@@ -329,6 +330,11 @@ const glbOf = (e) => (typeof e.glb === 'string' && /^assets\/[\w.-]+\.glb$/.test
 async function loadPerson(id, e) {
   const P = people[id] = { name: typeof e.name === 'string' ? e.name.slice(0, 40) : id, ed: null, loading: true }; order.push(id); showWho();
   try {
+    let ed;
+    if(id==='heroine') {
+      const her=await prepareHeroine(path=>get(path).then(b=>ld().parseAsync(b,'')),shared,id,CHAR_BASE+'assets/heroine-v77/');
+      ed=createEditor(sc,officeScene,her.gltf,base.tracks,her.extra);
+    } else {
     const url = glbOf(e), parse = (b) => (b ? ld().parseAsync(b.slice(0), '').catch(() => null) : null);
     const clips = await ld().parseAsync(base.buf.slice(0), '');                       // his own copy of the shared clips (the page edits clips in place)
     const bodyG = url && url !== CHAR ? await ld().parseAsync(await get(url), '') : clips;
@@ -338,8 +344,10 @@ async function loadPerson(id, e) {
       ...(e.walkPolicy === 'mixamo-only' ? { drunk: false } : {}),
       ...(Q.has('drunk') && e.walkPolicy !== 'mixamo-only' ? { drunk: Q.get('drunk') !== '0' } : {}),
       ...(base.phoneClips ? { phones: shared.phonesFor(id), phoneClips: base.phoneClips } : {}) };
-    const ed = createEditor(sc, officeScene, { scene: bodyG.scene, animations: clips.animations }, base.tracks, extra);
+    ed = createEditor(sc, officeScene, { scene: bodyG.scene, animations: clips.animations }, base.tracks, extra);
+    }
     if (ed.lunchGroup) { L.attach(ed.lunchGroup); SC.addDynamic(ed.lunchGroup); } for (const g of ed.writeGroups) { L.attach(g); SC.addDynamic(g); }
+    for(const g of ed.nativeGroups||[]){L.attach(g);SC.addDynamic(g);}
     L.attach(ed.holder); SC.addDynamic(ed.holder); if (ed.fx) SC.addDynamic(ed.fx); SC.markDirty();
     P.ed = ed; P.loading = false; if (!editor) { editor = ed; window.__editor = ed; }
     window.__people = people;
