@@ -118,7 +118,7 @@ export function createTalk({ scene, addDynamic, chars, people, now, show = () =>
     if (s.listenerWeight > 0 && speaker && B.head) {
       const me=headPos(people()[id].ed), you=headPos(speaker);
       if(!me || !you){s.attention.blocked='headMissing';return;}
-      const f=new THREE.Vector3(0,-1,0).applyQuaternion(B.head.getWorldQuaternion(new THREE.Quaternion()));
+      const f=new THREE.Vector3(...(people()[id]?.ed?.faceAxis||[0,-1,0])).applyQuaternion(B.head.getWorldQuaternion(new THREE.Quaternion()));
       const l=B.thigh_l?.getWorldPosition(new THREE.Vector3()), r=B.thigh_r?.getWorldPosition(new THREE.Vector3());
       const bf=l&&r?UP.clone().cross(r.sub(l).setY(0).normalize()):new THREE.Vector3(0,0,1).applyQuaternion(holder.getWorldQuaternion(new THREE.Quaternion()));
       const a=Math.atan2(f.x,f.z), body=Math.atan2(bf.x,bf.z), target=Math.atan2(you.x-me.x,you.z-me.z);
@@ -130,14 +130,14 @@ export function createTalk({ scene, addDynamic, chars, people, now, show = () =>
         const attentionWeight=s.listenerWeight*coneWeight;
         const chestYaw=seated&&B.spine_03?THREE.MathUtils.clamp(relative,-CHEST_MAX,CHEST_MAX)*attentionWeight:0;
         if(chestYaw)rotWorld(B.spine_03,new THREE.Quaternion().setFromAxisAngle(UP,chestYaw));
-        const headFace=new THREE.Vector3(0,-1,0).applyQuaternion(B.head.getWorldQuaternion(new THREE.Quaternion()));
+        const headFace=new THREE.Vector3(...(people()[id]?.ed?.faceAxis||[0,-1,0])).applyQuaternion(B.head.getWorldQuaternion(new THREE.Quaternion()));
         const headAngle=Math.atan2(headFace.x,headFace.z);
         const boundedTarget=body+chestYaw+THREE.MathUtils.clamp(relative-chestYaw,-HEAD_MAX,HEAD_MAX);
         const delta=Math.atan2(Math.sin(boundedTarget-headAngle),Math.cos(boundedTarget-headAngle))*attentionWeight;
         const yq=new THREE.Quaternion().setFromAxisAngle(UP,delta);
         if(B.neck_01)rotWorld(B.neck_01,new THREE.Quaternion().slerp(yq,0.4));
         rotWorld(B.head,new THREE.Quaternion().slerp(yq,B.neck_01?0.6:1));
-        const face=new THREE.Vector3(0,-1,0).applyQuaternion(B.head.getWorldQuaternion(new THREE.Quaternion()));
+        const face=new THREE.Vector3(...(people()[id]?.ed?.faceAxis||[0,-1,0])).applyQuaternion(B.head.getWorldQuaternion(new THREE.Quaternion()));
         const desiredPitch=Math.atan2(you.y-me.y,Math.hypot(you.x-me.x,you.z-me.z)), currentPitch=Math.atan2(face.y,Math.hypot(face.x,face.z));
         const mixedPosture=!!people()[id]?.ed?.status?.().seat!==!!people()[s.listenerTarget]?.ed?.status?.().seat;
         const pitchLimit=mixedPosture?.45:.2;

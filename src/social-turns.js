@@ -1,6 +1,6 @@
 import {styleAllowed,visualIntentAt} from './conversation-policy.mjs';
 import {sample as sampleGestures} from './gestures.js';
-import {SOCIAL_CATALOG,socialPlan,socialAlias} from './social-playback.js';
+import {SOCIAL_CATALOG,socialCatalogFor,socialActorKind,socialDuration,socialPlan,socialAlias} from './social-playback.js';
 import {conversationRepertoire} from './social-repertoire.js';
 import {chooseConversationVariant} from './conversation-variants.mjs';
 // Visual choreography only. No invented words, topics, feelings or semantic speaking events.
@@ -9,12 +9,19 @@ import {chooseConversationVariant} from './conversation-variants.mjs';
 // Listener uses the continuous native standing breathing idle. Explicit Jev styles
 // may include every reaction clip, so a disjoint idle prevents delayed-choice collisions.
 const CAPACITY=Math.max(...SOCIAL_CATALOG.styles.map(style=>style.entries.reduce((sum,id)=>sum+(SOCIAL_CATALOG.entries.find(e=>e.id===id)?.range?.[1]||0)-0.35,0)+0.35));
-const byAlias=new Map(SOCIAL_CATALOG.entries.filter(e=>e.available).map(e=>[socialAlias(e.id),e]));
-export function clipIdentity(name) {return byAlias.get(name)?.animation||name;}
+const HER_CAPACITY=Math.max(CAPACITY,...socialCatalogFor('heroine-her').styles.map(style=>{
+ const context={actorKind:'heroine-her',pose:style.profile==='stand'?'standing':style.profile,relation:style.relation||'neutral'};
+ const intent=style.allowedIntents.find(intent=>styleAllowed(style.id,intent,context.relation,context.pose,context));
+ const plan=intent&&socialPlan(style.id,style.id,0,name=>socialDuration('heroine-her',name),{...context,intent});
+ return plan?.T||0;
+}));
+const byAlias=new Map([...SOCIAL_CATALOG.entries,...socialCatalogFor('heroine-her').entries].filter(e=>e.available).map(e=>[socialAlias(e.id),e]));
+export function clipIdentity(name) {return byAlias.get(name)?.sourceIdentity||byAlias.get(name)?.animation||name;}
 // Two accepted standing idle takes from different native clips, disjoint from
 // the explicit social catalogue. They remain distinct during speech fades/pauses.
 export function conversationBase(social,actor) {
  const seated=(social.visual?.profiles?.[actor]||social.assignment?.playbackProfile||'stand')!=='stand'&&(social.visual?.profiles?.[actor]||social.assignment?.playbackProfile)!=='teletype-standing';
+ if(socialActorKind(social,actor)==='heroine-her')return seated?'sit_idle':'stand_idle';
  return [actor,social.partner].sort().indexOf(actor)===0?(seated?'sit_idle':'stand_idle'):(seated?'g_sit_idle_02':'g_stand_idle_02');
 }
 const hash=s=>{let v=0;for(const c of s)v=(v*31+c.charCodeAt(0))>>>0;return v;};
@@ -27,6 +34,10 @@ export function turnAt(social,actor,time,duration) {
  if(!social||!social.partner||!Number.isFinite(time))return null;
  const members=[actor,social.partner].sort(),seed=hash(social.id||members.join('|'));
  const anchor=social.firstParticipation;
+ // Both executors reconstruct the whole pair from one immutable registry. A HER
+ // executor must never infer its partner's timing from its own HER clip bank.
+ const kinds=Object.fromEntries(members.map(id=>[id,socialActorKind(social,id)]));
+ const pairCapacity=members.some(id=>kinds[id]==='heroine-her')?HER_CAPACITY:CAPACITY;
  // Mutual addressed standing idle establishes readiness before the server confirms the start.
  if(!Number.isFinite(anchor))return {id:social.id,index:-1,start:social.agreedAt??time,end:time+1,speaker:null,listener:null,role:'waiting',segs:[],T:1,offset:0,source:'visual_choreography',waiting:true};
  const events=(social.visual?.version===1?social.visual.events:[] )||[];
@@ -38,23 +49,25 @@ export function turnAt(social,actor,time,duration) {
   const chosen=choices.find(e=>e.actor===speaker&&!consumed.has(e.key)&&e.at+3000<=start);
   if(chosen)consumed.add(chosen.key);
   const profile=social.visual?.profiles?.[speaker]||'stand';
-  const context={...visualIntentAt(social,speaker,start),pose:profile==='stand'?'standing':profile};
-  const poolKey=[context.pose,context.intent,context.relation].join('|');
-  if(!pools.has(poolKey))pools.set(poolKey,conversationRepertoire(context,duration));
+  const context={...visualIntentAt(social,speaker,start),actorKind:kinds[speaker],pose:profile==='stand'?'standing':profile};
+  const fixedDuration=name=>socialDuration(kinds[speaker],name);
+  const poolKey=[context.actorKind,context.pose,context.intent,context.relation].join('|');
+  if(!pools.has(poolKey))pools.set(poolKey,conversationRepertoire(context,fixedDuration));
   const pool=pools.get(poolKey),phrases=[];
   const record=(variant,at)=>{history.push({actor:speaker,id:variant.id,identity:variant.identity});phrases.push({style:variant.id,identity:variant.identity,at,T:variant.plan.T});};
   // Preserve an explicit accepted actor choice exactly once so the actual expression
   // receipt still identifies the declared style. Automatic continuation uses the registry.
-  let speech=chosen&&styleAllowed(chosen.style,context.intent,context.relation,context.pose)?phrase([chosen.style],chosen.key,duration,context):null;
+  let speech=chosen&&styleAllowed(chosen.style,context.intent,context.relation,context.pose,context)?phrase([chosen.style],chosen.key,fixedDuration,context):null;
   const unavailableChoice=!!chosen&&!speech;
   if(speech){const variant=pool.find(p=>p.id===chosen.style)||{id:chosen.style,identity:speech.segs.map(a=>clipIdentity(a.n)).join('|'),plan:speech};record(variant,0);}
   else {const variant=chooseConversationVariant(pool,history,social.id+'|'+index+'|first',speaker);if(variant){speech={...variant.plan,segs:variant.plan.segs.map(s=>({...s}))};record(variant,0);}}
-  if(!speech)return {id:social.id,index,role:'unavailable',speaker,listener,start,end:time+1,segs:[],T:1,offset:0,source:'visual_choreography',unavailable:true};
+  const unavailableSpeech=!speech;
+  if(!speech)speech={segs:[],T:0};
   // Boundaries remain independent of choices and history. Only complete native
   // chains that fit are appended; spare time belongs to the quiet native base.
-  const capacity=CAPACITY+((seed+index*11)%5)*1.2;
+  const capacity=pairCapacity+((seed+index*11)%5)*1.2;
   let endOfSpeech=speech.T;
-  for(let fill=0;fill<10;fill++) {
+  for(let fill=0;!unavailableSpeech&&fill<10;fill++) {
    const options=pool.filter(p=>p.identity!==history.at(-1)?.identity&&endOfSpeech+p.plan.T-0.35<=capacity+1e-6&&clipIdentity(speech.segs.at(-1).n)!==clipIdentity(p.plan.segs[0].n));
    const variant=chooseConversationVariant(options,history,social.id+'|'+index+'|fill|'+fill,speaker);
    if(!variant)break;
@@ -63,15 +76,18 @@ export function turnAt(social,actor,time,duration) {
   }
   const pause=0.6+((seed+index*7)%5)*0.17,T=capacity+pause,end=start+T*1000;
   if(time<end) {
-   const role=actor===speaker?'speaker':'listener';
-   return {id:social.id,index,start,end,speaker,listener,role,context,phrases,segs:role==='speaker'?speech.segs:[],T,offset:Math.max(0,(time-start)/1000),speechEnd:start+endOfSpeech*1000,selected:!!chosen&&!unavailableChoice,choice:chosen||null,unavailableChoice,source:'visual_choreography'};
+   const role=unavailableSpeech?'unavailable':actor===speaker?'speaker':'listener';
+   return {id:social.id,index,start,end,speaker,listener,role,...(unavailableSpeech?{unavailable:true}:{}),context,phrases,segs:role==='speaker'?speech.segs:[],T,offset:Math.max(0,(time-start)/1000),speechEnd:start+endOfSpeech*1000,selected:!!chosen&&!unavailableChoice,choice:chosen||null,unavailableChoice,source:'visual_choreography'};
   }
   start=end;
  }
  return null;
 }
 export function turnPlan(social,actor,time,clock,duration) {
- const turn=turnAt(social,actor,time,duration);if(!turn)return null;
+ let turn=turnAt(social,actor,time,duration);if(!turn)return null;
+ // Validate only this actor's playback after reconstructing the common timeline.
+ // Missing local assets withhold readiness; they cannot alter another actor's turn.
+ if(turn.role==='speaker'&&turn.segs.some(s=>!Number.isFinite(duration(s.n))||Math.abs(duration(s.n)-s.d)>1/30))turn={...turn,role:'unavailable',segs:[],unavailable:true,selected:false};
  const profile=social.visual?.profiles?.[actor]||social.assignment?.playbackProfile||'stand';
  return {kind:['stand','teletype-standing'].includes(profile)?'stand':profile.startsWith('desk')?'desk':'bench',social:true,profile,base:conversationBase(social,actor),baseAt:social.agreedAt??social.firstParticipation??time,turn,key:social.id+'|turn|'+turn.index,t0:clock-turn.offset,segs:turn.segs,T:turn.T,selected:turn.selected};
 }

@@ -97,6 +97,7 @@ function scales(state, now, ctl) {
     if (ctl) row.append(slider(k, Math.round(v), nv, row, ctl));
     else { const bar = el('div', 'nb'), fill = el('i'); fill.style.width = v.toFixed(1) + '%'; bar.append(fill); row.append(bar); }
     box.append(row);
+    if(state.needLimitations?.[k])box.append(el('div','hint',state.needLimitations[k]));
   }
   const t = state.task;
   if (t) {

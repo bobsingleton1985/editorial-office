@@ -1,10 +1,22 @@
 import {styleAllowed} from './conversation-policy.mjs';
 import catalog from './social-catalog.json';
+import {HER_SOCIAL_CATALOG} from './heroine-social-catalog.mjs';
+import {HEROINE_REPERTOIRE} from './heroine-repertoire.mjs';
 import {sha256} from './sha256.mjs';
 export { catalog as SOCIAL_CATALOG };
+export const socialCatalogFor = actorKind => actorKind==='heroine-her'?HER_SOCIAL_CATALOG:catalog;
+export const socialActorKind = (social,actor) => social.visual?.actorKinds?.[actor] || (actor==='heroine'?'heroine-her':'motus');
 // Low semantic load continuation; expressive clips require a compatible declared intent.
 export const SOCIAL_CONTINUATION = 'gestures-standing__IDLE-085';
 export const socialAlias = id => 'social_'+id.replace(/[^a-zA-Z0-9]/g,'_') + (/IDLE-(013|106|054|057)$/.test(id)?'_stop':'');
+// These native durations are shared metadata, not the local actor's loaded clips.
+// The chair transitions were measured from editor2A-phoneL-web-v01.glb.
+const CHAIR_DURATIONS={tbl_to_chair:1.5666667222976685,chair_to_tbl:1.7333333492279053};
+const HER_CHAIR_DURATIONS=Object.fromEntries(HEROINE_REPERTOIRE.filter(e=>e.runtime&&Object.hasOwn(CHAIR_DURATIONS,e.id)).map(e=>[e.id,e.duration]));
+const timing=new Map([catalog,HER_SOCIAL_CATALOG].map(c=>[c,new Map(c.entries.filter(e=>e.available).map(e=>[socialAlias(e.id),e.range[1]]))]));
+export function socialDuration(actorKind,name) {
+  return timing.get(socialCatalogFor(actorKind)).get(name) || (actorKind==='heroine-her'?HER_CHAIR_DURATIONS[name]:CHAIR_DURATIONS[name]) || 0;
+}
 export async function loadSocialAssets(get, parse) {
   const entries=catalog.entries.filter(e=>e.available), paths=[...new Set(entries.map(e=>e.asset))], assets={};
   for(const path of paths) {
@@ -20,13 +32,14 @@ export async function loadSocialAssets(get, parse) {
   return {entries,assets,styles:catalog.styles};
 }
 export function socialPlan(style, key, t0, duration, context={intent:'calm',relation:'neutral',pose:'standing'}) {
-  if(!styleAllowed(style,context.intent,context.relation,context.pose))return null;
-  if(style==='neutral')style=SOCIAL_CONTINUATION;
-  const s=catalog.styles.find(x=>x.id===style);if(!s)return null;
+  const actorKind=context.actorKind||'motus', bank=socialCatalogFor(actorKind);
+  if(style==='neutral')style=actorKind==='heroine-her'?'heroine-native__IDLE-085':SOCIAL_CONTINUATION;
+  if(!styleAllowed(style,context.intent,context.relation,context.pose,context))return null;
+  const s=bank.styles.find(x=>x.id===style);if(!s||s.entries.some(id=>!bank.entries.some(e=>e.id===id&&e.available)))return null;
   let t=0;const segs=[];
-  const append=n=>{const d=duration(n);if(!d)return false;segs.push({n,s:t,d});t+=d-0.35;return true;};
+  const append=n=>{const d=duration(n);if(!Number.isFinite(d)||d<=0)return false;segs.push({n,s:t,d});t+=d-0.35;return true;};
   if(s.chairTransition&&!append('tbl_to_chair'))return null;
-  for(const id of s.entries) {const n=socialAlias(id),d=duration(n);if(!d)return null;segs.push({n,s:t,d});t+=d-0.35;}
+  for(const id of s.entries) {const n=socialAlias(id),d=duration(n);if(!Number.isFinite(d)||d<=0)return null;segs.push({n,s:t,d});t+=d-0.35;}
   if(s.chairTransition&&!append('chair_to_tbl'))return null;
   const T=t+0.35;for(const a of segs)a.phraseEnd=T;
   return {kind:s.profile?.startsWith('desk')?'desk':s.profile?'bench':'stand',social:true,key,t0,segs,T};

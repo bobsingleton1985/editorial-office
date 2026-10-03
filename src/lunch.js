@@ -6,6 +6,7 @@
 // the fingers, the hand is taken to the mouth and to the dish by two-bone IK on the fly (as on the approved page).
 // All food numbers are the page's, in pack metres in the pack's table frame; the frame is placed at the bench seat (TF).
 import * as THREE from 'three';
+import {MEAL_CHOICES,mealRecipe} from './meal-repertoire.mjs';
 
 const FPS = 30, XF = 0.3, WAIT = 1.5;
 export const MEAL = {
@@ -147,15 +148,20 @@ export function createLunch({ root, B, addon, strip, seatBase, S, clipsOut }) {
       a.time = (e.g - 1) / FPS; mixer.update(0); root.updateMatrixWorld(true); K.grab[n] = pinch(e.s); a.stop(); a.setEffectiveWeight(0); }
     saved.forEach(([a, w]) => a.setEffectiveWeight(w)); mixer.update(0);
     // each sweets clip takes the nearest item still on the plate (the order is the same for every meal)
+    pickSweets(MEAL.sweets);
+  };
+  function pickSweets(names) {
     const left = new Set(D.sweets.items), plate = D.sweets.root.position; K.pick = {};
-    MEAL.sweets.forEach((n, i) => { const g = K.grab[n]; if (!g || !SWEET[n]) return; let best = null, bd = 1e9;
+    names.forEach((n, i) => { const g = K.grab[n]; if (!g || !SWEET[n]) return; let best = null, bd = 1e9;
       for (const it of left) { const c = it.p.clone().add(plate), dd = c.distanceTo(g); if (dd < bd) { bd = dd; best = it; } }
       if (best) { left.delete(best); K.pick[i] = best; } });
   };
 
   // ---------- the meal timeline: clip i starts when the one before ends; 0.3 s cross-fade; before and after — the seated idle
-  function timeline(dish) {
-    const list = MEAL[dish], T = []; let t = WAIT;
+  function timeline(dish,selection=dish) {
+    const list = mealRecipe(dish,selection,MEAL);
+    if(!list||list.some(n=>!warps[n]))return null;
+    const T = []; let t = WAIT;
     for (const n of list) { const W = warps[n]; T.push({ n, t0: t, d: W.real, cd: dur[n], W }); t += W.real; }
     return { list: T, end: t };
   }
@@ -176,8 +182,11 @@ export function createLunch({ root, B, addon, strip, seatBase, S, clipsOut }) {
     P.spoon.position.copy(P.spoon0[0]); P.spoon.quaternion.copy(P.spoon0[1]); P.spoon.scale.copy(P.spoon0[2]);
   }
   const setStage = (d, i) => { const s = D[d].stages; if (s) s.forEach((m, k) => { m.visible = k === i; }); };
-  function begin(dish, F, seat) {
-    setFrame(F); meal = { dish, tl: timeline(dish), seat }; TF.visible = true; showDish(dish); resetDish(dish); setStage(dish, 0);
+  function begin(dish, F, seat, selection=dish) {
+    const tl=timeline(dish,selection);if(!tl)return false;
+    setFrame(F); meal = { dish, selection, tl, seat }; TF.visible = true; showDish(dish); resetDish(dish); setStage(dish, 0);
+    if(dish==='sweets')pickSweets(tl.list.map(c=>c.n));
+    return true;
   }
   function end() { meal = null; TF.visible = false; showDish(null); }
   end();
@@ -312,5 +321,5 @@ export function createLunch({ root, B, addon, strip, seatBase, S, clipsOut }) {
     dbg.tip = near ? (D[d]?.centerMk ? L(D[d].centerMk) : near).toArray() : null;
     if (D[d]?.centerMk && tip) { const c = L(D[d].centerMk).sub(mouthPoint()); const fw = mouthFwd(); c.y = 0; dbg.lat = Math.abs(c.x * fw.z - c.z * fw.x); } else dbg.lat = null;
   }
-  return { mealDuration: (dish) => timeline(dish).end + XF, dbg, group: TF, clips: clipsOut, dur, begin, end, mix, post, done, active: () => !!meal, dish: () => meal?.dish || null, seat: () => meal?.seat || null, probeGrab, setFrame };
+  return { autoComplete:true, availableSelections:()=>MEAL_CHOICES.filter(c=>timeline(c.dish,c.id)).map(c=>c.id), mealDuration: (dish,selection=dish) => {const tl=timeline(dish,selection);return tl?tl.end+XF:null;}, selection:()=>meal?.selection||null, dbg, group: TF, clips: clipsOut, dur, begin, end, mix, post, done, active: () => !!meal, dish: () => meal?.dish || null, seat: () => meal?.seat || null, probeGrab, setFrame };
 }

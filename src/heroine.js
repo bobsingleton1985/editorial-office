@@ -1,6 +1,9 @@
 import * as THREE from 'three';
 import {heroineProps} from './heroine-props.js';
 import {createHeroineLunch} from './heroine-lunch.js';
+import {createHeroineSocial} from './heroine-social.js';
+import {HEROINE_REPERTOIRE} from './heroine-repertoire.mjs';
+import {heroineRestPools} from './heroine-rest-repertoire.mjs';
 export const HEROINE_SCALE=1/(.959280767191607/1.5537539445117445);
 export async function prepareHeroine(load,shared,id,assetBase='',overrides={}){
   const H=assetBase+'heroine/';const navNames=['sit_idle',...['L02a','L03a','R02a'].flatMap(t=>['desk_sit_'+t,'desk_stand_'+t]),...['L01','L02','R01','R02'].flatMap(t=>['booth_sit_'+t,'booth_stand_'+t])];
@@ -18,8 +21,15 @@ export async function prepareHeroine(load,shared,id,assetBase='',overrides={}){
   const forward=new THREE.Vector3(.006,.80,.41).multiplyScalar(k).sub(spoon.position).normalize(),normal=new THREE.Vector3(0,-1,0);normal.addScaledVector(forward,-normal.dot(forward)).normalize();const across=new THREE.Vector3().crossVectors(forward,normal).normalize();normal.crossVectors(across,forward).normalize();spoon.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(across,forward,normal));spoon.updateMatrixWorld(true);
   utensils.push({side:'r',object:spoon,dish:'soup',local:model.scene.getObjectByName('hand_r').matrixWorld.clone().invert().multiply(spoon.matrixWorld)});sa.stop();
   const part=n=>{const p=food.scene.getObjectByName(n).clone(true);p.position.multiplyScalar(k);p.scale.multiplyScalar(k);return p;};
-  const ids=['HER-POUR','HER-DANCE1','HER-DANCE2','MX-DANCE','IDLE-081','IDLE-082','MX-SHRUG','MX-NOD','BAR-025','BAR-029','HER-POSE1','HER-LOVE1','XS-LAUGH','XS-JOY','HER-SEDUCTIVE','SEAT-018'];
-  const nativeClips=await Promise.all(ids.map(async id=>{const entry=manifest.entries.find(e=>e.id===id);return {id,activity:'heroine_'+id.replace(/^HER-/,'').toLowerCase().replace(/[^a-z0-9]/g,'_'),label:entry.label,seated:!!entry.seated,clip:await named(H+entry.glb,id)};}));
+  const repertoireBase=overrides.repertoireBase||assetBase+'heroine-repertoire/';
+  const repertoireBank=await load(overrides.repertoireBank||repertoireBase+'heroine-repertoire-v01.glb');
+  const bankClip=id=>{const c=repertoireBank.animations.find(c=>c.name===id);if(!c)throw Error('HER repertoire bank missing '+id);return c.clone();};
+  const ids=['HER-POUR','HER-DANCE1','HER-DANCE2','MX-DANCE','IDLE-081','IDLE-082','IDLE-085','MX-SHRUG','MX-NOD','BAR-025','BAR-029','HER-POSE1','HER-LOVE1','XS-LAUGH','XS-JOY','HER-SEDUCTIVE','SEAT-018'];
+  const nativeClips=await Promise.all(ids.map(async id=>{const entry=manifest.entries.find(e=>e.id===id);return {id,activity:'heroine_'+id.replace(/^HER-/,'').toLowerCase().replace(/[^a-z0-9]/g,'_'),label:entry.label,seated:!!entry.seated,clip:id==='IDLE-085'?bankClip(id):await named(overrides.nativeAssets?.[id]||H+entry.glb,id)};}));
+  const repertoireClips=HEROINE_REPERTOIRE.filter(e=>e.runtime).map(e=>({...e,clip:bankClip(e.id)}));
+  const allClips=[...nativeClips,...repertoireClips];
+  const gestureNames={"HI-02":"stand_idle_02",tbl_to_chair:'tbl_to_chair',chair_to_tbl:'chair_to_tbl',sit_idle_02:'sit_idle_02'};
+  const gestures={animations:repertoireClips.filter(e=>gestureNames[e.id]).map(e=>{const c=e.clip.clone();c.name=gestureNames[e.id];return c;})};
   const [bottle,glass,cfg]=await Promise.all([load(H+'key-props-bottle.glb'),load(H+'key-props-glass.glb'),fetch(H+'pour-grip-v04.json').then(r=>r.json())]);
-  return {gltf:{scene:model.scene,animations},extra:{id,home:'benchN',actorScale:HEROINE_SCALE,shared:{...shared,coffee:null,drinkL:null,whisky:null,whiskyRec:null},lunch:{clips:{fork,soup,stir},plate:plate.scene,bowl:part('P_bowl'),soup:part('P_soup0'),utensils},nativeClips,nativePropsFactory:args=>heroineProps(args,{bottle,glass,cfg},shared),lunchFactory:createHeroineLunch,lunchDishes:['soup','sandwich'],drunk:false}};
+  return {gltf:{scene:model.scene,animations},extra:{id,faceAxis:[0,0,1],home:'benchN',actorScale:HEROINE_SCALE,shared:{...shared,coffee:null,drinkL:null,whisky:null,whiskyRec:null},lunch:{clips:{fork,soup,stir},plate:plate.scene,bowl:part('P_bowl'),soup:part('P_soup0'),utensils},nativeClips,gestures,gestureSeated:['sit_idle_02','tbl_to_chair','chair_to_tbl'],restPools:heroineRestPools,social:createHeroineSocial(allClips),nativePropsFactory:args=>heroineProps(args,{bottle,glass,cfg},shared),lunchFactory:createHeroineLunch,lunchDishes:['soup','sandwich'],drunk:false}};
 }

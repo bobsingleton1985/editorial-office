@@ -27,8 +27,8 @@ function rnd(seq, slot, salt) {                                    // the same n
 }
 
 // the gesture planned for this slot: {t0, segs: [{n, s, d}], T} (times from the decision), or null for a quiet slot
-export function plan(kind, seq, slot, fatigue, dur) {
-  const pool = POOLS[kind]; if (!pool) return null;
+export function plan(kind, seq, slot, fatigue, dur, pools=POOLS) {
+  const pool = pools[kind]; if (!pool) return null;
   if (rnd(seq, slot, 1) > 0.75) return null;
   const list = (fatigue ?? 0) >= TIRED ? pool.tired : pool.calm, names = list[Math.floor(rnd(seq, slot, 2) * list.length)];
   const segs = []; let s = 0;
