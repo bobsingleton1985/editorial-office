@@ -37,6 +37,6 @@ export function intentOptions(relation,fatigue,signals=[],context={}){
  return [{id:'calm',basis:{kind:'own_choice'}},{id:'friendly',basis:{kind:'own_choice'}},...(context.flirtAllowed===true&&relation?.stance==='warm'?[{id:'flirt',basis:{kind:'own_choice'}}]:[]),...(basis.length?[{id:'tense',basis:basis[0]}]:[]),...(tenseSignal?[{id:'object',basis:{kind:'received_manner',evidence:tenseSignal}}]:[]),...(recent.length?[{id:'confront',basis:{kind:'received_intent',evidence:recent.at(-1)}}]:[])];
 }
 export function visualIntentAt(social,actor,time){
- const events=(social.visual?.intentEvents||[]).filter(e=>e.actor===actor&&Number.isFinite(e.at)&&e.at+3000<=time&&INTENT_TEXT[e.intent]);
+ const events=(social.visual?.intentEvents||[]).filter(e=>e.actor===actor&&Number.isFinite(e.at)&&Math.max(e.at,e.availableAt??e.at)+3000<=time&&INTENT_TEXT[e.intent]);
  const e=events.sort((a,b)=>a.at-b.at||(a.revision||0)-(b.revision||0)).at(-1);return {intent:e?.intent||'calm',relation:e?.relation||'neutral',basis:e?.basis||null};
 }

@@ -46,7 +46,7 @@ export function turnAt(social,actor,time,duration) {
  for(;index<100000;index++) {
   const speaker=members[(index+(seed%2))%2],listener=members.find(id=>id!==speaker);
   // A small lead gives viewers time to receive the choice before its full native take starts.
-  const chosen=choices.find(e=>e.actor===speaker&&!consumed.has(e.key)&&e.at+3000<=start);
+  const chosen=choices.find(e=>e.actor===speaker&&!consumed.has(e.key)&&Math.max(e.at,e.availableAt??e.at)+3000<=start);
   if(chosen)consumed.add(chosen.key);
   const profile=social.visual?.profiles?.[speaker]||'stand';
   const context={...visualIntentAt(social,speaker,start),actorKind:kinds[speaker],pose:profile==='stand'?'standing':profile};
@@ -63,8 +63,10 @@ export function turnAt(social,actor,time,duration) {
   else {const variant=chooseConversationVariant(pool,history,social.id+'|'+index+'|first',speaker);if(variant){speech={...variant.plan,segs:variant.plan.segs.map(s=>({...s}))};record(variant,0);}}
   const unavailableSpeech=!speech;
   if(!speech)speech={segs:[],T:0};
-  // Boundaries remain independent of choices and history. Only complete native
-  // chains that fit are appended; spare time belongs to the quiet native base.
+  // Capacity only bounds how many complete native chains can fit. Hand over
+  // when the last chain finishes, without waiting through unused capacity.
+  // Choices and intents are sampled at turn start with the same 3s lead for
+  // both actors; events appended now cannot rewrite an already-started turn.
   const capacity=pairCapacity+((seed+index*11)%5)*1.2;
   let endOfSpeech=speech.T;
   for(let fill=0;!unavailableSpeech&&fill<10;fill++) {
@@ -74,7 +76,7 @@ export function turnAt(social,actor,time,duration) {
    const next=variant.plan,at=endOfSpeech-0.35;
    speech.segs.push(...next.segs.map(seg=>({...seg,s:seg.s+at,phraseEnd:seg.phraseEnd+at})));endOfSpeech=at+next.T;record(variant,at);
   }
-  const pause=0.6+((seed+index*7)%5)*0.17,T=capacity+pause,end=start+T*1000;
+  const pause=0.25+((seed+index*7)%5)*0.05,T=endOfSpeech+pause,end=start+T*1000;
   if(time<end) {
    const role=unavailableSpeech?'unavailable':actor===speaker?'speaker':'listener';
    return {id:social.id,index,start,end,speaker,listener,role,...(unavailableSpeech?{unavailable:true}:{}),context,phrases,segs:role==='speaker'?speech.segs:[],T,offset:Math.max(0,(time-start)/1000),speechEnd:start+endOfSpeech*1000,selected:!!chosen&&!unavailableChoice,choice:chosen||null,unavailableChoice,source:'visual_choreography'};

@@ -1,3 +1,4 @@
+import {createSocialAdmission} from './social-admission.mjs';
 import {createPresentationWitness} from './presentation-witness.mjs';
 import {registerSimulationGraph,captureSimulation,createPoseBuffer,applySimulation} from './simulation-stream.js';
 import {createStartupDownloads} from './startup-downloads.mjs';
@@ -419,7 +420,9 @@ function reportExecution(dt) {
   live.execution({pairs:pairs.map(p=>({...p,elapsedMs:reportElapsed})),capabilities:{actors,styles}});reportElapsed=0;
 }
 let loadingPeople = false;const activatedPeople=new Set();
+const admitSocialWorld=createSocialAdmission();
 function onWorld(w) {
+  if(!REMOTE)w=admitSocialWorld(w,window.__simNow??live.now());
   const cast=Object.keys(charsOf(w)).sort().join(',');
   if(simulationCast!==null&&cast!==simulationCast){if(AUTHORITY)throw Error('Simulation cast changed; restart required');simulationIncompatible=true;window.__simulationStatus='incompatible';simulationNotice.hidden=false;simulationNotice.textContent='Состав редакции изменился. Обновите страницу.';return;}
   latest = w;
