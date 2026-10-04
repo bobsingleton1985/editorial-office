@@ -125,8 +125,8 @@
       "duration": 3.0727891156462586
     },
     "reporter-talk": {
-      "url": "assets/newsroom-audio-v01/reporter-talk.mp3",
-      "duration": 41.65659863945578
+      "url": "assets/newsroom-audio-v01/reporter-talk-stable-v02.mp3",
+      "duration": 23.87
     },
     "reporter-flirt": {
       "url": "assets/newsroom-audio-v01/reporter-flirt.mp3",
@@ -582,13 +582,19 @@
       "source": "ordinary-conversation-v01/reporter-conversation.mp3",
       "source_sha256": "207c78f12c2eecb31ec0c50227e27e19b8b971110c31ee430a2f57061eb936ad",
       "excerpt": [
-        0.0,
-        41.65659863945578
+        0,
+        23.87
       ],
-      "sha256": "e2964e12617cf017846fbae1629cd975710f1f3a43eb9308eb3d1d7fcc01aed8",
+      "sha256": "6effb8b5999eaf144f2ea5f54fbba3dbee6c2cbd9e89e453b6b912aaf33f64ed",
       "gain": 0.2865960271766488,
       "loop_crossfade": false,
-      "processing": "Mono; gain calibrated after two 1800Hz lowpass filters; shared runtime filters apply room treatment."
+      "processing": "Mono; gain calibrated after two 1800Hz lowpass filters; shared runtime filters apply room treatment.",
+      "runtime_file": "reporter-talk-stable-v02.mp3",
+      "owner_correction": {
+        "date": "2026-10-04",
+        "quote": "Да, тембра меняется внутри записи. на 24 секунде",
+        "action": "Use stable prefix ending in measured silence23.835782–23.929977, before reported timbre change. Original master and previous output retained."
+      }
     },
     {
       "id": "reporter-flirt",
