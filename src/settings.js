@@ -1,5 +1,4 @@
-// Settings panel ("hamburger"): collapsible sections — light, lamps, picture, shadows, scene, plus sections added by other modules
-// (animation chains, director). Values and open sections are saved per browser in localStorage.
+// Local viewer settings, grouped into short tabs. Existing section callers keep their own content and state.
 const KEY = 'editorial.settings.v1';
 const clonePreset = (p) => JSON.parse(JSON.stringify(p));
 // room light for each state of the weather outside (the weather is shared: see main.js)
@@ -20,6 +19,9 @@ export const DEFAULTS = {
 };
 const clone = (o) => JSON.parse(JSON.stringify(o));
 const OPEN_KEY = 'editorial.sections.v1';
+const GROUP_KEY = 'editorial.settings.group.v1';
+const GROUPS = [['money', 'Деньги'], ['people', 'Персонажи'], ['sound', 'Звук'], ['picture', 'Изображение'], ['more', 'Дополнительно']];
+const groupFor = id => id === 'money' ? 'money' : id === 'director' ? 'people' : id === 'sound' ? 'sound' : ['windows', 'Свет', 'Лампы', 'Картинка', 'Тени', 'Сцена'].includes(id) ? 'picture' : 'more';
 const openSet = (() => { try { return new Set(JSON.parse(localStorage.getItem(OPEN_KEY) || '["windows"]')); } catch (e) { return new Set(['windows']); } })();   // the windows section starts open
 function saveOpen() { try { localStorage.setItem(OPEN_KEY, JSON.stringify([...openSet])); } catch (e) { /* ignore */ } }
 
@@ -52,23 +54,59 @@ const set = (s, p, v) => { const ks = p.split('.'); const last = ks.pop(); ks.re
 
 export function buildPanel(state, onChange, opts = {}) {
   const btn = document.createElement('button');
-  btn.id = 'menu'; btn.setAttribute('aria-label', 'Настройки'); btn.setAttribute('aria-expanded', 'false'); btn.textContent = '☰';
-  const panel = document.createElement('aside'); panel.id = 'settings'; panel.hidden = true;
+  btn.id = 'menu'; btn.setAttribute('aria-label', 'Открыть настройки редакции'); btn.setAttribute('aria-expanded', 'false'); btn.setAttribute('aria-controls', 'settings'); btn.textContent = '☰';
+  const panel = document.createElement('aside'); panel.id = 'settings'; panel.hidden = true; panel.setAttribute('aria-label', 'Настройки редакции');
+  const head = document.createElement('header'); head.className = 'settings-head';
+  const title = document.createElement('h2'); title.textContent = 'Редакция'; head.append(title);
+  const nav = document.createElement('div'); nav.className = 'settings-tabs'; nav.setAttribute('role', 'tablist'); nav.setAttribute('aria-label', 'Разделы настроек'); head.append(nav);
+  const body = document.createElement('div'); body.className = 'settings-body'; panel.append(head, body);
+  const groups = new Map(), tabButtons = new Map(), scroll = new Map();
+  let selected = 'money'; try { const saved = localStorage.getItem(GROUP_KEY); if (GROUPS.some(([id]) => id === saved)) selected = saved; } catch {}
+  const announce = group => { for (const d of group.querySelectorAll('details.sec')) d.dispatchEvent(new CustomEvent('sectionopen')); };
+  const showGroup = id => {
+    if (!groups.has(id)) return;
+    scroll.set(selected, body.scrollTop); selected = id;
+    for (const [key, group] of groups) {
+      group.hidden = key !== selected; const tab = tabButtons.get(key);
+      tab.setAttribute('aria-selected', String(key === selected)); tab.tabIndex = key === selected ? 0 : -1;
+    }
+    body.scrollTop = scroll.get(id) || 0;
+    try { localStorage.setItem(GROUP_KEY, id); } catch {}
+    announce(groups.get(id));
+  };
+  for (const [id, name] of GROUPS) {
+    const tab = document.createElement('button'); tab.type = 'button'; tab.textContent = name; tab.id = 'settings-tab-' + id; tab.setAttribute('role', 'tab');
+    tab.setAttribute('aria-controls', 'settings-group-' + id); tab.setAttribute('aria-selected', String(id === selected)); tab.tabIndex = id === selected ? 0 : -1;
+    tab.addEventListener('click', () => showGroup(id)); nav.append(tab); tabButtons.set(id, tab);
+    const group = document.createElement('div'); group.id = 'settings-group-' + id; group.className = 'settings-group'; group.setAttribute('role', 'tabpanel'); group.setAttribute('aria-labelledby', tab.id); group.hidden = id !== selected;
+    body.append(group); groups.set(id, group);
+  }
+  nav.addEventListener('keydown', e => {
+    const tabs = [...tabButtons.values()], index = tabs.indexOf(document.activeElement); if (index < 0) return;
+    let next; if (e.key === 'ArrowRight') next = (index + 1) % tabs.length; else if (e.key === 'ArrowLeft') next = (index + tabs.length - 1) % tabs.length; else if (e.key === 'Home') next = 0; else if (e.key === 'End') next = tabs.length - 1; else return;
+    e.preventDefault(); showGroup(GROUPS[next][0]); tabs[next].focus();
+  });
   document.body.append(btn, panel);
-  const toggle = (open) => { panel.hidden = !open; btn.setAttribute('aria-expanded', String(open)); btn.textContent = open ? '✕' : '☰'; };
+  const toggle = open => {
+    panel.hidden = !open; btn.setAttribute('aria-expanded', String(open)); btn.setAttribute('aria-label', open ? 'Закрыть настройки редакции' : 'Открыть настройки редакции'); btn.textContent = open ? '✕' : '☰';
+    if (open) announce(groups.get(selected));
+  };
   btn.addEventListener('click', () => toggle(panel.hidden));
-  addEventListener('keydown', (e) => { if (e.key === 'Escape') toggle(false); });
+  addEventListener('keydown', e => { if (e.key === 'Escape' && !panel.hidden) { toggle(false); btn.focus(); } });
 
   const inputs = [];
   const commit = () => { save(state); onChange(state); };
-  const tail = document.createElement('div'); tail.className = 'btns';
-  // a collapsible section; everything added after it goes inside until the next section
-  let cur = panel;
+  const tail = document.createElement('div'); tail.className = 'btns settings-reset';
+  groups.get('picture').append(tail);
+  let cur = groups.get('picture');
   const section = (t, id = t, into = true) => {
-    const d = document.createElement('details'); d.className = 'sec'; d.open = openSet.has(id);
+    const groupId = groupFor(id), group = groups.get(groupId), primary = ['money', 'director', 'sound'].includes(id);
+    const d = document.createElement('details'); d.className = 'sec' + (primary ? ' section-primary' : ''); d.dataset.section = id; d.open = primary || openSet.has(id);
     const sm = document.createElement('summary'); sm.textContent = t; d.append(sm);
-    d.addEventListener('toggle', () => { if (d.open) openSet.add(id); else openSet.delete(id); saveOpen(); d.dispatchEvent(new CustomEvent('sectionopen')); });
-    panel.insertBefore(d, tail); if (into) cur = d; return d;
+    d.addEventListener('toggle', () => { if (!primary) { if (d.open) openSet.add(id); else openSet.delete(id); saveOpen(); } d.dispatchEvent(new CustomEvent('sectionopen')); });
+    d.show = () => showGroup(groupId);
+    if (groupId === 'picture') group.insertBefore(d, tail); else group.append(d);
+    if (into) cur = d; return d;
   };
   const h = (t) => section(t);
   const row = (label, input, out) => {
@@ -76,7 +114,6 @@ export function buildPanel(state, onChange, opts = {}) {
     const sp = document.createElement('span'); sp.textContent = label; l.append(sp);
     if (out) l.append(out); l.append(input); cur.append(l);
   };
-  panel.append(tail);
   // shared for everyone: weather outside and the blinds (filled by the page)
   const outside = document.createElement('div'); outside.className = 'outside'; section('Окна — меняются у всех', 'windows', false).append(outside);
   for (const [title, list] of SLIDERS) {
@@ -112,18 +149,19 @@ export function buildPanel(state, onChange, opts = {}) {
     i.addEventListener('change', () => { state[k] = i.checked; commit(); });
     inputs.push(() => { i.checked = state[k]; }); row(label, i);
   }
-  const reset = document.createElement('button'); reset.textContent = 'Сбросить';
+  const reset = document.createElement('button'); reset.textContent = 'Сбросить изображение';
   reset.addEventListener('click', () => { Object.assign(state, clone(DEFAULTS), opts.resetTo ? opts.resetTo() : {}); sync(); commit(); });
-  const copy = document.createElement('button'); copy.textContent = 'Скопировать настройки';
+  const copy = document.createElement('button'); copy.textContent = 'Скопировать';
   copy.title = 'Скопировать значения, чтобы прислать их в чат';
   copy.addEventListener('click', async () => {
     const txt = JSON.stringify(state);
     try { await navigator.clipboard.writeText(txt); copy.textContent = 'Скопировано ✓'; }
     catch (e) { prompt('Скопируйте настройки:', txt); }
-    setTimeout(() => { copy.textContent = 'Скопировать настройки'; }, 1800);
+    setTimeout(() => { copy.textContent = 'Скопировать'; }, 1800);
   });
-  tail.append(reset, copy); panel.append(tail);
+  tail.append(reset, copy);
+  const picture = groups.get('picture'); picture.prepend(picture.querySelector('[data-section="Картинка"]'));
   const sync = () => inputs.forEach((f) => f());
   sync();
-  return { toggle, sync, outside, section: (t, id) => section(t, id, false) };
+  return { toggle, sync, outside, showGroup, section: (t, id) => section(t, id, false) };
 }

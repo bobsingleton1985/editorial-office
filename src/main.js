@@ -193,10 +193,22 @@ PANEL = buildPanel(S, (s) => { if (s.quality !== qMode) { qMode = s.quality; QL.
   { resetTo: () => presetFor(outside().sky) });
 { wxBox = document.createElement('div'); const bb = document.createElement('div');
   PANEL.outside.append(wxBox, bb); blindsUI = buildBlindsUI(bb); }
-const sound = createSound();const animationAudio=createAnimationAudio(sound);const simulationAudio={};if(AUTHORITY){sound.phone=(k,t,onFor,cycle)=>{simulationAudio[k]={t,onFor,cycle};};}                                   // ☰ → «Звук»: the phone ring (off until the viewer switches it on)
+const sound = createSound();const animationAudio=createAnimationAudio(sound);const simulationAudio={};if(AUTHORITY){sound.phone=(k,t,onFor,cycle)=>{simulationAudio[k]={t,onFor,cycle};};}                                   // Viewer mix stays off until enabled locally.
 { const d = PANEL.section('Звук', 'sound'), l = document.createElement('label'), cb = document.createElement('input'), sp = document.createElement('span');
-  l.className = 'row'; cb.type = 'checkbox'; cb.id = 'sound-phone'; cb.checked = sound.on; sp.textContent = '🔊 Звуки редакции и города';
-  cb.addEventListener('change', () => sound.set(cb.checked)); l.append(sp, cb); d.append(l); window.__sound = sound; }
+  l.className = 'row sound-switch'; cb.type = 'checkbox'; cb.id = 'sound-phone'; cb.checked = sound.on; sp.textContent = 'Включить звук';
+  cb.addEventListener('change', () => sound.set(cb.checked)); l.append(sp, cb); d.append(l); window.__sound = sound;
+  for (const [channel, label, hint] of [['background', 'Фон', 'Город за окнами'], ['voices', 'Голоса', 'Разговоры и реакции персонажей'], ['effects', 'Другие звуки', 'Шаги, печать, посуда и телефон']]) {
+    const row = document.createElement('label'); row.className = 'row volume-row';
+    const text = document.createElement('span'); text.textContent = label;
+    const output = document.createElement('output');
+    const input = document.createElement('input'); input.type = 'range'; input.min = 0; input.max = 100; input.step = 1; input.id = 'volume-' + channel; input.setAttribute('aria-label', label); input.value = Math.round(sound.volumes[channel] * 100);
+    output.htmlFor = input.id; output.textContent = input.value + '%';
+    input.addEventListener('input', () => { sound.setVolume(channel, +input.value / 100); output.textContent = input.value + '%'; });
+    const note = document.createElement('span'); note.className = 'hint'; note.id = input.id + '-hint'; note.textContent = hint; input.setAttribute('aria-describedby', note.id);
+    row.append(text, output, input, note); d.append(row);
+  }
+  const note = document.createElement('p'); note.className = 'hint'; note.textContent = 'Громкость сохраняется на этом устройстве.'; d.append(note);
+}
 applyWeather();
 const diag = { textContent: '' }; window.__diag = diag;   // technical line (GPU, frame time): console only — window.__diag.textContent
 const gpuName = (() => { try { const gl = r.getContext(), e = gl.getExtension('WEBGL_debug_renderer_info'); return e ? gl.getParameter(e.UNMASKED_RENDERER_WEBGL) : ''; } catch (e) { return ''; } })();

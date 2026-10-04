@@ -1,6 +1,6 @@
-import {moneyPanel} from './money-view.js';
+import {moneyPanel,moneyOverview} from './money-view.js';
 import {relationshipView} from './relationship-view.js';
-// ☰ panel section «Режиссёр (Jev)»: is the newsroom online, who made the last decision (Jev or the fallback rule), and when.
+// The people and money tabs share the currently selected character.
 const el = (t, cls, txt) => { const e = document.createElement(t); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
 function ago(ms) { const s = Math.max(0, Math.round(ms / 1000)); if (s < 60) return 'только что'; const m = Math.round(s / 60); if (m < 60) return m + ' мин назад'; return Math.round(m / 60) + ' ч назад'; }
 // journal: the people's recent actions and who chose each one (read from the relay, newest first); a filter by person
@@ -114,11 +114,25 @@ function scales(state, now, ctl) {
 const peopleOf = (w) => Object.entries(w?.chars || (w?.editor ? { columnist: { name: 'Колумнист', ...w.editor, state: w.state } } : {}));
 export function addDirectorStatus(section, get, loadJournal) {
   if (!section) return null;
-  const sec = section('🧠 Режиссёр (Jev)', 'director'), tabs = el('div', 'btns ptabs'), box = el('div', 'rep'); sec.append(tabs, box);
+  const sec = section('Персонажи', 'director'), tabs = el('div', 'btns ptabs'), box = el('div', 'rep'); sec.append(tabs, box);
+  const moneySec=section('Деньги','money'),moneyBox=el('div','money-content');moneySec.append(moneyBox);
+  const visible=s=>s.open&&!s.closest('[hidden]');
   if (!document.getElementById('ptabs-css')) { const st = document.createElement('style'); st.id = 'ptabs-css'; st.textContent = '#settings .ptabs button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }'; document.head.append(st); }
   const names = () => Object.fromEntries(peopleOf(get().world).map(([id, e]) => [id, e.name || id]));
   if (loadJournal) { const b = el('div', 'btns'), btn = el('button', null, '📜 Журнал действий'); btn.addEventListener('click', () => openJournal(loadJournal, get().focus, names())); b.append(btn); sec.append(b); }
-  let tabKey = '', renderedActor=null;const moneyOpen=new Map();
+  let tabKey = '',moneyKey='',renderedMoneyActor=null;const moneyOpen=new Map();
+  function renderMoney(){
+    const {world,focus,setFocus}=get(),list=peopleOf(world),id=list.some(([k])=>k===focus)?focus:list[0]?.[0],entry=list.find(([k])=>k===id)?.[1];
+    const key=JSON.stringify([id,list.map(([k,e])=>[k,e.name,e.finances])]);
+    if(key===moneyKey)return;
+    const active=moneyBox.contains(document.activeElement)?document.activeElement.dataset.moneyFocus:null;
+    if(renderedMoneyActor)moneyOpen.set(renderedMoneyActor,new Map(Array.from(moneyBox.querySelectorAll('[data-money-section]')).map(d=>[d.dataset.moneySection,d.open])));
+    const detail=moneyPanel(entry,names()),opened=moneyOpen.get(id);
+    for(const d of detail.querySelectorAll('[data-money-section]'))d.open=opened?.get(d.dataset.moneySection)??false;
+    moneyBox.replaceChildren(moneyOverview(list,id,k=>{setFocus(k);renderMoney();}),detail);
+    moneyKey=key;renderedMoneyActor=id;
+    if(active)Array.from(moneyBox.querySelectorAll('[data-money-focus]')).find(n=>n.dataset.moneyFocus===active)?.focus({preventScroll:true});
+  }
   function render() {
     if(editing.size)return; // native pointer capture releases even outside the row
     const focused = box.contains(document.activeElement) && document.activeElement.matches?.('input.nr') ? document.activeElement.getAttribute('aria-label') : null;
@@ -147,13 +161,12 @@ export function addDirectorStatus(section, get, loadJournal) {
     if(e?.sleep)sleepInfo.append(el('div',null,({entering:'Готовится ко сну',asleep:'Спит',waking:'Просыпается'}[e.sleep.phase]||'Сон')+` · подтверждено сна: ${Math.round(e.sleep.confirmedMs/1000)} с`));
     const lastSleep=e?.memory?.filter(x=>x.event==='sleep_finished').at(-1);
     if(lastSleep)sleepInfo.append(el('div',null,`Помнит: ${id==='heroine'?'спала':'спал'} ${lastSleep.kind==='chair'?'на стуле у круглого стола':'за столом'} ${Math.round(lastSleep.participatingSeconds)} с; усталость ${Math.round(lastSleep.fatigueBefore)} → ${Math.round(lastSleep.fatigueAfter)}. ${lastSleep.reason==='restored'?'Силы восстановлены.':'Закончился период сна.'}`));
-    const previousMoney=box.querySelector('[data-life-section=money]');if(previousMoney&&renderedActor)moneyOpen.set(renderedActor,previousMoney.open);
-    const finances=moneyPanel(e,names());finances.open=moneyOpen.get(id)??false;renderedActor=id;
-    box.replaceChildren(sub, needs, sleepInfo, relationshipView(e,names()), finances, tb, el('div', 'hint', 'Jev думает, только пока редакцию кто-то смотрит. Время редакции (и шкалы) идёт тоже только при зрителях.' + (ctl ? ' Потяните шкалу — человек пересмотрит, чем заняться (это увидят все зрители).' : '')));
+    box.replaceChildren(sub, needs, sleepInfo, relationshipView(e,names()), tb, el('div', 'hint', 'Jev думает, только пока редакцию кто-то смотрит. Время редакции (и шкалы) идёт тоже только при зрителях.' + (ctl ? ' Потяните шкалу — человек пересмотрит, чем заняться (это увидят все зрители).' : '')));
     if(focused) Array.from(box.querySelectorAll('input.nr')).find(i=>i.getAttribute('aria-label')===focused)?.focus({preventScroll:true});
   }
-  setInterval(() => { if (sec.open) render(); }, 1000);
-  sec.addEventListener('toggle', () => { if (sec.open) render(); });
-  render();
-  return (id) => { const g = get(); g.setFocus(id); g.open?.(); sec.open = true; render(); sec.scrollIntoView({ block: 'start', behavior: 'smooth' }); };   // a click on a person in the room
+  const refresh=()=>{if(visible(sec))render();if(visible(moneySec))renderMoney();};
+  setInterval(refresh,1000);
+  for(const s of [sec,moneySec])for(const event of ['toggle','sectionopen'])s.addEventListener(event,refresh);
+  refresh();
+  return (id) => { const g = get(); g.setFocus(id); g.open?.(); sec.show?.(); sec.open = true; render(); sec.scrollIntoView({ block: 'start', behavior: 'smooth' }); };   // a click on a person in the room
 }
