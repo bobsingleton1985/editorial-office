@@ -244,7 +244,7 @@ export class World {
     // приглашения без ответа
     for (const inv of this.invitations.filter(i => this.t >= i.until)) this._resolveInvitation(inv, 'defer', true);
     // музыка
-    if (this.music && this.t >= this.music.until) { this.music = null; this.log(null, 'event', 'Пластинка доиграла.'); this._interruptAll('музыка стихла'); }
+    if (this.music && this.t >= this.music.until) { this.music = null; this.log(null, 'event', 'Пластинка доиграла.'); this._stopDancing(); this._interruptAll('музыка стихла'); }
     // телефон
     if (this.phone && this.t >= this.phone.until) { this.log(null, 'event', `Телефон отзвонил, никто не взял трубку. Сообщение: «${this.phone.text}».`); this.news.push({ t: this.t, text: this.phone.text, heardBy: null }); this.phone = null; }
     // телетайп — днём
@@ -269,6 +269,17 @@ export class World {
     if (this._crossed(12)) this._planHeroineVisit();
     // Арчи
     if (this.archie && this.t >= this.archie.until) this._archieNext();
+  }
+
+  // Музыка кончилась — танцы тоже. Если станцевали хотя бы половину, занятие засчитывается; иначе просто прекращается.
+  _stopDancing() {
+    for (const id of IDS) {
+      const c = this.chars[id], a = c.activity;
+      if (!a || (a.type !== 'dance' && a.type !== 'joint_dance')) continue;
+      if (this.t - a.start >= (a.until - a.start) / 2) { this._finish(id); continue; }
+      this.livePos(id); c.activity = null;
+      if (this.awake(id)) { c.needsDecision = true; c.decisionReason = 'музыка стихла'; }
+    }
   }
 
   _planHeroineVisit() {
@@ -417,7 +428,7 @@ export class World {
     const myInv = this.invitations.filter(i => i.to === id);
     for (const inv of myInv) {
       const who = this.chars[inv.from].name;
-      add(`accept:invitation-${inv.id}`, `Принять приглашение: ${who} зовёт ${KIND_LABEL[inv.kind]}`);
+      if (!(inv.kind === 'dance' && !this.music)) add(`accept:invitation-${inv.id}`, `Принять приглашение: ${who} зовёт ${KIND_LABEL[inv.kind]}`);   // без музыки танцевать нельзя
       add(`decline:invitation-${inv.id}`, `Отказать: ${who} зовёт ${KIND_LABEL[inv.kind]}`);
       add(`defer:invitation-${inv.id}`, `Сказать «не сейчас, позже»: ${who} зовёт ${KIND_LABEL[inv.kind]}`);
     }
@@ -570,6 +581,7 @@ export class World {
     this.invitations = this.invitations.filter(i => i !== inv);
     const A = this.chars[inv.from], B = this.chars[inv.to], k = inv.kind;
     if (A.activity?.type === 'inviting') A.activity = null;
+    if (verb === 'accept' && k === 'dance' && !this.music) { verb = 'defer'; timeout = true; }   // музыка успела кончиться: не танцуем
     if (verb === 'accept') {
       this.bubble(inv.to, '👍');
       this._cancelInvitationsOf(inv.to);
