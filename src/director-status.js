@@ -6,6 +6,7 @@ function ago(ms) { const s = Math.max(0, Math.round(ms / 1000)); if (s < 60) ret
 // journal: the people's recent actions and who chose each one (read from the relay, newest first); a filter by person
 const TXT = { continue: 'продолжает' };
 function who(e) {
+  if (e.source === 'qwen') return 'Qwen3.8 27B Free';
   if (e.source === 'jev') return 'Jev' + (e.confidence != null ? ` · ${Math.round(e.confidence * 100)} %` : '');
   return e.source === 'rule' ? 'правило' : e.source === 'start' ? 'старт' : (e.source || '—');
 }
@@ -162,7 +163,7 @@ export function addDirectorStatus(section, get, loadJournal) {
     const rows = [];
     rows.push(['Связь с редакцией', net.online ? `есть · смотрят: ${net.viewers ?? '—'}` : (net.reason === 'no_relay' ? 'не настроена' : 'нет')]);
     if (e) {
-      const who = e.source === 'jev' ? `Jev${e.confidence != null ? ` (уверенность ${Math.round(e.confidence * 100)} %)` : ''}` :
+      const who = e.source === 'qwen' ? 'Qwen3.8 27B Free' : e.source === 'jev' ? `Jev${e.confidence != null ? ` (уверенность ${Math.round(e.confidence * 100)} %)` : ''}` :
         e.source === 'rule' ? 'простое правило — Jev недоступен или исчерпан дневной лимит' : e.source === 'start' ? 'стартовое состояние' : (e.source || '—');
       rows.push(['Последняя команда', who]);
       rows.push(['Когда', typeof e.at === 'number' ? ago(now - e.at) : '—']);
