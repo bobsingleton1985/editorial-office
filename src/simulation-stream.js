@@ -1,6 +1,7 @@
 // The renderer consumes one authoritative pose stream. No routes, mixer updates,
 // contact solvers or visibility decisions run in a viewer.
 import * as THREE from 'three';
+import {interpolateHeldCups,interpolateAffine} from './simulation-props.js';
 export const PROTOCOL = 'office-simulation-v1';
 const round = n => Math.round(n * 1e5) / 1e5;
 const textureCache=new WeakMap(), geometryCache=new WeakMap();
@@ -104,7 +105,15 @@ export function applySimulation(graph, frame) {
     const v = f ? x.t.map((n, k) => n + (y.t[k] - n) * f) : s.t;
     o.position.fromArray(v); o.scale.fromArray(v, 7);
     q0.fromArray(f?x.t:s.t, 3); q1.fromArray(y.t, 3); o.quaternion.copy(q0.slerp(q1, f).normalize());
-    if (s.matrix) { o.matrixAutoUpdate = false; o.matrix.fromArray(s.matrix); }
+    if (s.matrix) {
+      o.matrixAutoUpdate = false;
+      // Baked props use affine matrices (including shear). Sample them on the
+      // same clock as the hands; holding x while bones advance breaks contact.
+      // Preserve the exact matrix at endpoints and across parenting/mode changes.
+      if (x.p === y.p && x.matrix && y.matrix && alpha > 0 && alpha < 1) {
+        interpolateAffine(o.matrix, x.matrix, y.matrix, alpha);
+      } else o.matrix.fromArray(s.matrix);
+    }
     else { o.matrixAutoUpdate = true; o.updateMatrix(); }
     o.matrixWorldNeedsUpdate = true;
     if (s.morph && o.morphTargetInfluences) s.morph.forEach((n, j) => { o.morphTargetInfluences[j] = x.morph[j] + (y.morph[j] - x.morph[j]) * alpha; });
@@ -114,5 +123,6 @@ export function applySimulation(graph, frame) {
     if(s.range)o.geometry.setDrawRange(s.range[0],s.range[1]??Infinity);
     for (const [k, values] of Object.entries(s.attrs)) { const attr = o.geometry?.attributes[k]; if (attr && attr.array.length >= values.length) { attr.array.set(values); attr.needsUpdate = true; } }
   }
+  interpolateHeldCups(graph, frame);
   return alpha >= 1 ? b.meta : a.meta;
 }
