@@ -1,4 +1,6 @@
 import {createSocialAdmission} from './social-admission.mjs';
+import {attachHeroineCoffee} from './heroine-coffee.mjs';
+import {attachAcceptedHeroineWhisky} from './heroine-accepted-whisky.mjs';
 import {createPresentationWitness} from './presentation-witness.mjs';
 import {registerSimulationGraph,captureSimulation,createPoseBuffer,applySimulation} from './simulation-stream.js';
 import {createStartupDownloads} from './startup-downloads.mjs';
@@ -382,6 +384,10 @@ async function loadPerson(id, e) {
     let ed;
     if(id==='heroine') {
       const her=await prepareHeroine(path=>get(path).then(b=>ld().parseAsync(b,'')),shared,id,CHAR_BASE+'assets/heroine-v77/',{sitIdle:CHAR_BASE+'assets/heroine-seat-clearance-v80/clip-sit_idle-hands-v02.glb',repertoireBank:CHAR_BASE+'assets/heroine-repertoire-20261003-v01/heroine-repertoire-v01.glb',sleepBank:CHAR_BASE+'assets/heroine-chair-sleep-20261003-v01/heroine-chair-sleep-v01.glb'});
+      const drinkBase=CHAR_BASE+'assets/heroine-consumption-20261004-v01/';
+      const [coffeeClip,coffeeCfg,barClip,barCfg,coffeeMesh]=await Promise.all([get(drinkBase+'coffee.glb').then(b=>ld().parseAsync(b,'')),get(drinkBase+'coffee.json').then(b=>JSON.parse(new TextDecoder().decode(b))),get(drinkBase+'bar.glb').then(b=>ld().parseAsync(b,'')),get(drinkBase+'bar.json').then(b=>JSON.parse(new TextDecoder().decode(b))),get(CHAR_BASE+'assets/editor2A-coffee-web-v01.glb').then(b=>ld().parseAsync(b,''))]);
+      attachHeroineCoffee(her.extra,{clip:coffeeClip.animations[0],mug:coffeeMesh.scene.getObjectByName('SM_Prop_MugCoffee'),config:{...coffeeCfg,seatKinds:['bench','desk','chair']}});
+      attachAcceptedHeroineWhisky(her.extra,{clip:barClip.animations[0],record:shared.whiskyRec,props:shared.whisky,contacts:barCfg});
       her.extra.socialOccupancy=id=>socialSeatOccupancy(charsOf(latest),people,id);
       her.extra.socialWorld=()=>charsOf(latest);her.extra.talk=talk;her.extra.gaze=gaze;her.extra.musicPlaying=()=>sched?.current==='jazz';
       her.extra.socialPartner=id=>{const ed=people[id]?.ed,h=ed?.holder;if(!h)return null;h.updateMatrixWorld(true);const face=ed.root.getObjectByName('head')?.getWorldPosition(new THREE.Vector3());return {x:h.position.x,z:h.position.z,face:face?{x:face.x,y:face.y,z:face.z}:null};};
@@ -415,7 +421,7 @@ function reportExecution(dt) {
   const active=pairs.length>0&&pairs.every(p=>Object.values(p.actors).every(a=>a.ready));
   reportElapsed=active&&signature===reportPrevious&&dt<0.25?Math.min(2000,reportElapsed+dt*1000):0;reportPrevious=signature;
   if(now-reportSend<1000)return;reportSend=now;
-  const actors={};eachPerson((ed,id)=>{const s=ed.socialStatus();actors[id]={performanceDurations:s.performanceDurations,performanceWitness:s.performanceWitness,meals:s.meals,mealDurations:s.mealDurations,moneyWitness:s.moneyWitness,moneyWorkMs:s.moneyWorkMs,loaded:s.loaded,seq:s.seq,activity:s.activity,executing:s.executing,executionEnd:s.executionEnd,mode:s.mode,seat:s.seat,x:s.x,z:s.z,profiles:s.profiles,styles:s.styles,conversationReady:s.ready,conversationId:s.conversationId,sleepAvailable:s.sleepAvailable,sleep:s.sleep,diningChairClear:s.diningChairClear,readingAvailable:s.readingAvailable};});
+  const actors={};eachPerson((ed,id)=>{const s=ed.socialStatus();actors[id]={consumptionAvailable:s.consumptionAvailable,consumption:s.consumption,performanceDurations:s.performanceDurations,performanceWitness:s.performanceWitness,meals:s.meals,mealDurations:s.mealDurations,moneyWitness:s.moneyWitness,moneyWorkMs:s.moneyWorkMs,loaded:s.loaded,seq:s.seq,activity:s.activity,executing:s.executing,executionEnd:s.executionEnd,mode:s.mode,seat:s.seat,x:s.x,z:s.z,profiles:s.profiles,styles:s.styles,conversationReady:s.ready,conversationId:s.conversationId,sleepAvailable:s.sleepAvailable,sleep:s.sleep,diningChairClear:s.diningChairClear,readingAvailable:s.readingAvailable};});
   const styles=[...new Set(Object.values(actors).flatMap(a=>a.styles||[]))];
   live.execution({pairs:pairs.map(p=>({...p,elapsedMs:reportElapsed})),capabilities:{actors,styles}});reportElapsed=0;
 }

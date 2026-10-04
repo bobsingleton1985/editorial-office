@@ -1,0 +1,65 @@
+{
+  "status": "Owner requested start/return arm clearance correction; awaiting visual review",
+  "grab": 1,
+  "release": 3.7,
+  "grip": [
+    -0.036992794517192035,
+    -0.007470906292174809,
+    0.02748379687461663,
+    0,
+    0.025453878152846447,
+    0.011539921576548965,
+    0.037397464343669876,
+    0,
+    -0.012777834937988154,
+    0.04461677024950632,
+    -0.005070630441146045,
+    0,
+    -0.08892978626093001,
+    0.13078156547958275,
+    0.03787715287456189,
+    1
+  ],
+  "table": [
+    0.04668662011017253,
+    -4.119088629211953e-9,
+    -1.7901240835591775e-8,
+    0,
+    -8.949582509104603e-9,
+    0.04668661778304014,
+    1.3181670806966528e-9,
+    0,
+    1.796233305671746e-8,
+    -1.5088643763247478e-9,
+    0.04668661851308867,
+    0,
+    -0.14683265737298604,
+    0.7781407601683519,
+    0.5631759179134372,
+    1
+  ],
+  "lip": [
+    -0.4281441694387649,
+    0.9965819269386849,
+    -0.4996795556505038
+  ],
+  "tableHeight": 0.7316137237413538,
+  "changedBoneRotations": [
+    "upperarm_r",
+    "lowerarm_r",
+    "hand_r"
+  ],
+  "unchanged": "source GLB other tracks, model, rest, timing and source Blender",
+  "mouthReference": "proxy from accepted owner fork frame58",
+  "clearanceCorrection": {
+    "source": "project-handoffs/heroine-liveness-20261003/coffee-pilot/public/clip-HER-COFFEE-R-contact-v02.glb",
+    "reuses": "heroine-seat-clearance-v01/build.mjs liftArm",
+    "rightHeldIntervalUnchanged": [
+      1,
+      3.7
+    ],
+    "left": "raised above table throughout",
+    "tableTop": 1.1852974919330266,
+    "margin": 0.012
+  }
+}

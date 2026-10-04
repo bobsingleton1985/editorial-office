@@ -86,7 +86,7 @@ export function createShared({ scene, office, typewriters = null, phones = null,
   function applyProps() {
     const by = {}; for (const c of Object.values(claims)) if (c) by[c.desk] = c.kind;
     if (typewriters) for (const [d, m] of Object.entries(typewriters.M)) { const v = !(d in by); if (m.g.visible !== v) m.g.visible = v; }
-    if (coffee) for (const k of Object.keys(DESKS)) coffee.show(k, (!typewriters || k in by) && by[k] !== 'smoke_coffee' && by[k] !== 'rest_desk' && by[k] !== 'whisky');   // the mug takes the typewriter's place
+    if (coffee) for (const k of Object.keys(DESKS)) coffee.show(k, (!typewriters || k in by) && by[k] !== 'heroine_coffee' && by[k] !== 'smoke_coffee' && by[k] !== 'rest_desk' && by[k] !== 'whisky');   // the mug takes the typewriter's place
     for (const k in mugL) mugL[k].g.visible = by[k] === 'smoke_coffee';
     if (wprops) for (const k of Object.keys(DESKS)) wprops.showDesk(k, by[k] === 'whisky');
   }
