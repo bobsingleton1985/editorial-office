@@ -27,7 +27,7 @@ export function moneyPanel(entry,names){
 
   const rates=section('rates','Заработок и цены');
   if(f.canWork!==false)rates.append(el('p',`За завершённое редакционное задание: ${dollars(f.workRewardCents)}.`));
-  const titles={lunch:'Еда',whisky:'Виски',coffee:'Кофе',smoke_coffee:'Кофе с сигаретой (оплата кофе)'},prices=Object.entries(f.prices||{});
+  const titles={lunch:'Еда',whisky:'Виски',coffee:'Кофе',smoke:'Сигарета',smoke_coffee:'Кофе с сигаретой'},prices=Object.entries(f.prices||{});
   if(prices.length)rates.append(el('p',prices.map(([a,n])=>`${titles[a]||a}: ${dollars(n)}`).join(' · ')));
   if(f.performanceTerms)rates.append(el('p',`Согласованное выступление: ${dollars(f.performanceTerms.cents)} после полного исполнения. Обычные танцы бесплатны.`));
   box.append(rates);

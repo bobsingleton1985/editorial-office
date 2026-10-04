@@ -30,7 +30,7 @@ const W_SEAT = {};
 for (const [n, a] of Object.entries(W_MOUTH)) W_SEAT[n] = a.map((_, i) => { let m = 0; for (let k = -10; k <= 10; k++) { const v = a[i + k]; if (v) m = Math.max(m, v * smooth(1 - Math.abs(k) / 11)); } return m; });
 const wAt = (T, clip, f) => { const a = T[clip === 'smoke_stop_end' ? 'smoke_stop' : clip]; if (!a) return 0; const x = Math.max(0, Math.min(a.length - 1, f - 1)), i = Math.floor(x), t = x - i; return a[i] * (1 - t) + a[Math.min(i + 1, a.length - 1)] * t; };
 
-export function createSmoking({ scene, root, B, mixer, U, addon, strip, camera, renderer }) {
+export function createSmoking({ scene, root, B, mixer, U, addon, strip, camera, renderer, profile={} }) {
   // ---------- props from the add-on onto the office character
   const find = (s) => { let r = null; addon.scene.traverse((o) => { if (!r && o.name.replace(/[^A-Za-z0-9]/g, '').toLowerCase() === s) r = o; }); return r; };
   const N = { cig: find('smpropcigarette'), tip: find('smktip'), mouth: find('smkmouth'), fwd: find('smkmouthfwd'), lighter: find('smproplighter'), flame: find('smproplighterflame') };
@@ -271,7 +271,7 @@ export function createSmoking({ scene, root, B, mixer, U, addon, strip, camera, 
     if (on) {
       const T = wSeat ? W_SEAT : W_MOUTH, tot = sm.list.reduce((s, e) => s + e.w, 0) || 1;
       const wm = sm.list.reduce((s, e) => s + e.w / tot * wAt(T, e.name, e.time * FPS + 1), 0);
-      if (wSeat) {
+      if (wSeat || profile.standingIK) {
         const { G } = fingerFrame(), { m, aa } = mouthAxis(), d = new THREE.Vector3();
         if (wm > 0) d.addScaledVector(m.clone().addScaledVector(aa, 0.03 * U).sub(G), wm * sm.W);
         if (name === 'smoke_start') { const w = hump(f, 3, 12, 17, 26) * sm.W; if (w > 0) d.addScaledVector(fromThigh('r', K.pocketRt).sub(pinch('r')), w); }
@@ -283,7 +283,7 @@ export function createSmoking({ scene, root, B, mixer, U, addon, strip, camera, 
       // left hand and the lighter (lighting up only)
       const L = name === 'smoke_light'; N.lighter.visible = L && f >= 17 && f <= 139 && sm.W > 0.3;
       if (L) {
-        if (wSeat) {
+        if (wSeat || profile.standingIK) {
           const dl = new THREE.Vector3(), wp1 = hump(f, 4, 14, 20, 30) * sm.W, wp2 = hump(f, 126, 136, 142, 152) * sm.W;
           if (wp1 > 0) dl.addScaledVector(fromThigh('l', K.pocketL1t).sub(pinch('l')), wp1);
           if (wp2 > 0) dl.addScaledVector(fromThigh('l', K.pocketL2t).sub(pinch('l')), wp2);
@@ -330,6 +330,7 @@ export function createSmoking({ scene, root, B, mixer, U, addon, strip, camera, 
   return {
     fx, pre, post, setSitBase, setDrinkL, sipTime: () => sm.dT, clockT: () => sm.t,
     sipsBefore: (t) => { if (sm.mode !== 'sit' || !SIPS.length) return 0; const C = cig.sit + REST.sit, tc = t % C; return Math.floor(t / C) * SIPS.length + SIPS.filter((s0) => tc >= s0).length; },
+    done: () => sm.on && sm.t >= sm.allow*(cig[sm.mode]+REST[sm.mode])-1e-3 && sm.W <= .001,
     active: () => sm.on && sm.W > 0.001,
     blend: () => (sm.on && sm.mode === 'stand' ? { W: sm.W, list: sm.list.map((e) => [e.name, e.w]) } : null),   // for keeping the feet planted over the cross-fades
     status: () => ({ on: sm.on, mode: sm.mode, sip: sm.dT >= 0 && sm.dW > 0.05, t: +sm.t.toFixed(2), clip: sm.cur, frame: Math.round(sm.f), W: +sm.W.toFixed(2), lit: sm.lit, rest: sm.rest, cig: N.cig.visible, lighter: N.lighter.visible, particles: liveN }),
