@@ -14,22 +14,25 @@ export function ensurePerformances(st){st.economy.performances??=[];st.economy.p
 export function committedPerformance(st,id){return st.economy.performances.find(c=>['reserved','running'].includes(c.status)&&involved(c,id));}
 export function performancePlaces(st,id){return st.economy.performances.filter(c=>['reserved','running'].includes(c.status)).flatMap(c=>[...(id!==c.payer?['benchS']:[]),...(id!==c.performer?['tv3']:[])]);}
 function playable(c,input){return input?.mode!=='drinks'&&input?.ready===true&&input.music===true&&input.places?.includes('tv3')&&(input.benches?.[c.payer]?.includes('benchS'))&&c.sequence.every(x=>Number.isFinite(input.durations?.[x.activity])&&Math.abs(input.durations[x.activity]-x.duration)<.001);}
+const enoughMusic=(c,input)=>input.music===true&&(input.musicMs??Infinity)>=(c.duration*1000+(input.musicLeadMs??90000));
+export function performanceReplyDue(st,id,now){return st.economy.performances.find(c=>c.status==='offered'&&c.to===id&&c.expiresAt>now&&c.consideredAt==null);}
+export function consideredPerformanceReply(st,id,now){let changed=false;for(const c of st.economy.performances)if(c.status==='offered'&&c.to===id&&c.expiresAt>now&&c.consideredAt==null){c.consideredAt=now;changed=true;}return changed;}
 function seated(st,c,caps,now){const p=st.chars[c.payer],a=caps?.actors?.[c.payer];return fresh(caps,now)&&p?.place===c.seat&&['rest_lounge','wait'].includes(p.activity)&&a?.loaded&&(a.seq===p.seq||p.entry?.action==='continue'&&Number.isInteger(a.seq)&&a.seq<p.seq)&&a.mode==='seated'&&a.seat===c.seat&&a.executing===true;}
 function note(st,c,event,summary,now){for(const id of [c.payer,c.performer])remember(st,id,{id:`${c.id}:${event}:${id}`,event,partner:id===c.payer?c.performer:c.payer,summary},now);}
 export function performanceContext(st,id){return {performanceTerms:st.economy.performanceTerms,performances:st.economy.performances.filter(c=>involved(c,id)).slice(-20)};}
 export function performanceActions(st,id,pair,now,input){
  const e=st.economy;if(!e.config.enabled)return [];const out=[],other=freshPair(pair,id,now)?pair.members.find(x=>x!==id):null;
- if(other&&(id==='heroine'||other==='heroine')&&!e.performances.some(c=>ACTIVE.has(c.status)&&(involved(c,id)||involved(c,other)))&&input?.mode!=='drinks'&&input?.ready&&input.music&&input.places?.length){
+ if(other&&(id==='heroine'||other==='heroine')&&!e.performances.some(c=>ACTIVE.has(c.status)&&(involved(c,id)||involved(c,other)))&&input?.mode!=='drinks'&&input?.ready&&input.places?.length){
   const payer=id==='heroine'?other:id;
-  for(const first of PERFORMANCE_TERMS.activities)if(input.benches?.[payer]?.includes('benchS')&&sequence(first).every(x=>Number.isFinite(input.durations?.[x])&&input.durations[x]>0)&&canPayForPerformance(st,payer))out.push({id:`money_performance_offer@${other}:${first}`,description:`Предложить целое выступление героини за 3 USD, порядок ${first.endsWith('1')?1:2}: два танца, игривая поза и жест любви. Другой участник решит самостоятельно. Зритель садится на лавку; героиня выступает перед телевизором лицом к нему. Оплата один раз после всего выступления; обычные танцы бесплатны. Интерес к флирту, собственное отношение к героине и недавняя взаимность могут мотивировать заказ; деньги, дела, отказы и недавний просмотр учитывай самостоятельно.`});
+  for(const first of PERFORMANCE_TERMS.activities)if(input.benches?.[payer]?.includes('benchS')&&sequence(first).every(x=>Number.isFinite(input.durations?.[x])&&input.durations[x]>0)&&canPayForPerformance(st,payer))out.push({id:`money_performance_offer@${other}:${first}`,description:`Предложить целое выступление героини за 3 USD, порядок ${first.endsWith('1')?1:2}: два танца, игривая поза и жест любви. Другой участник решит самостоятельно. Музыка включится автоматически; зритель садится на лавку; героиня выступает перед телевизором лицом к нему. Оплата один раз после всего выступления; обычные танцы бесплатны. Интерес к флирту, собственное отношение к героине и недавняя взаимность могут мотивировать заказ; деньги, дела, отказы и недавний просмотр учитывай самостоятельно.`});
  }
  for(const c of e.performances.filter(c=>involved(c,id)&&ACTIVE.has(c.status))){
   out.push({id:`money_performance_cancel@${c.id}`,description:'Отменить выступление; 3 USD из резерва вернутся зрителю.'});
-  if(c.status==='offered'&&c.to===id&&other===c.from&&c.expiresAt>now){
+  if(c.status==='offered'&&c.to===id&&c.expiresAt>now){
    out.push({id:`money_performance_reply@${c.id}:decline`,description:'Отказаться от выступления за 3 USD.'});
-   if(playable(c,input)&&(id!==c.payer||available(st,c.payer)>=c.cents))out.push({id:`money_performance_reply@${c.id}:accept`,description:`Согласиться ${id===c.payer?'оплатить целое выступление и смотреть его с лавки':'исполнить целое выступление для сидящего на лавке зрителя'} за 3 USD. Сумма резервируется до завершения. Полностью просмотренное выступление удовлетворит интерес к флирту; решение учитывает твои чувства, бюджет и другие потребности.`});
+   if(input?.mode!=='drinks'&&available(st,c.payer)>=c.cents)out.push({id:`money_performance_reply@${c.id}:accept`,description:`Согласиться ${id===c.payer?'оплатить целое выступление и смотреть его с лавки':'исполнить целое выступление для сидящего на лавке зрителя'} за 3 USD. Сумма резервируется до завершения. Исполнитель дождётся свободного места; музыка включится автоматически. Полностью просмотренное выступление удовлетворит интерес к флирту; решение учитывает твои чувства, бюджет и другие потребности.`});
   }
-  if(c.status==='reserved'&&c.expiresAt>now&&playable(c,input)){
+  if(c.status==='reserved'&&c.expiresAt>now&&playable(c,input)&&input.arrived?.[id]===true){
    if(id===c.payer&&!seated(st,c,input.capabilities,now))for(const seat of input.benches?.[id]||[])out.push({id:`money_performance_watch@${c.id}:${seat}`,description:`Сесть на ${seat} и смотреть согласованное выступление героини. Ты можешь уйти или отменить договорённость.`});
    if(id===c.performer&&seated(st,c,input.capabilities,now))for(const place of input.places)out.push({id:`money_performance_start@${c.id}:${place}`,description:`Начать выступление перед телевизором лицом к ${c.payer}, который уже сидит на ${c.seat}. 3 USD за все части вместе после полного исполнения.`});
   }
@@ -83,7 +86,7 @@ export function observePerformances(st,caps,now){let changed=false;for(const c o
 export function tickPerformances(st,now){let changed=false;for(const c of st.economy.performances)if(ACTIVE.has(c.status)&&(c.expiresAt<=now||st.hostessMode==='drinks'&&c.status!=='running'))changed=cancelPerformance(st,c,c.expiresAt<=now?'expired':'mode_changed',now)||changed;return changed;}
 
 // Mutual consent authorizes navigation and playback; renderer feedback gates the dance.
-export function advancePerformances(st,now,input,dispatch){
+export function advancePerformances(st,now,input,dispatch,prepareMusic=()=>false){
  let changed=false;
  for(const c of st.economy.performances.filter(c=>c.status==='reserved')){
   if(c.expiresAt<=now)continue;
@@ -92,8 +95,10 @@ export function advancePerformances(st,now,input,dispatch){
    changed=cancelPerformance(st,c,'participant_sleep',now)||changed;continue;
   }
   const payer=st.chars[c.payer];
-  if(c.audienceDispatchedAt!=null&&payer.seq!==c.audienceSeq){changed=cancelPerformance(st,c,'audience_command_changed',now)||changed;continue;}
-  if(!fresh(input.capabilities,now)||!playable(c,input))continue;
+ if(c.audienceDispatchedAt!=null&&payer.seq!==c.audienceSeq){changed=cancelPerformance(st,c,'audience_command_changed',now)||changed;continue;}
+  if(!fresh(input.capabilities,now)||!input.ready)continue;
+  if(!enoughMusic(c,input)){if(prepareMusic(c.duration*1000+(input.musicLeadMs??90000))!==false)changed=true;continue;}
+  if(!playable(c,input))continue;
   if(seated(st,c,input.capabilities,now)){
    changed=startPerformance(st,c.performer,`money_performance_start@${c.id}:tv3`,null,now,'performance_executor',input,a=>dispatch(c.performer,a))||changed;
   }else if(c.audienceDispatchedAt==null){
