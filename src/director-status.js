@@ -120,7 +120,7 @@ export function addDirectorStatus(section, get, loadJournal) {
   if (!document.getElementById('ptabs-css')) { const st = document.createElement('style'); st.id = 'ptabs-css'; st.textContent = '#settings .ptabs button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }'; document.head.append(st); }
   const names = () => Object.fromEntries(peopleOf(get().world).map(([id, e]) => [id, e.name || id]));
   if (loadJournal) { const b = el('div', 'btns'), btn = el('button', null, '📜 Журнал действий'); btn.addEventListener('click', () => openJournal(loadJournal, get().focus, names())); b.append(btn); sec.append(b); }
-  let tabKey = '',moneyKey='',renderedMoneyActor=null;const moneyOpen=new Map();
+  let tabKey = '',moneyKey='',renderedMoneyActor=null,renderedRelationshipsActor=null;const moneyOpen=new Map(),relationshipOpen=new Map();
   function renderMoney(){
     const {world,focus,setFocus}=get(),list=peopleOf(world),id=list.some(([k])=>k===focus)?focus:list[0]?.[0],entry=list.find(([k])=>k===id)?.[1];
     const key=JSON.stringify([id,list.map(([k,e])=>[k,e.name,e.finances])]);
@@ -161,7 +161,10 @@ export function addDirectorStatus(section, get, loadJournal) {
     if(e?.sleep)sleepInfo.append(el('div',null,({entering:'Готовится ко сну',asleep:'Спит',waking:'Просыпается'}[e.sleep.phase]||'Сон')+` · подтверждено сна: ${Math.round(e.sleep.confirmedMs/1000)} с`));
     const lastSleep=e?.memory?.filter(x=>x.event==='sleep_finished').at(-1);
     if(lastSleep)sleepInfo.append(el('div',null,`Помнит: ${id==='heroine'?'спала':'спал'} ${lastSleep.kind==='chair'?'на стуле у круглого стола':'за столом'} ${Math.round(lastSleep.participatingSeconds)} с; усталость ${Math.round(lastSleep.fatigueBefore)} → ${Math.round(lastSleep.fatigueAfter)}. ${lastSleep.reason==='restored'?'Силы восстановлены.':'Закончился период сна.'}`));
-    box.replaceChildren(sub, needs, sleepInfo, relationshipView(e,names()), tb, el('div', 'hint', 'Jev думает, только пока редакцию кто-то смотрит. Время редакции (и шкалы) идёт тоже только при зрителях.' + (ctl ? ' Потяните шкалу — человек пересмотрит, чем заняться (это увидят все зрители).' : '')));
+    for(const detail of box.querySelectorAll('[data-relationship-section]'))if(renderedRelationshipsActor)relationshipOpen.set(renderedRelationshipsActor+':'+detail.dataset.relationshipSection,detail.open);
+    const relations=relationshipView(e,names());for(const detail of relations.querySelectorAll('[data-relationship-section]'))detail.open=relationshipOpen.get(id+':'+detail.dataset.relationshipSection)??false;
+    renderedRelationshipsActor=id;
+    box.replaceChildren(sub, needs, sleepInfo, relations, tb, el('div', 'hint', 'Jev думает, только пока редакцию кто-то смотрит. Время редакции (и шкалы) идёт тоже только при зрителях.' + (ctl ? ' Потяните шкалу — человек пересмотрит, чем заняться (это увидят все зрители).' : '')));
     if(focused) Array.from(box.querySelectorAll('input.nr')).find(i=>i.getAttribute('aria-label')===focused)?.focus({preventScroll:true});
   }
   const refresh=()=>{if(visible(sec))render();if(visible(moneySec))renderMoney();};

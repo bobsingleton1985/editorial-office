@@ -22,6 +22,9 @@ export function moneyPanel(entry,names){
   const balances=el('div',undefined,'money-balance-row');
   for(const [title,value] of [['Баланс',f.balance],['Доступно',f.available]]){const stat=el('div');stat.append(el('span',title),el('strong',dollars(value)));balances.append(stat);}
   box.append(balances);
+  if(f.livelihood){const l=f.livelihood;box.append(el('p',l.earningRole==='paid_performance'?'Заработок: только согласованное платное выступление. Обычные танцы бесплатны.':'Заработок: завершение редакционных заданий.'));box.append(el('p',l.mealAffordable?'На еду хватает денег или доступно принятое угощение.':`На еду не хватает ${dollars(l.mealShortfallCents)}. Это учитывается при выборе заработка.`));}
+  const wallet=f.livelihood?.wallet;if(wallet?.enabled){box.append(el('p',`Зарезервировано: ${dollars(wallet.reservedCents)}. Собственные долги: ${dollars(wallet.ownDebtCents)}; к возврату в ближайшие сутки: ${dollars(wallet.dueWithinDayCents)}.`));if(wallet.foodAndDueDebtGapCents>0)box.append(el('p',`На еду и ближайшие долги вместе не хватает ${dollars(wallet.foodAndDueDebtGapCents)}. Перед покупками, подарками и развлечениями персонаж учитывает будущий остаток.`));}
+
   const rates=section('rates','Заработок и цены');
   rates.append(el('p',f.canWork===false?'Редакционный заработок этому персонажу пока недоступен.':`За завершённое редакционное задание: ${dollars(f.workRewardCents)}.`));
   const titles={lunch:'Еда',whisky:'Виски',coffee:'Кофе',smoke_coffee:'Кофе с сигаретой (оплата кофе)'},prices=Object.entries(f.prices||{});
