@@ -36,3 +36,10 @@ The current service deployment remains at `../editorial-live/`. This addition
 does not switch or restart it. Future director changes must be committed here
 together with all affected modules, registry/configuration and shared browser
 data; keep the deployed code synchronized with the reviewed repository version.
+
+Run `npm test` for the isolated director contract checks. They execute the real
+director functions with fake time, storage and network; they do not call Jev or
+modify a running scene. Music uses the viewer's shared scheduled-channel function;
+it is not an audio or physical knob receipt. Execution timeout applies only after
+a fresh stationary arrival, leaving navigation and agreed joint processes under
+their existing execution protocols.

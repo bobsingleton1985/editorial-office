@@ -29,7 +29,7 @@ export function decisionKind(action){
   if(verb==='relationship_reflect')return 'relationship_reflection';
   if(verb.startsWith('money_')&&!['money_performance_start','money_performance_watch'].includes(verb))return 'economic_decision';
   if(['accept','decline','defer'].includes(verb))return 'invitation_response';
-  if(verb.startsWith('invite_')||['invite','social_invite','social_join'].includes(verb))return 'invitation';
+  if(verb.startsWith('invite_')||['invite','social_invite','social_join','music_ask'].includes(verb))return 'invitation';
   if(['relationship_appraise','social_relation'].includes(verb))return 'relationship_appraisal';
   if(verb==='social_intent')return 'conversation_intent';
   if(verb==='social_style')return 'gesture';
