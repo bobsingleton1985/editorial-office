@@ -10,6 +10,7 @@ export const HEROINE_PROFILE = {
 const activity=(label,seconds,at,options={})=>({rate:0,dwell:[seconds,seconds],once:true,needs:{},people:['heroine'],when:null,
   where:[{at,label,jev:label+'; исполнить собственное принятое движение героини один раз.'}],...options});
 export const HEROINE_ACTIVITIES = {
+  heroine_tv_channel:activity('переключает канал телевизора',9,'tv_knob'),
   heroine_serve:activity('обслуживает гостей с подносом',300,'bar'),
   heroine_coffee:activity('пьёт кофе',5.066666603088379,'coffee_seat',{needs:{coffee:-60}}),
   heroine_love1:activity('исполняет игривый жест любви',20,'tv_dance'),

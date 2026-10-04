@@ -1,3 +1,4 @@
+import {TV_CHANNELS,tvActions,receiveTvSwitch} from './tv-control.mjs';
 import {processBonusQueue} from './owner-bonuses.mjs';
 import {recoverInterruptedRequests,requestAllowed,requestStarted,requestFailed,requestSucceeded,retryModelRequest} from './model-requests.mjs';
 import {ChronicleStore} from './chronicle-store.mjs';
@@ -113,7 +114,7 @@ const TV_PROGRAM = ['anchor', 'weather', 'coffee', 'korea', 'jazz', 'suburb', 's
 // Invariant: whenever musicOn() is true the page really plays music (the grid window here is only the first half of the page's minute).
 function musicLeftMs(now) {                                           // how long the music is still sure to play
   let left = 0;
-  if (st.tvMusic && now >= st.tvMusic.from && now < st.tvMusic.until) left = st.tvMusic.until - now;
+  if(st.tvMusic&&now>=st.tvMusic.from&&now<st.tvMusic.until)return st.tvMusic.ch==='jazz'?st.tvMusic.until-now:0;
   const d = cityUtc === null ? new Date(now) : new Date(now + cityUtc * 1000), h = cityUtc === null ? d.getHours() : d.getUTCHours();
   if (h >= 1 && h < 6) { const m = cityUtc === null ? d.getMinutes() : d.getUTCMinutes(), sec = cityUtc === null ? d.getSeconds() : d.getUTCSeconds(); left = Math.max(left, (6 - h) * 3600000 - (m * 60 + sec) * 1000); }
   if (TV_PROGRAM[Math.floor(now / 60000) % TV_PROGRAM.length] === 'jazz') left = Math.max(left, 30000 - now % 60000);   // the grid's music minute, while half of it is left
@@ -534,7 +535,7 @@ function actions(id) {
   if (here !== 'window') add('wait@window', `Подойти к окну и постоять, глядя на вечерний город (${EFFECT(id, 'wait')})`);
   for (const [verb, x] of Object.entries(REG)) for (const w of x.where) for (const pl of (id==='heroine'&&verb==='smoke'&&w.at==='window'?['window','window2'].filter(pl=>!taken.has(pl)):WHERE[w.at](here, taken))) {   // registry activities (smoking, coffee, lunch, …)
     if (x.people && !x.people.includes(id)) continue;
-    if (verb==='heroine_serve') continue;
+    if (verb==='heroine_serve'||verb==='heroine_tv_channel') continue;
     if(id==='heroine'&&verb==='smoke'&&(!['window','window2'].includes(pl)||executionCapabilities?.actors?.[id]?.smokingAvailable!==true))continue;
     if (!consumptionReady(id,verb,pl,executionCapabilities,Date.now())||!fits(x, pl)||(st.failedUntil[id + ':' + verb] || 0) > nowMs||st.hostessMode==='drinks'&&verb.includes('dance')) continue;
     if (pl === here && p.activity === verb) continue;
@@ -547,7 +548,8 @@ function actions(id) {
   const later = deferredInvite(id, Date.now());
   if (later && !taken.has(later.place) && !out.some(x => x.id === 'smoke@' + later.place)) add('smoke@' + later.place, `Теперь присоединиться к ${DAT[later.from] || later.from}: покурить вместе у окна (${EFFECT(id, 'smoke')})`);
   if (id === 'heroine') for (const o of Object.keys(st.chars)) if (canAskMusic(id, o, Date.now()))
-    out.push({ id: 'music_ask@' + o, description: `Попросить ${ACC[o] || o} включить музыку по телевизору (сама ты ручку не поворачиваешь; он ответит сам — согласится или откажет; ответ он даёт сразу)` });
+    out.push({ id: 'music_ask@' + o, description: `Попросить ${ACC[o] || o} включить музыку по телевизору (он ответит сам — согласится или откажет; ответ он даёт сразу)` });
+  if(!committedPerformance(st,id))out.push(...tvActions(st,id,executionCapabilities,Date.now(),taken));
   out.push(...socialActions(id));
   const affordable=list=>expandMealActions(list.filter(a=>st.hostessMode!=='drinks'||!a.id.split('@')[0].includes('dance')), socialReady(id,Date.now())?executionCapabilities.actors[id].meals:null).filter(a=>a.id==='continue'||(!price(st,a.id.split('@')[0])||executionCapabilities?.actors?.[id]?.moneyWitness===1)&&canReplacePurchase(st,id,a.id.split('@')[0],Date.now())).map(a=>({...a,description:a.description+(price(st,a.id.split('@')[0])?` Стоимость ${price(st,a.id.split('@')[0])/100} USD; списание при исполнении.`:'' )}));
   out.push(...moneyActions(st,id,pairOf(st,id),Date.now(),Object.fromEntries(Object.entries(PEOPLE).map(([id,p])=>[id,p.name]))));
@@ -587,7 +589,7 @@ async function snapshot(id, avail) {
         arrived: task.arrived, progress_minutes: Math.round(task.done_min), needs_minutes: task.need_min,
         note: 'Работа продвигается только за письменным столом (work_variant); закончится внешним событием work_finished.' } : null,
       finances:{...moneyContext(st,id),...performanceContext(st,id),...serviceContext(st,id),canWork:supports(id,'work'),livelihood:livelihoodContext(st,id,avail,now)}, pending_tasks: waiting().map((x) => ({ id: x.id, title: x.title, arrived: x.arrived })), memory: structuredClone(p.memory.slice(-6)), relationships:publicRelations(st,id), courtship:Object.fromEntries(Object.entries(p.relationships).map(([other,r])=>[other,courtshipStatus(r,id,other)])), currentActivity: publicConversation(st,id), recentEpisodes: structuredClone(p.memory.filter(x=>x.event==='conversation_finished'||x.event==='conversation_cancelled').slice(-3)) },
-    situation: { local_time: hhmm(now), room: 'вечерняя редакция нью-йоркской газеты, 1956 год: три письменных стола (A, B, C), скамья у круглого стола, окна на город, телетайп, бар, телевизор',
+    situation: { television:st.tvMusic&&now>=st.tvMusic.from&&now<st.tvMusic.until?{channel:st.tvMusic.ch,label:TV_CHANNELS[st.tvMusic.ch],until:st.tvMusic.until}:{mode:'scheduled'},pendingTvSwitch:st.pendingTvSwitch?{actor:st.pendingTvSwitch.actor,channel:st.pendingTvSwitch.channel,switched:false}:null,local_time: hhmm(now), room: 'вечерняя редакция нью-йоркской газеты, 1956 год: три письменных стола (A, B, C), скамья у круглого стола, окна на город, телетайп, бар, телевизор',
       music: musicOn(now) ? 'по телевизору играет музыка' : musicPending(now) ? 'кто-то идёт включать музыку, она вот-вот заиграет' : 'музыка не играет',
       others: others(id), ...(inviteNote[id] ? { invitation: inviteNote[id] } : {}), ...(deferredInvite(id, now) ? { deferred_invitation: `${PEOPLE[st.deferredInvites[id].from].name} ещё курит у окна. Ты ответил «не сейчас»; можно присоединиться или выбрать другое занятие.` } : {}), teletype: waiting().length ? `на ленте ждут правки сообщений: ${waiting().length}` : 'новых сообщений на ленте нет', ...ownerNote(now) },
     ...(await characterRules() ? { characterRules: rules } : {}),
@@ -799,7 +801,7 @@ function decisionContext(id){const p=st.chars[id],pair=pairOf(st,id),partner=pai
 function applyDecision(id, action, source, confidence, expected=null, performanceDispatch=false,systemSleepDispatch=false,serviceDispatch=false) {
   if(expected){const current=decisionContext(id);if(!action.startsWith('money_'))expected={...expected,economyRevision:current.economyRevision};if(JSON.stringify(expected)!==JSON.stringify(current))return false;}
   const selectedAction=action,resolved=resolveMealAction(action,socialReady(id,Date.now())?executionCapabilities.actors[id].meals:null);if(!resolved)return false;action=resolved.action;
-  const now = Date.now(), p = st.chars[id], [verb, variant] = action.split('@'), from = p.place;
+  const now=Date.now(),p=st.chars[id],[verb,selection]=action.split('@'),variant=verb==='heroine_tv_channel'?'tvKnob':selection,from=p.place;
   if(action==='continue'&&committedPerformance(st,id)){p.busyUntil=Math.max(p.busyUntil,now+15000);return true;}
   if(!performanceDispatch&&!systemSleepDispatch&&committedPerformance(st,id)&&!action.startsWith('money_performance_cancel@'))return false;
   const forcedSleep=systemSleepDispatch&&verb==='sleep_desk'&&!!p.sleepPending;
@@ -889,7 +891,8 @@ function applyDecision(id, action, source, confidence, expected=null, performanc
   if(verb==='social_invite'||verb==='social_join') {const o=verb==='social_invite'?variant:st.social.deferred[variant]?.from;startInvite(id,o,now);st.invite.kind='social';st.invite.proposal=structuredClone(proposed);st.invite.proposal.actorRevisions[id]=p.seq;if(verb==='social_join')delete st.social.deferred[variant];}
   if (verb === 'smoke' && st.deferredInvites[id]?.place === place) delete st.deferredInvites[id];
   const t = taskOf(id), talk = p.entry?.talk && now - p.entry.talk.at < 6000 ? p.entry.talk : undefined;   // the last words stay while their bubble runs
-  p.entry = { talk, from: target(from), cmd: move ? target(place) : null, at: now, label: labelOf(id, activity, place), activity, source, confidence, action:selectedAction, meal:activity==='lunch'?resolved.meal:null, fatigue: before,
+  if(verb==='heroine_tv_channel')st.pendingTvSwitch={actor:id,seq:p.seq,channel:selection,requestedAt:now};
+  p.entry = { channel:verb==='heroine_tv_channel'?selection:undefined,talk, from: target(from), cmd: move ? target(place) : null, at: now, label: labelOf(id, activity, place), activity, source, confidence, action:selectedAction, meal:activity==='lunch'?resolved.meal:null, fatigue: before,
     story: activity === 'work' && t ? { id: t.id, en: WIRE_EN[t.title] || '' } : undefined };
   if (verb === 'music_ask' && st.invite) { p.entry.talk = { at: now, to: st.invite.to, icon: 'social', mark: 'q' }; p.busyUntil = now + 60000; }
   if ((verb === 'social_invite'||verb==='social_join') && st.invite) {p.entry.talk={at:now,to:st.invite.to,icon:'social',mark:'q'};p.busyUntil=now+60000;}
@@ -1025,7 +1028,8 @@ async function pollParticipation(now,status) {
   try {if(st.executionBoot!==status.boot){executionSeq=0;for(const p of Object.values(st.chars))if(p.consumption){p.consumption.observation=-1;p.consumption.at=null;}st.executionBoot=status.boot;pauseParticipation(st,now);for(const p of Object.values(st.chars))if(p.sleep){p.sleep.lastObservation=0;p.sleep.lastSampleAt=null;}for(const p of Object.values(st.social.pairs))p.reportSeq=0;}
     const r=await relay('/director/execution?since='+executionSeq);executionCapabilities=r.capabilities||null;now=Date.now();
     captureChronicle(danceObserver.observe(st,executionCapabilities,now,FAST));
-    let gateChanged=clearDeliveredService(st,executionCapabilities,PLACES,now);gateChanged=releaseDiningChair(now)||gateChanged;gateChanged=releaseSleepDesks(now)||gateChanged; // Settle actual receipts before sleep can cancel an unfinished command.
+    const tvChanged=receiveTvSwitch(st,executionCapabilities,now);
+    let gateChanged=clearDeliveredService(st,executionCapabilities,PLACES,now)||tvChanged;gateChanged=releaseDiningChair(now)||gateChanged;gateChanged=releaseSleepDesks(now)||gateChanged; // Settle actual receipts before sleep can cancel an unfinished command.
     for(const p of Object.values(st.chars))if(rebindExecutionGate(p,now))gateChanged=true;
     for(const [id,p]of Object.entries(st.chars))if(usesConsumption(id,p.activity)&&acceptConsumption(p,executionCapabilities?.actors?.[id],executionCapabilities?.at,now,REG[p.activity]?.needs||{},rateOf(id,p.activity))>0)gateChanged=true;
     if(st.economy.config.enabled){const revision=st.economy.revision;observePerformances(st,executionCapabilities,now);observeServices(st,executionCapabilities,now);confirmPurchases(st,executionCapabilities,now);for(const id of IDS)updatePersonNeeds(id,now,workInterval(st,id,executionCapabilities,now));gateChanged=gateChanged||revision!==st.economy.revision;}

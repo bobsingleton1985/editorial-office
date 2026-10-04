@@ -41,7 +41,7 @@ import { createBlinds } from './blinds.js';
 import { createSunbeams } from './sunbeams.js';
 import { createNeon } from './neon.js';
 import { createTvScreen, loadVideoTexture } from './tv-crt.js';
-import { createTvSchedule } from './tv-schedule.js';
+import { FILES, createTvSchedule } from './tv-schedule.js';
 import { createBulletin, BULLETIN_SEC } from './tv-bulletin.js';
 import { createTalk } from './talk.js';
 import { parseWhisky } from './whisky.js';
@@ -400,6 +400,8 @@ async function loadPerson(id, e) {
       const phoneBase=CHAR_BASE+'assets/heroine-phone-20261004-v01/';
       const [herPhone,herPhoneProfile]=await Promise.all([get(phoneBase+'heroine-phone-v01.glb').then(b=>ld().parseAsync(b,'')),get(phoneBase+'phone-profile.json').then(b=>JSON.parse(new TextDecoder().decode(b)))]);
       attachHeroinePhone(her.extra,herPhone,herPhoneProfile);
+      her.extra.tvswitch=await get(CHAR_BASE+'assets/heroine-tv-20261004-v01/heroine-tv-v01.glb').then(b=>ld().parseAsync(b,''));
+      const km=new THREE.AnimationMixer(her.gltf.scene),kc=(await get(CHAR_BASE+'assets/heroine-v77/heroine/clip-HER-STIR-owner-v02.glb').then(b=>ld().parseAsync(b,''))).animations[0],ka=km.clipAction(kc).play();ka.time=kc.duration*.5;km.update(0);her.extra.knobGrip={};her.gltf.scene.traverse(o=>{if(/^(thumb|index|middle|ring|pinky)_0[123]_r$/.test(o.name))her.extra.knobGrip[o.name]=o.quaternion.toArray();});km.stopAllAction();
       her.extra.camera=cam;her.extra.renderer=r;
       her.extra.socialOccupancy=id=>socialSeatOccupancy(charsOf(latest),people,id);
       her.extra.socialWorld=()=>charsOf(latest);her.extra.talk=talk;her.extra.gaze=gaze;her.extra.musicPlaying=()=>sched?.current==='jazz';
@@ -434,7 +436,7 @@ function reportExecution(dt) {
   const active=pairs.length>0&&pairs.every(p=>Object.values(p.actors).every(a=>a.ready));
   reportElapsed=active&&signature===reportPrevious&&dt<0.25?Math.min(2000,reportElapsed+dt*1000):0;reportPrevious=signature;
   if(now-reportSend<1000)return;reportSend=now;
-  const actors={};eachPerson((ed,id)=>{const s=ed.socialStatus();actors[id]={phone:s.phone,smokingAvailable:s.smokingAvailable,smoking:s.smoking,serviceReady:s.serviceReady,serviceDurations:s.serviceDurations,serviceWitness:s.serviceWitness,serviceDelivery:s.serviceDelivery,consumptionAvailable:s.consumptionAvailable,consumption:s.consumption,performanceDurations:s.performanceDurations,performanceWitness:s.performanceWitness,meals:s.meals,mealDurations:s.mealDurations,moneyWitness:s.moneyWitness,moneyWorkMs:s.moneyWorkMs,loaded:s.loaded,seq:s.seq,activity:s.activity,executing:s.executing,executionEnd:s.executionEnd,mode:s.mode,seat:s.seat,x:s.x,z:s.z,profiles:s.profiles,styles:s.styles,conversationReady:s.ready,conversationId:s.conversationId,sleepAvailable:s.sleepAvailable,sleep:s.sleep,diningChairClear:s.diningChairClear,readingAvailable:s.readingAvailable};});
+  const actors={};eachPerson((ed,id)=>{const s=ed.socialStatus();actors[id]={tvSwitchAvailable:s.tvSwitchAvailable,tvSwitch:s.tvSwitch,phone:s.phone,smokingAvailable:s.smokingAvailable,smoking:s.smoking,serviceReady:s.serviceReady,serviceDurations:s.serviceDurations,serviceWitness:s.serviceWitness,serviceDelivery:s.serviceDelivery,consumptionAvailable:s.consumptionAvailable,consumption:s.consumption,performanceDurations:s.performanceDurations,performanceWitness:s.performanceWitness,meals:s.meals,mealDurations:s.mealDurations,moneyWitness:s.moneyWitness,moneyWorkMs:s.moneyWorkMs,loaded:s.loaded,seq:s.seq,activity:s.activity,executing:s.executing,executionEnd:s.executionEnd,mode:s.mode,seat:s.seat,x:s.x,z:s.z,profiles:s.profiles,styles:s.styles,conversationReady:s.ready,conversationId:s.conversationId,sleepAvailable:s.sleepAvailable,sleep:s.sleep,diningChairClear:s.diningChairClear,readingAvailable:s.readingAvailable};});
   const styles=[...new Set(Object.values(actors).flatMap(a=>a.styles||[]))];
   live.execution({pairs:pairs.map(p=>({...p,elapsedMs:reportElapsed})),capabilities:{actors,styles}});reportElapsed=0;
 }
@@ -592,7 +594,7 @@ let tvSeen = null, tvTune = null, knobAt = 0;
 function tvMusic(now) {
   if (!sched) return;
   const t = latest?.tv;
-  if (t !== tvSeen) { tvSeen = t; tvTune = t && t.ch === 'jazz' && Number.isFinite(t.from) && Number.isFinite(t.until) && Number.isFinite(t.at) ? { ch: t.ch, from: t.from, until: t.until, at: t.at } : null;
+  if (t !== tvSeen) { tvSeen = t; tvTune = t && FILES[t.ch] && Number.isFinite(t.from) && Number.isFinite(t.until) && Number.isFinite(t.at) ? { ch: t.ch, from: t.from, until: t.until, at: t.at } : null;
     sched.tune(tvTune && knobAt >= tvTune.at ? { ...tvTune, from: Math.min(tvTune.from, knobAt) } : tvTune); }
   if (tvTune && !(knobAt >= tvTune.at) && now < tvTune.until) eachPerson((ed) => { if (!(knobAt >= tvTune.at) && ed.knobTurn() > 0.5) { knobAt = now; sched.tune({ ...tvTune, from: Math.min(tvTune.from, now) }); } });
 }
@@ -751,6 +753,7 @@ function displaySimulation(dt){
   if(frame.stale)animationAudio.reset();
   else eachPerson((ed,id)=>animationAudio.update(sampleAudioWitness(frame,id),dt));
   window.__audioStream={version:simulationMeta.soundVersion||null,available:Object.values(simulationMeta.actors||{}).filter(v=>v.sound).length,stale:frame.stale};
+  eachPerson((ed,id)=>ed.fx?.userData.renderSmoke?.(frame,id));
   // Pixel size of smoke is camera-dependent presentation, never server state.
   for(const o of simulationGraph.nodes)for(const m of o.material?[].concat(o.material):[])
     if(m.uniforms?.uPPU)m.uniforms.uPPU.value=r.domElement.height/((cam.top-cam.bottom)/cam.zoom);
@@ -767,7 +770,7 @@ window.__simulationTick=(dt,at)=>{
 let capturePrevious=null;
 window.__simulationCapture=()=>{
   const actors={};eachPerson((ed,id)=>actors[id]={status:ed.status(),social:ed.socialStatus(),sound:ed.audioState(),performancePose:ed.performancePose(),conversation:ed.conversationStatus(),moving:ed.moving(),knob:ed.knobTurn()});
-  const snapshot=captureSimulation(simulationGraph,{actors,soundVersion:1,audio:simulationAudio,worldSeq:latest?.seq,gaze:gaze?.status()});
+  const snapshot=captureSimulation(simulationGraph,{actors,smokeFxVersion:1,soundVersion:1,audio:simulationAudio,worldSeq:latest?.seq,gaze:gaze?.status()});
   const next=snapshot.states.map(s=>JSON.stringify(s));
   const out=capturePrevious?{protocol:snapshot.protocol,changes:snapshot.states.flatMap((s,i)=>next[i]===capturePrevious[i]?[]:[[i,s]]),meta:snapshot.meta}:snapshot;
   capturePrevious=next;return out;
