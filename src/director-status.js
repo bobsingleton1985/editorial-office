@@ -59,7 +59,7 @@ function openJournal(load, only = null, names = {}) {
 
 // needs scales: whatever needs the director sends in world.state (today only fatigue; new needs appear here by themselves).
 // The director sends values with their rate per minute at the moment of the decision; between decisions the page runs them on.
-const NEED = { fatigue: 'Усталость', boredom: 'Скука', social: 'Общение', recognition: 'Признание', fun: 'Развлечение',
+const NEED = { flirt: 'Интерес к флирту', fatigue: 'Усталость', boredom: 'Скука', social: 'Общение', recognition: 'Признание', fun: 'Развлечение',
   coffee: 'Кофе', nicotine: 'Никотин', alcohol: 'Алкоголь', stress: 'Стресс', drunk: 'Опьянение', hunger: 'Голод', music: 'Тяга к музыке', dance: 'Желание танцевать' };
 // the scales may be moved by any viewer (owner 30.09): the value goes to the director when the finger lets go, and the person decides again;
 // Only the actively dragged control owns a local value. On release the panel
