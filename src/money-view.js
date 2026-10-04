@@ -26,7 +26,7 @@ export function moneyPanel(entry,names){
   const wallet=f.livelihood?.wallet;if(wallet?.enabled){box.append(el('p',`Зарезервировано: ${dollars(wallet.reservedCents)}. Собственные долги: ${dollars(wallet.ownDebtCents)}; к возврату в ближайшие сутки: ${dollars(wallet.dueWithinDayCents)}.`));if(wallet.foodAndDueDebtGapCents>0)box.append(el('p',`На еду и ближайшие долги вместе не хватает ${dollars(wallet.foodAndDueDebtGapCents)}. Перед покупками, подарками и развлечениями персонаж учитывает будущий остаток.`));}
 
   const rates=section('rates','Заработок и цены');
-  rates.append(el('p',f.canWork===false?'Редакционный заработок этому персонажу пока недоступен.':`За завершённое редакционное задание: ${dollars(f.workRewardCents)}.`));
+  if(f.canWork!==false)rates.append(el('p',`За завершённое редакционное задание: ${dollars(f.workRewardCents)}.`));
   const titles={lunch:'Еда',whisky:'Виски',coffee:'Кофе',smoke_coffee:'Кофе с сигаретой (оплата кофе)'},prices=Object.entries(f.prices||{});
   if(prices.length)rates.append(el('p',prices.map(([a,n])=>`${titles[a]||a}: ${dollars(n)}`).join(' · ')));
   if(f.performanceTerms)rates.append(el('p',`Согласованное выступление: ${dollars(f.performanceTerms.cents)} после полного исполнения. Обычные танцы бесплатны.`));
