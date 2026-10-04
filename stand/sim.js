@@ -297,9 +297,20 @@ export class World {
     this.log('heroine', 'event', `Героиня ${why}.`);
     this._interruptAll('пришла героиня');
   }
+  // Кто-то ушёл или отключился посреди совместного занятия: партнёр остаётся один, бонусов за занятие не получает.
+  _breakJointWith(id, why) {
+    for (const o of IDS) {
+      const oc = this.chars[o], a = oc.activity;
+      if (o === id || !a || a.partner !== id || !a.type.startsWith('joint_')) continue;
+      oc.activity = null; this.livePos(o);
+      oc.needsDecision = this.awake(o); oc.decisionReason = `${this.chars[id].name} ${why}`;
+      this.log(o, 'event', `${oc.name} остался один: ${this.chars[id].name} ${why}.`);
+    }
+  }
   heroineLeaves(why) {
     const H = this.chars.heroine; if (!H.present) return;
     this._cancelInvitationsOf('heroine');
+    this._breakJointWith('heroine', 'ушла');
     Object.assign(H, { present: false, activity: null, needsDecision: false, asleep: false, spot: 'door', pos: { ...SPOTS.door } });
     this.log('heroine', 'event', `Героиня ушла: ${why}.`);
     for (const id of MEN) this.episode(id, 'героиня ушла', ['heroine']);
@@ -336,8 +347,9 @@ export class World {
   }
   _startForced(id) {
     const c = this.chars[id], f = c.forced; if (!f) return;
-    c.forced = null; c.needsDecision = false;
-    if (f.until <= this.t) return;
+    c.forced = null; c.needsDecision = false; c.askedRevision = null;   // старый вопрос к модели потерял силу
+    // Время задачи уже вышло (персонаж был занят неприрываемым делом): не оставляем его без дела и без запроса решения.
+    if (f.until <= this.t) { if (this.awake(id) && !c.activity) { c.needsDecision = true; c.decisionReason = 'задача Арчи уже не нужна'; } return; }
     this._cancelInvitationsOf(id);
     this._setActivity(id, f.type, c.id === 'heroine' ? 'door' : this.cfg.characters[id].desk, f.until - this.t, null);
     this.log(id, 'result', `${c.name} берётся за задачу Арчи: ${ACTIONS[f.type].label}.`);
@@ -373,6 +385,7 @@ export class World {
   _passOut(id) {
     const c = this.chars[id];
     this._cancelInvitationsOf(id);
+    this._breakJointWith(id, `перебрал${id === 'heroine' ? 'а' : ''} и уснул${id === 'heroine' ? 'а' : ''}`);
     c.asleep = true; c.needsDecision = false;
     const spot = c.spot;
     this._setActivity(id, 'sleep', spot, this._between(180, 360), { where: spot.startsWith('desk') ? 'на столе' : 'на полу' });
@@ -481,6 +494,7 @@ export class World {
       recent_memories: recent,
       available_actions: this.availableActions(id),
     };
+    c.askedRevision = snap.revision;     // на какой вопрос персонаж сейчас ждёт ответ (см. apply: устаревшие ответы отбрасываются)
     return JSON.parse(JSON.stringify(snap));
   }
 
@@ -489,6 +503,10 @@ export class World {
     const c = this.chars[id];
     if (c.forced) { this.log(id, 'event', `Выбор «${actionId}» отменён: задача Арчи важнее.`); this._startForced(id); return true; }
     if (!this.awake(id)) { c.needsDecision = false; return false; }
+    // Ответ на уже неактуальный вопрос (за время «раздумья» мир изменился: задача Арчи, встречное согласие и т.п.) — не применяем.
+    if (meta.revision !== undefined && (!c.needsDecision || meta.revision !== c.askedRevision)) {
+      this.log(id, 'event', `Запоздавший выбор «${actionId}» отброшен: ситуация уже изменилась.`); return false;
+    }
     // встречный порыв: собрался звать того, кто уже зовёт его к тому же — это согласие
     { const [h, t] = actionId.split('@'); const mutual = h.startsWith('invite_') && this.invitations.find(i => i.from === t && i.to === id && i.kind === h.slice(7));
       if (mutual) { this.log(id, 'decision', `сам хотел того же: ${this.chars[t].name}, ${KIND_LABEL[mutual.kind]}`, meta); c.needsDecision = false; this._resolveInvitation(mutual, 'accept', false); return true; } }

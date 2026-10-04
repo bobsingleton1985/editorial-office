@@ -64,15 +64,18 @@ function dispatchDecisions() {
         const probs = Object.entries(res.data.probabilities || {}).sort((a, b) => b[1] - a[1]);
         const label = aid => snap.available_actions.find(a => a.id === aid)?.description || aid;
         const alts = probs.filter(([a]) => a !== res.data.action).slice(0, 3).map(([a, p]) => `${label(a)} ${Math.round(p * 100)}%`).join(' · ');
-        world.apply(id, res.data.action, { confidence: res.data.confidence, alts, ms: res.data.ms, why: snap.why_deciding_now, options: snap.available_actions.length });
+        world.apply(id, res.data.action, { confidence: res.data.confidence, alts, ms: res.data.ms, why: snap.why_deciding_now, options: snap.available_actions.length, revision: snap.revision });
       } else if (res.status === 429) {
         running = false; $('play').textContent = '▶ Пуск'; setStatus(`Достигнут потолок вызовов Jev (${res.data.cap}). Поднимите потолок, чтобы продолжить.`);
       } else if (res.status === 409) {
         running = false; $('play').textContent = '▶ Пуск'; setStatus('Нет ключа Jev: ' + (res.data.detail || ''));
       } else {
         const c = world.chars[id];
-        world.log(id, 'event', `⚠️ Jev не ответил (${res.data.error || res.status}) — ${c.name} пережидает 10 мин.`);
-        c.needsDecision = false; world._setActivity(id, 'idle', c.spot, 10);
+        // Пережидаем, только если персонаж всё ещё ждёт именно этот ответ (иначе мир уже сам его занял другим делом).
+        if (c.needsDecision && c.askedRevision === snap.revision && world.awake(id) && !c.forced) {
+          world.log(id, 'event', `⚠️ Jev не ответил (${res.data.error || res.status}) — ${c.name} пережидает 10 мин.`);
+          c.needsDecision = false; world._setActivity(id, 'idle', c.spot, 10);
+        }
       }
       journalDirty = true;
     }).catch(() => { inflight.delete(id); setStatus('Сервер стенда недоступен'); running = false; });
