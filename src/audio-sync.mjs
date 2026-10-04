@@ -1,5 +1,5 @@
 // Receives rendered animation witnesses only. No director commands or wall-clock sound scheduling.
-import {typingStrikes} from './typing-audio.mjs';
+const TYPE_KEYS=[8,25,30,34,38,42,46,51,56,60,65,69,73,76,81,89,93,103].map(f=>(f-1)/30);
 const voiceOf=id=>id==='newspaper_editor'||id==='editor'?'editor':id;
 export function voiceMood(intent,style=''){
  if(intent==='confront')return 'argument';
@@ -13,8 +13,8 @@ export function voiceMood(intent,style=''){
  return 'talk';
 }
 export function createAnimationAudio(sound){
- const previous=new Map(),typingStates=new Map();let enabled=false;
- function reset(){previous.clear();typingStates.clear();}
+ const previous=new Map();let enabled=false;
+ function reset(){previous.clear();}
  function voice(s){const id=s.id;
   const speech=s.speech||s.vocal;
   if(speech&&speech.role==='speaker'&&speech.active&&!s.clapping){
@@ -27,14 +27,13 @@ export function createAnimationAudio(sound){
  }
  function update(s,dt){
   if(!s)return;const old=previous.get(s.id);previous.set(s.id,s);
-  if(old&&old.seq!==s.seq){sound.stopActor?.(s.id);typingStates.delete(s.id);}
+  if(old&&old.seq!==s.seq)sound.stopActor?.(s.id);
   // Clip wraps, interpolation priming and phrase boundaries must not restart speech.
   if(enabled&&s.rendered&&!s.replaying&&old&&old.seq===s.seq)voice(s);
   if(!enabled||!s.rendered||s.replaying||s.discontinuity||old?.discontinuity||!old||old.seq!==s.seq||s.time<=old.time||s.time-old.time>.3||dt<=0||dt>.25)return;
   const id=s.id,shot=(tag,asset,gain=1)=>sound.shot(id+':'+tag,asset,{gain});
   const crossed=(name,t)=>{const a=s.actions[name],b=old.actions[name];return a&&b&&a.weight>.55&&b.weight>.3&&(a.time>=b.time?(b.time<t&&a.time>=t):(a.duration>0&&b.time>a.duration*.7&&a.time<a.duration*.3&&(t>b.time||t<=a.time)));};
-  if(s.typing&&old.typing&&s.actions.type){let state=typingStates.get(id);if(!state){state={cycle:0};typingStates.set(id,state);}typingStrikes(sound,old,s,state);}
-  else typingStates.delete(id);
+  if(s.typing&&old.typing&&s.actions.type)for(const t of TYPE_KEYS)if(crossed('type',t))shot('type','typekey',.8);
   if(s.writing&&old.writing&&s.writing.down&&old.writing.down&&Math.hypot(s.writing.x-old.writing.x,s.writing.z-old.writing.z)>.00008)sound.loop(id+':pencil',id==='reporter'?'pencil2':'pencil1',{gain:.7});
   if(crossed('g_write_stop',20/30))shot('pencildown','pencildown');
   if(s.chair!==null&&old.chair!==null&&s.chair.key===old.chair.key&&Math.hypot(...s.chair.position.map((v,i)=>v-old.chair.position[i]))>.0002)sound.loop(id+':chair','chair',{gain:.5});
@@ -57,7 +56,6 @@ export function createAnimationAudio(sound){
    const {name,frame}=s.meal,prior=old.meal.frame;
    const hit=(f)=>prior<f&&frame>=f;
    if(name==='soup_stir'||name==='stir')sound.loop(id+':stir','stir',{gain:.7});
-   if(name==='steak'&&frame<38)sound.loop(id+':cutlery','cutlery',{gain:.65});
    if(name==='soup_eat'&&hit(30))shot('soup','soup',.6);
    const bite={fr_1:85,fr_2:77,fl_1:75,fl_2:57}[name];if(bite&&hit(bite))shot('bite','bite',.6);
    if(name==='soup_stop'&&hit(21))shot('clink','clink',.6);
