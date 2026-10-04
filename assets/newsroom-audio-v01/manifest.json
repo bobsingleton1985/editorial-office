@@ -77,8 +77,8 @@
       "duration": 62.0
     },
     "editor-talk": {
-      "url": "assets/newsroom-audio-v01/editor-talk.mp3",
-      "duration": 41.65659863945578
+      "url": "assets/newsroom-audio-v01/editor-talk-expanded-20261004.mp3",
+      "duration": 168.69619047619048
     },
     "editor-flirt": {
       "url": "assets/newsroom-audio-v01/editor-flirt.mp3",
@@ -101,8 +101,8 @@
       "duration": 3.0727891156462586
     },
     "columnist-talk": {
-      "url": "assets/newsroom-audio-v01/columnist-talk.mp3",
-      "duration": 41.65659863945578
+      "url": "assets/newsroom-audio-v01/columnist-talk-expanded-20261004.mp3",
+      "duration": 168.69619047619048
     },
     "columnist-flirt": {
       "url": "assets/newsroom-audio-v01/columnist-flirt.mp3",
@@ -125,8 +125,8 @@
       "duration": 3.0727891156462586
     },
     "reporter-talk": {
-      "url": "assets/newsroom-audio-v01/reporter-talk-stable-v02.mp3",
-      "duration": 23.87
+      "url": "assets/newsroom-audio-v01/reporter-talk-expanded-20261004.mp3",
+      "duration": 150.91045351473923
     },
     "reporter-flirt": {
       "url": "assets/newsroom-audio-v01/reporter-flirt.mp3",
@@ -149,8 +149,8 @@
       "duration": 3.0727891156462586
     },
     "heroine-talk": {
-      "url": "assets/newsroom-audio-v01/heroine-talk.mp3",
-      "duration": 41.65659863945578
+      "url": "assets/newsroom-audio-v01/heroine-talk-expanded-20261004.mp3",
+      "duration": 168.69619047619048
     },
     "heroine-flirt": {
       "url": "assets/newsroom-audio-v01/heroine-flirt.mp3",
@@ -423,16 +423,39 @@
     },
     {
       "id": "editor-talk",
-      "source": "ordinary-conversation-v01/editor-conversation.mp3",
-      "source_sha256": "ebdc5f287a8a2bb27aaaa45bf13ab87d843840ffe240a3080f76880c054999b4",
-      "excerpt": [
-        0.0,
-        41.65659863945578
+      "source": "../ordinary-long-20261004/editor-ordinary-long.mp3",
+      "source_sha256": "e5386d0ec3622d55d67ceb672a6facbf4937035dc23dad8c318dd356c14c79ad",
+      "sha256": "afd162194fe3fbd5fd8d11f3a81514b17251f8a49ae5e9bd4c5372d269831f59",
+      "runtime_file": "editor-talk-expanded-20261004.mp3",
+      "gain": 0.5977344152397418,
+      "processing": "New127s conversion normalized against shared room filters, then accepted older runtime appended with20ms crossfade. Runtime applies room filters once.",
+      "segments": [
+        {
+          "kind": "new",
+          "duration": 127.0595918367347,
+          "stability": 0.65,
+          "voice_id": "pqHfZKP75CvOlQylNhV4"
+        },
+        {
+          "kind": "previous",
+          "url": "assets/newsroom-audio-v01/editor-talk.mp3",
+          "sha256": "00aafaa386f244a8dc29837eec1620f5dc7854983eb2e18859072fe17dd8485a",
+          "duration": 41.65659863945578
+        }
       ],
-      "sha256": "00aafaa386f244a8dc29837eec1620f5dc7854983eb2e18859072fe17dd8485a",
-      "gain": 0.5491518025976521,
-      "loop_crossfade": false,
-      "processing": "Mono; gain calibrated after two 1800Hz lowpass filters; shared runtime filters apply room treatment."
+      "previous_source": {
+        "id": "editor-talk",
+        "source": "ordinary-conversation-v01/editor-conversation.mp3",
+        "source_sha256": "ebdc5f287a8a2bb27aaaa45bf13ab87d843840ffe240a3080f76880c054999b4",
+        "excerpt": [
+          0.0,
+          41.65659863945578
+        ],
+        "sha256": "00aafaa386f244a8dc29837eec1620f5dc7854983eb2e18859072fe17dd8485a",
+        "gain": 0.5491518025976521,
+        "loop_crossfade": false,
+        "processing": "Mono; gain calibrated after two 1800Hz lowpass filters; shared runtime filters apply room treatment."
+      }
     },
     {
       "id": "editor-flirt",
@@ -501,16 +524,39 @@
     },
     {
       "id": "columnist-talk",
-      "source": "ordinary-conversation-v01/columnist-conversation.mp3",
-      "source_sha256": "7b60c3dce207007a6dfee94c9e868afa76fee6232cdf02526e9c5991a86a4dca",
-      "excerpt": [
-        0.0,
-        41.65659863945578
+      "source": "../ordinary-long-20261004/columnist-ordinary-long.mp3",
+      "source_sha256": "f6d3ca7f4baa597ef894ae01ecc6910ac7d0bfd4035db2c272c863e8aa2cbfd7",
+      "sha256": "9d0c8b0736d95b337afbc313ce2fca5f7f674c4bcd1c44775f0da96ca0fa5ec4",
+      "runtime_file": "columnist-talk-expanded-20261004.mp3",
+      "gain": 0.4409751816949294,
+      "processing": "New127s conversion normalized against shared room filters, then accepted older runtime appended with20ms crossfade. Runtime applies room filters once.",
+      "segments": [
+        {
+          "kind": "new",
+          "duration": 127.0595918367347,
+          "stability": 0.65,
+          "voice_id": "RDSy0QN68yhrjuOgqzQ4"
+        },
+        {
+          "kind": "previous",
+          "url": "assets/newsroom-audio-v01/columnist-talk.mp3",
+          "sha256": "f94ca1fb494cfba561ca2abf4507e2368feb14e5d6da591034c53304d84145c8",
+          "duration": 41.65659863945578
+        }
       ],
-      "sha256": "f94ca1fb494cfba561ca2abf4507e2368feb14e5d6da591034c53304d84145c8",
-      "gain": 0.3669295875809985,
-      "loop_crossfade": false,
-      "processing": "Mono; gain calibrated after two 1800Hz lowpass filters; shared runtime filters apply room treatment."
+      "previous_source": {
+        "id": "columnist-talk",
+        "source": "ordinary-conversation-v01/columnist-conversation.mp3",
+        "source_sha256": "7b60c3dce207007a6dfee94c9e868afa76fee6232cdf02526e9c5991a86a4dca",
+        "excerpt": [
+          0.0,
+          41.65659863945578
+        ],
+        "sha256": "f94ca1fb494cfba561ca2abf4507e2368feb14e5d6da591034c53304d84145c8",
+        "gain": 0.3669295875809985,
+        "loop_crossfade": false,
+        "processing": "Mono; gain calibrated after two 1800Hz lowpass filters; shared runtime filters apply room treatment."
+      }
     },
     {
       "id": "columnist-flirt",
@@ -579,21 +625,44 @@
     },
     {
       "id": "reporter-talk",
-      "source": "ordinary-conversation-v01/reporter-conversation.mp3",
-      "source_sha256": "207c78f12c2eecb31ec0c50227e27e19b8b971110c31ee430a2f57061eb936ad",
-      "excerpt": [
-        0,
-        23.87
+      "source": "../ordinary-long-20261004/reporter-ordinary-long.mp3",
+      "source_sha256": "a6f5d1ebdbbb1e4585dc7277ea42061376e454920581d1370442e9bf92bd7f6e",
+      "sha256": "5e6923c45b960ab2c2a4f699a1281a3490589c85693c79bd959057ac336538d7",
+      "runtime_file": "reporter-talk-expanded-20261004.mp3",
+      "gain": 0.6563671692819572,
+      "processing": "New127s conversion normalized against shared room filters, then accepted older runtime appended with20ms crossfade. Runtime applies room filters once.",
+      "segments": [
+        {
+          "kind": "new",
+          "duration": 127.0595918367347,
+          "stability": 0.65,
+          "voice_id": "N2lVS1w4EtoT3dr4eOWO"
+        },
+        {
+          "kind": "previous",
+          "url": "assets/newsroom-audio-v01/reporter-talk-stable-v02.mp3",
+          "sha256": "6effb8b5999eaf144f2ea5f54fbba3dbee6c2cbd9e89e453b6b912aaf33f64ed",
+          "duration": 23.87
+        }
       ],
-      "sha256": "6effb8b5999eaf144f2ea5f54fbba3dbee6c2cbd9e89e453b6b912aaf33f64ed",
-      "gain": 0.2865960271766488,
-      "loop_crossfade": false,
-      "processing": "Mono; gain calibrated after two 1800Hz lowpass filters; shared runtime filters apply room treatment.",
-      "runtime_file": "reporter-talk-stable-v02.mp3",
-      "owner_correction": {
-        "date": "2026-10-04",
-        "quote": "Да, тембра меняется внутри записи. на 24 секунде",
-        "action": "Use stable prefix ending in measured silence23.835782–23.929977, before reported timbre change. Original master and previous output retained."
+      "previous_source": {
+        "id": "reporter-talk",
+        "source": "ordinary-conversation-v01/reporter-conversation.mp3",
+        "source_sha256": "207c78f12c2eecb31ec0c50227e27e19b8b971110c31ee430a2f57061eb936ad",
+        "excerpt": [
+          0,
+          23.87
+        ],
+        "sha256": "6effb8b5999eaf144f2ea5f54fbba3dbee6c2cbd9e89e453b6b912aaf33f64ed",
+        "gain": 0.2865960271766488,
+        "loop_crossfade": false,
+        "processing": "Mono; gain calibrated after two 1800Hz lowpass filters; shared runtime filters apply room treatment.",
+        "runtime_file": "reporter-talk-stable-v02.mp3",
+        "owner_correction": {
+          "date": "2026-10-04",
+          "quote": "Да, тембра меняется внутри записи. на 24 секунде",
+          "action": "Use stable prefix ending in measured silence23.835782–23.929977, before reported timbre change. Original master and previous output retained."
+        }
       }
     },
     {
@@ -663,16 +732,39 @@
     },
     {
       "id": "heroine-talk",
-      "source": "ordinary-conversation-v01/heroine-conversation.mp3",
-      "source_sha256": "efaa6f0a0f92d08acdcadfe80443e8f1f93a7c1a6ee761e58b84ff5174172517",
-      "excerpt": [
-        0.0,
-        41.65659863945578
+      "source": "../ordinary-long-20261004/heroine-ordinary-long.mp3",
+      "source_sha256": "e596086b6562bd6573f98087981a052f1acd41ba57aabb64185beeadf49a1730",
+      "sha256": "6cbdc8a277ee35a14ec55d1e353309ca4dfbd3187e33400390554d923f2eaa64",
+      "runtime_file": "heroine-talk-expanded-20261004.mp3",
+      "gain": 2.2267585520168596,
+      "processing": "New127s conversion normalized against shared room filters, then accepted older runtime appended with20ms crossfade. Runtime applies room filters once.",
+      "segments": [
+        {
+          "kind": "new",
+          "duration": 127.0595918367347,
+          "stability": 0.65,
+          "voice_id": "KKqSaKG1dXhfvx9RYRwJ"
+        },
+        {
+          "kind": "previous",
+          "url": "assets/newsroom-audio-v01/heroine-talk.mp3",
+          "sha256": "a1e31e98000c51b9b386134592a927fc3a650f02b7fd00ddb0a8e6397f88a55c",
+          "duration": 41.65659863945578
+        }
       ],
-      "sha256": "a1e31e98000c51b9b386134592a927fc3a650f02b7fd00ddb0a8e6397f88a55c",
-      "gain": 1.748711882886527,
-      "loop_crossfade": false,
-      "processing": "Mono; gain calibrated after two 1800Hz lowpass filters; shared runtime filters apply room treatment."
+      "previous_source": {
+        "id": "heroine-talk",
+        "source": "ordinary-conversation-v01/heroine-conversation.mp3",
+        "source_sha256": "efaa6f0a0f92d08acdcadfe80443e8f1f93a7c1a6ee761e58b84ff5174172517",
+        "excerpt": [
+          0.0,
+          41.65659863945578
+        ],
+        "sha256": "a1e31e98000c51b9b386134592a927fc3a650f02b7fd00ddb0a8e6397f88a55c",
+        "gain": 1.748711882886527,
+        "loop_crossfade": false,
+        "processing": "Mono; gain calibrated after two 1800Hz lowpass filters; shared runtime filters apply room treatment."
+      }
     },
     {
       "id": "heroine-flirt",
