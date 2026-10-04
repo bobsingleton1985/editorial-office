@@ -1,3 +1,4 @@
+import {attachHeroinePhone} from './heroine-phone.mjs';
 import {attachTrayService} from './heroine-tray.mjs';
 import {createHostessMenu} from './hostess-menu.js';
 import {createSocialAdmission} from './social-admission.mjs';
@@ -396,6 +397,9 @@ async function loadPerson(id, e) {
       attachTrayService(her.extra,{pick,put,propsPick,propsPut});
       const [smokeBank,smokeProps]=await Promise.all([get(CHAR_BASE+'assets/heroine-smoking-20261004-v01/heroine-smoking-v01.glb').then(b=>ld().parseAsync(b,'')),get(SMOKE).then(b=>ld().parseAsync(b,''))]);
       attachHeroineSmoking(her.extra,smokeBank,smokeProps);
+      const phoneBase=CHAR_BASE+'assets/heroine-phone-20261004-v01/';
+      const [herPhone,herPhoneProfile]=await Promise.all([get(phoneBase+'heroine-phone-v01.glb').then(b=>ld().parseAsync(b,'')),get(phoneBase+'phone-profile.json').then(b=>JSON.parse(new TextDecoder().decode(b)))]);
+      attachHeroinePhone(her.extra,herPhone,herPhoneProfile);
       her.extra.camera=cam;her.extra.renderer=r;
       her.extra.socialOccupancy=id=>socialSeatOccupancy(charsOf(latest),people,id);
       her.extra.socialWorld=()=>charsOf(latest);her.extra.talk=talk;her.extra.gaze=gaze;her.extra.musicPlaying=()=>sched?.current==='jazz';
@@ -430,7 +434,7 @@ function reportExecution(dt) {
   const active=pairs.length>0&&pairs.every(p=>Object.values(p.actors).every(a=>a.ready));
   reportElapsed=active&&signature===reportPrevious&&dt<0.25?Math.min(2000,reportElapsed+dt*1000):0;reportPrevious=signature;
   if(now-reportSend<1000)return;reportSend=now;
-  const actors={};eachPerson((ed,id)=>{const s=ed.socialStatus();actors[id]={smokingAvailable:s.smokingAvailable,smoking:s.smoking,serviceReady:s.serviceReady,serviceDurations:s.serviceDurations,serviceWitness:s.serviceWitness,serviceDelivery:s.serviceDelivery,consumptionAvailable:s.consumptionAvailable,consumption:s.consumption,performanceDurations:s.performanceDurations,performanceWitness:s.performanceWitness,meals:s.meals,mealDurations:s.mealDurations,moneyWitness:s.moneyWitness,moneyWorkMs:s.moneyWorkMs,loaded:s.loaded,seq:s.seq,activity:s.activity,executing:s.executing,executionEnd:s.executionEnd,mode:s.mode,seat:s.seat,x:s.x,z:s.z,profiles:s.profiles,styles:s.styles,conversationReady:s.ready,conversationId:s.conversationId,sleepAvailable:s.sleepAvailable,sleep:s.sleep,diningChairClear:s.diningChairClear,readingAvailable:s.readingAvailable};});
+  const actors={};eachPerson((ed,id)=>{const s=ed.socialStatus();actors[id]={phone:s.phone,smokingAvailable:s.smokingAvailable,smoking:s.smoking,serviceReady:s.serviceReady,serviceDurations:s.serviceDurations,serviceWitness:s.serviceWitness,serviceDelivery:s.serviceDelivery,consumptionAvailable:s.consumptionAvailable,consumption:s.consumption,performanceDurations:s.performanceDurations,performanceWitness:s.performanceWitness,meals:s.meals,mealDurations:s.mealDurations,moneyWitness:s.moneyWitness,moneyWorkMs:s.moneyWorkMs,loaded:s.loaded,seq:s.seq,activity:s.activity,executing:s.executing,executionEnd:s.executionEnd,mode:s.mode,seat:s.seat,x:s.x,z:s.z,profiles:s.profiles,styles:s.styles,conversationReady:s.ready,conversationId:s.conversationId,sleepAvailable:s.sleepAvailable,sleep:s.sleep,diningChairClear:s.diningChairClear,readingAvailable:s.readingAvailable};});
   const styles=[...new Set(Object.values(actors).flatMap(a=>a.styles||[]))];
   live.execution({pairs:pairs.map(p=>({...p,elapsedMs:reportElapsed})),capabilities:{actors,styles}});reportElapsed=0;
 }
