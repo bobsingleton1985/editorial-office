@@ -19,6 +19,7 @@ export function performanceReplyDue(st,id,now){return st.economy.performances.fi
 export function consideredPerformanceReply(st,id,now){let changed=false;for(const c of st.economy.performances)if(c.status==='offered'&&c.to===id&&c.expiresAt>now&&c.consideredAt==null){c.consideredAt=now;changed=true;}return changed;}
 function seated(st,c,caps,now){const p=st.chars[c.payer],a=caps?.actors?.[c.payer];return fresh(caps,now)&&p?.place===c.seat&&['rest_lounge','wait'].includes(p.activity)&&a?.loaded&&(a.seq===p.seq||p.entry?.action==='continue'&&Number.isInteger(a.seq)&&a.seq<p.seq)&&a.mode==='seated'&&a.seat===c.seat&&a.executing===true;}
 function note(st,c,event,summary,now){for(const id of [c.payer,c.performer])remember(st,id,{id:`${c.id}:${event}:${id}`,event,partner:id===c.payer?c.performer:c.payer,summary},now);}
+function danceBubble(st,id,to,mark,now){const p=st.chars[id];p.entry={...(p.entry||{}),talk:{at:now,to,icon:'dance',mark}};}
 export function performanceContext(st,id){return {performanceTerms:st.economy.performanceTerms,performances:st.economy.performances.filter(c=>involved(c,id)).slice(-20)};}
 export function performanceActions(st,id,pair,now,input){
  const e=st.economy;if(!e.config.enabled)return [];const out=[],other=freshPair(pair,id,now)?pair.members.find(x=>x!==id):null;
@@ -45,14 +46,14 @@ export function choosePerformance(st,id,action,pair,now,source,input){
  const e=st.economy,[verb,arg]=action.split('@'),[key,value]=arg.split(':');
  if(verb==='money_performance_offer'){
   const clips=sequence(value).map(activity=>({activity,duration:input.durations[activity]}));
-  const c={id:`performance-${++e.next}`,from:id,to:key,performer:'heroine',payer:id==='heroine'?key:id,activity:value,sequence:clips,transitionSeconds:PERFORMANCE_TERMS.transitionSeconds,duration:clips.reduce((n,x)=>n+x.duration,0)+PERFORMANCE_TERMS.transitionSeconds*(clips.length-1),cents:300,currency:'USD',status:'offered',at:now,expiresAt:now+120000,consent:{[id]:{at:now,source}}};e.performances.push(c);e.revision++;note(st,c,'performance_offered','Предложено целое выступление за 3 USD; ответа ещё нет.',now);return true;
+  const c={id:`performance-${++e.next}`,from:id,to:key,performer:'heroine',payer:id==='heroine'?key:id,activity:value,sequence:clips,transitionSeconds:PERFORMANCE_TERMS.transitionSeconds,duration:clips.reduce((n,x)=>n+x.duration,0)+PERFORMANCE_TERMS.transitionSeconds*(clips.length-1),cents:300,currency:'USD',status:'offered',at:now,expiresAt:now+120000,consent:{[id]:{at:now,source}}};e.performances.push(c);e.revision++;danceBubble(st,id,key,'q',now);note(st,c,'performance_offered','Предложено целое выступление за 3 USD; ответа ещё нет.',now);return true;
  }
  const c=e.performances.find(x=>x.id===key);
  if(verb==='money_performance_cancel')return cancelPerformance(st,c,'participant_cancelled',now);
  if(verb==='money_performance_reply'){
-  if(value==='decline')return cancelPerformance(st,c,'declined',now);if(available(st,c.payer)<c.cents)return false;
+  if(value==='decline'){const cancelled=cancelPerformance(st,c,'declined',now);if(cancelled)danceBubble(st,id,c.from,'no',now);return cancelled;}if(available(st,c.payer)<c.cents)return false;
   e.reservations['performance:'+c.id]={payer:c.payer,actor:c.payer,cents:300,credit:true,performance:c.id};c.consent[id]={at:now,source};c.status='reserved';c.seat='benchS';c.place='tv3';c.acceptedAt=now;c.expiresAt=now+180000;e.revision++;
-  note(st,c,'performance_agreed','Оба согласились на целое выступление за 3 USD. Зритель ещё должен сесть на лавку.',now);return true;
+  danceBubble(st,id,c.from,'yes',now);note(st,c,'performance_agreed','Оба согласились на целое выступление за 3 USD. Зритель ещё должен сесть на лавку.',now);return true;
  }return false;
 }
 export function startPerformance(st,id,action,pair,now,source,input,dispatch){

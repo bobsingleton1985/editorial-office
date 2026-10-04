@@ -1,7 +1,7 @@
 // People talking to each other (invitations): a bubble over the speaker's head (the thing + the answer), the two look at each
 // other, the answer is also given with the head — a nod for «yes», a shake for «no» and «not now».
 // The world carries it per person: chars[id].talk = {at, to, icon, mark} (at: the director's time, ms; icon: smoke | coffee |
-// whisky; mark: q | yes | no | later). Everything is a function of (now − at), so every viewer, a late one too, sees the same.
+// whisky | dance; mark: q | yes | no | later). Everything is a function of (now − at), so every viewer, a late one too, sees the same.
 import * as THREE from 'three';
 import { drawBubble } from './talk-icons.js';
 import { resolveConversationAttention } from './conversation-attention.mjs';

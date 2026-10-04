@@ -23,6 +23,22 @@ function setup(){
 const offer=h=>assert.equal(h.run("applyDecision('heroine','money_performance_offer@reporter:heroine_dance1','jev',1)"),true);
 const accept=h=>assert.equal(h.run("applyDecision('reporter','money_performance_reply@performance-1:accept','jev',1)"),true);
 const advance=h=>h.run("advancePerformances(st,Date.now(),performanceInput(Date.now()),(id,a)=>applyDecision(id,a,'performance_executor',null,null,true),ms=>ensureDanceMusic(Date.now(),ms))");
+test('dance proposals and independent replies reach the public world without replaying commands',()=>{
+ for(const answer of ['accept','decline']){
+  const h=setup(),before=h.state().chars.heroine;offer(h);
+  let st=h.state();assert.deepEqual(st.world.chars.heroine.talk,{at:h.now(),to:'reporter',icon:'dance',mark:'q'});
+  assert.equal(st.chars.heroine.seq,before.seq);
+  const receiver=st.chars.reporter;h.advance(1000);
+  assert.equal(h.run(`applyDecision('reporter','money_performance_reply@performance-1:${answer}','jev',1)`),true);
+  st=h.state();assert.deepEqual(st.world.chars.reporter.talk,{at:h.now(),to:'heroine',icon:'dance',mark:answer==='accept'?'yes':'no'});
+  assert.equal(st.chars.reporter.seq,receiver.seq);
+  assert.deepEqual({...st.chars.reporter.entry,talk:undefined},{...receiver.entry,talk:undefined});
+ }
+ const h=setup();offer(h);h.run('st.economy.accounts.reporter=299');
+ const before=h.state().chars.reporter.entry;
+ assert.equal(h.run("applyDecision('reporter','money_performance_reply@performance-1:accept','jev',1)"),false);
+ assert.deepEqual(h.state().chars.reporter.entry,before);
+});
 function autoStart(h){
  offer(h);accept(h);advance(h);advance(h);
  assert.equal(h.state().chars.reporter.activity,'rest_lounge');
