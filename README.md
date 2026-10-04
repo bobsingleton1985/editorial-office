@@ -36,3 +36,20 @@ The current service deployment remains at `../editorial-live/`. This addition
 does not switch or restart it. Future director changes must be committed here
 together with all affected modules, registry/configuration and shared browser
 data; keep the deployed code synchronized with the reviewed repository version.
+
+Run `npm test` for the isolated director contract checks. They execute the real
+director functions with fake time, storage and network; they do not call Jev or
+modify a running scene. Music uses the viewer's shared scheduled-channel function;
+it is not an audio or physical knob receipt. Execution timeout applies only after
+a fresh stationary arrival, leaving navigation and agreed joint processes under
+their existing execution protocols.
+
+Dances remain available during silence. Choosing a dance or preparing a mutually
+agreed paid performance tunes the shared TV music channel automatically for the
+required duration. A delivered paid proposal stays answerable after its original
+conversation or music window ends. During an existing command the recipient may
+accept, decline, cancel or continue without replaying that command. The executor
+waits for witnessed arrival before moving either participant and for witnessed
+seating before starting the show. Payment still requires the complete rendered
+performance and a present spectator. Tests use synthetic choices and receipts;
+they do not establish that a live Jev character bought or completed a dance.

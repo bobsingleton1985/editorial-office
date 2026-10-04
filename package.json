@@ -5,6 +5,7 @@
   "description": "Editorial browser client and Mac director source. Director has no npm dependencies.",
   "engines": { "node": ">=22" },
   "scripts": {
+    "test": "node --test test/*.test.mjs",
     "director": "./run-director.sh"
   }
 }
