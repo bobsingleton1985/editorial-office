@@ -12,11 +12,11 @@ export function relationProjection(r,decisions=12){
 // Only the verified v4 server can admit its final compact System One body.
 export function finalContextGuardReady(status){
  const g=status?.jev_context_guard;
- return status?.model==='typesafe/jev-1.13'&&g?.version==='jev-context-v4'&&g.ready===true&&g.enforced===true
+ return status?.model==='typesafe/jev-1.13'&&(['jev-context-v4','jev-context-v5'].includes(g?.version))&&g.ready===true&&g.enforced===true
   &&g.mode==='estimated'&&g.strict===false&&g.exact_token_count===false
   &&g.measurement==='local_lexical_estimate_v1'&&g.safety_reserve_percent===20
   &&g.admission_context_limit===25600&&g.admission_request_limit===51200
-  &&g.state_and_longest_question_limit===32000&&g.request_limit===64000&&g.target===24000&&g.counter_available===true;
+  &&g.state_and_longest_question_limit===32000&&g.request_limit===64000&&g.target===(g.version==='jev-context-v5'?20000:24000)&&g.counter_available===true;
 }
 export function fitRelationshipRequest(input,maxBytes=65000,serverStatus=null){
  const out=structuredClone(input),s=out.self;
