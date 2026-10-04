@@ -32,6 +32,7 @@ export const BENCH = {
 };
 // places to stand
 export const SPOTS = {
+  trayTable:{x:.45,z:2.1,th:-Math.PI/2,label:'у столика с подносом'},
   teletypeRead: {...TTY_READ_SPOT},
   window: { x: -4.55, z: 2.5, th: -Math.PI / 2, label: 'у окна' },
   window2: { x: -4.55, z: 1.6, th: -Math.PI / 2 + 0.35, label: 'у окна, второе место' },   // smoking together (owner 30.09): 0.9 m from the first, turned 20° towards it

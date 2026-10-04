@@ -19,7 +19,7 @@ export function attachHeroineCoffee(extra,{clip,mug,config}) {
       // This is geometric playback evidence, not an economy or autonomous choice.
       if(held&&t>=1.8&&t<=2.95){const head=args.B.head,mouth=new THREE.Vector3(.0005081957,-.05945908,.1225681657).applyMatrix4(head.matrixWorld),lip=new THREE.Vector3().fromArray(config.lip).applyMatrix4(cup.matrixWorld);state.sipContact=mouth.distanceTo(lip)<.004*args.S;}
     }
-    return {group,post,audio:()=>base?.audio?.()||{},coffee:()=>({...state})};
+    return {...base,group,post,audio:()=>base?.audio?.()||{},coffee:()=>({...state})};
   };
   return {extra,evidence:()=>({...state})};
 }

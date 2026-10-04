@@ -2430,7 +2430,7 @@ export const HER_SOCIAL_CATALOG = {
       "allowedIntents": [
         "flirt"
       ],
-      "relation": "warm",
+      "relation": null,
       "requiresMutualIntent": null
     },
     {
@@ -2444,7 +2444,7 @@ export const HER_SOCIAL_CATALOG = {
       "allowedIntents": [
         "flirt"
       ],
-      "relation": "warm",
+      "relation": null,
       "requiresMutualIntent": null
     },
     {
@@ -2458,7 +2458,7 @@ export const HER_SOCIAL_CATALOG = {
       "allowedIntents": [
         "flirt"
       ],
-      "relation": "warm",
+      "relation": null,
       "requiresMutualIntent": null
     },
     {
@@ -2516,7 +2516,7 @@ export const HER_SOCIAL_CATALOG = {
       "allowedIntents": [
         "flirt"
       ],
-      "relation": "warm",
+      "relation": null,
       "requiresMutualIntent": null
     },
     {

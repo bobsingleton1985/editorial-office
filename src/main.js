@@ -1,3 +1,5 @@
+import {attachTrayService} from './heroine-tray.mjs';
+import {createHostessMenu} from './hostess-menu.js';
 import {createSocialAdmission} from './social-admission.mjs';
 import {attachHeroineCoffee} from './heroine-coffee.mjs';
 import {attachAcceptedHeroineWhisky} from './heroine-accepted-whisky.mjs';
@@ -197,6 +199,7 @@ PANEL = buildPanel(S, (s) => { if (s.quality !== qMode) { qMode = s.quality; QL.
 { wxBox = document.createElement('div'); const bb = document.createElement('div');
   PANEL.outside.append(wxBox, bb); blindsUI = buildBlindsUI(bb); }
 const sound = createSound();const animationAudio=createAnimationAudio(sound);const simulationAudio={};if(AUTHORITY){sound.phone=(k,t,onFor,cycle)=>{simulationAudio[k]={t,onFor,cycle};};}                                   // Viewer mix stays off until enabled locally.
+const hostessMenu=RELAY&&!DEMO&&!AUTHORITY?createHostessMenu(PANEL,RELAY,ownerToken):null;
 { const d = PANEL.section('Звук', 'sound'), l = document.createElement('label'), cb = document.createElement('input'), sp = document.createElement('span');
   l.className = 'row sound-switch'; cb.type = 'checkbox'; cb.id = 'sound-phone'; cb.checked = sound.on; sp.textContent = 'Включить звук';
   cb.addEventListener('change', () => sound.set(cb.checked)); l.append(sp, cb); d.append(l); window.__sound = sound;
@@ -388,6 +391,9 @@ async function loadPerson(id, e) {
       const [coffeeClip,coffeeCfg,barClip,barCfg,coffeeMesh]=await Promise.all([get(drinkBase+'coffee.glb').then(b=>ld().parseAsync(b,'')),get(drinkBase+'coffee.json').then(b=>JSON.parse(new TextDecoder().decode(b))),get(drinkBase+'bar.glb').then(b=>ld().parseAsync(b,'')),get(drinkBase+'bar.json').then(b=>JSON.parse(new TextDecoder().decode(b))),get(CHAR_BASE+'assets/editor2A-coffee-web-v01.glb').then(b=>ld().parseAsync(b,''))]);
       attachHeroineCoffee(her.extra,{clip:coffeeClip.animations[0],mug:coffeeMesh.scene.getObjectByName('SM_Prop_MugCoffee'),config:{...coffeeCfg,seatKinds:['bench','desk','chair']}});
       attachAcceptedHeroineWhisky(her.extra,{clip:barClip.animations[0],record:shared.whiskyRec,props:shared.whisky,contacts:barCfg});
+      const trayBase=CHAR_BASE+'assets/tray-service-v01/';
+      const [pick,put,propsPick,propsPut]=await Promise.all(['pick.glb','put.glb','props-pick.glb','props-put.glb'].map(n=>get(trayBase+n).then(b=>ld().parseAsync(b,''))));
+      attachTrayService(her.extra,{pick,put,propsPick,propsPut});
       her.extra.socialOccupancy=id=>socialSeatOccupancy(charsOf(latest),people,id);
       her.extra.socialWorld=()=>charsOf(latest);her.extra.talk=talk;her.extra.gaze=gaze;her.extra.musicPlaying=()=>sched?.current==='jazz';
       her.extra.socialPartner=id=>{const ed=people[id]?.ed,h=ed?.holder;if(!h)return null;h.updateMatrixWorld(true);const face=ed.root.getObjectByName('head')?.getWorldPosition(new THREE.Vector3());return {x:h.position.x,z:h.position.z,face:face?{x:face.x,y:face.y,z:face.z}:null};};
@@ -421,7 +427,7 @@ function reportExecution(dt) {
   const active=pairs.length>0&&pairs.every(p=>Object.values(p.actors).every(a=>a.ready));
   reportElapsed=active&&signature===reportPrevious&&dt<0.25?Math.min(2000,reportElapsed+dt*1000):0;reportPrevious=signature;
   if(now-reportSend<1000)return;reportSend=now;
-  const actors={};eachPerson((ed,id)=>{const s=ed.socialStatus();actors[id]={consumptionAvailable:s.consumptionAvailable,consumption:s.consumption,performanceDurations:s.performanceDurations,performanceWitness:s.performanceWitness,meals:s.meals,mealDurations:s.mealDurations,moneyWitness:s.moneyWitness,moneyWorkMs:s.moneyWorkMs,loaded:s.loaded,seq:s.seq,activity:s.activity,executing:s.executing,executionEnd:s.executionEnd,mode:s.mode,seat:s.seat,x:s.x,z:s.z,profiles:s.profiles,styles:s.styles,conversationReady:s.ready,conversationId:s.conversationId,sleepAvailable:s.sleepAvailable,sleep:s.sleep,diningChairClear:s.diningChairClear,readingAvailable:s.readingAvailable};});
+  const actors={};eachPerson((ed,id)=>{const s=ed.socialStatus();actors[id]={serviceReady:s.serviceReady,serviceDurations:s.serviceDurations,serviceWitness:s.serviceWitness,serviceDelivery:s.serviceDelivery,consumptionAvailable:s.consumptionAvailable,consumption:s.consumption,performanceDurations:s.performanceDurations,performanceWitness:s.performanceWitness,meals:s.meals,mealDurations:s.mealDurations,moneyWitness:s.moneyWitness,moneyWorkMs:s.moneyWorkMs,loaded:s.loaded,seq:s.seq,activity:s.activity,executing:s.executing,executionEnd:s.executionEnd,mode:s.mode,seat:s.seat,x:s.x,z:s.z,profiles:s.profiles,styles:s.styles,conversationReady:s.ready,conversationId:s.conversationId,sleepAvailable:s.sleepAvailable,sleep:s.sleep,diningChairClear:s.diningChairClear,readingAvailable:s.readingAvailable};});
   const styles=[...new Set(Object.values(actors).flatMap(a=>a.styles||[]))];
   live.execution({pairs:pairs.map(p=>({...p,elapsedMs:reportElapsed})),capabilities:{actors,styles}});reportElapsed=0;
 }
@@ -478,7 +484,7 @@ addRepertoire(PANEL.section, CHAR_BASE + 'assets/registry-live.json', () => {
 let lastWorld = null;
 openPerson = addDirectorStatus(PANEL.section, () => ({ net, world: latest||lastWorld, executionStatus: id=>people[id]?.ed?.status(), now: window.__simNow??(live ? live.now() : Date.now()), focus, setFocus: (id) => { focus = id; }, setNeed: RELAY && !DEMO ? sendNeed : null, open: () => { if ($('settings').hidden) $('menu').click(); } }),
   RELAY ? () => fetch((RELAY === '/' ? '' : RELAY) + '/journal?n=150', { cache: 'no-store' }).then((r) => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }) : null);
-live = AUTHORITY ? {now:()=>window.__simNow??Date.now(),execution:body=>window.__simulationExecution?.(body)} : connectLive(RELAY, (w) => { lastWorld = w; ttyFrom(w); bulletinFrom(w); onWorld(w); }, (s) => { net = s; showWho(); }, { simulation:p=>{if(!poseBuffer.push(p))window.__simulationResync?.();}, weather: applyWeather, blinds: (b) => applyBlinds(b, true) });
+live = AUTHORITY ? {now:()=>window.__simNow??Date.now(),execution:body=>window.__simulationExecution?.(body)} : connectLive(RELAY, (w) => { lastWorld = w; ttyFrom(w); bulletinFrom(w); onWorld(w); }, (s) => { net = s; showWho(); }, { simulation:p=>{if(!poseBuffer.push(p))window.__simulationResync?.();}, weather: applyWeather, hostess:s=>hostessMenu?.sync(s), blinds: (b) => applyBlinds(b, true) });
 
 if (DEMO === 'lunch') {   // review: at the desk → lunch on the bench, all six dishes one after another → back to work, round and round
   const CH = { A: 0, B: 0.1174, C: 0.1174 }, T = { A: -0.25, B: 0.1174, C: 0.1174 }, R = { A: 0.1174, B: 0.1174, C: 0.1174 };

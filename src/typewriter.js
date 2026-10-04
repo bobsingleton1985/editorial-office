@@ -7,12 +7,14 @@
 // above the platen; every new line rolls it up by one line, so the line being typed is always at the platen. What is still
 // inside the machine is cut off by a plane just below the platen top (renderer.localClippingEnabled).
 import * as THREE from 'three';
+import {typewriterImage} from './typewriter-image.mjs';
 
 const U = 1.5538;                                                  // office v03 units per metre (the approved page's scale)
 const TEXT = 'Вечерний выпуск. В редакции тихо, только стучит машинка. Сегодня в номере: новости города, погода на выходные и письма читателей. Редактор проверяет каждую строку и ставит точку. ';
 const PAPER = { w: 0.428, h: 0.301 };                               // office v03 units, as on the approved page
 const COLS = 34, MARGIN = 0.04, CHARW = (PAPER.w - 2 * MARGIN) / COLS, LINEH = 0.018, TOP = 0.035, ROWS = Math.floor((PAPER.h - TOP - 0.02) / LINEH);
 const PX = 2400;
+const FONT_SIZE = Math.round(CHARW * PX * 1.62);
 const CARRIAGE = /carriage rail|paper|platen|\| text$/;
 
 export function createTypewriters(scene, gltf, desks, S) {
@@ -27,7 +29,9 @@ export function createTypewriters(scene, gltf, desks, S) {
     const feed = new THREE.Group(); feed.name = 'paper feed ' + k; car.add(feed);
     root.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
     const canvas = document.createElement('canvas'); canvas.width = Math.round(PAPER.w * PX); canvas.height = Math.round(PAPER.h * PX);
-    const tex = new THREE.CanvasTexture(canvas); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4; tex.flipY = false;
+    const glyphs = [];
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.userData.simulationImage = () => typewriterImage(canvas.width, canvas.height, FONT_SIZE, glyphs); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4; tex.flipY = false;
     if (sheet) { sheet.material = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }); sheet.castShadow = false; }
     // the sheet's top edge and the platen top (machine metres, root frame): the typed line stands just above the platen
     const top = (o) => new THREE.Box3().setFromObject(o).max.y, rootY = (y) => root.worldToLocal(new THREE.Vector3(0, y, 0)).y;
@@ -41,7 +45,7 @@ export function createTypewriters(scene, gltf, desks, S) {
     // along the carriage (local X, metres) the sheet's left edge — the typist's left — is +X, letters go towards -X
     const bx = new THREE.Box3().setFromObject(sheet || root), a = root.worldToLocal(bx.min.clone()), b = root.worldToLocal(bx.max.clone());
     const left = Math.max(a.x, b.x), right = Math.min(a.x, b.x);
-    M[k] = { g, car, feed, canvas, ctx: canvas.getContext('2d'), tex, left, printX: (left + right) / 2, col: 0, row: 0, idx: 0,
+    M[k] = { g, car, feed, canvas, glyphs, ctx: canvas.getContext('2d'), tex, left, printX: (left + right) / 2, col: 0, row: 0, idx: 0,
       feedAt: (row) => (sheet && paper && platen ? platenTop + 0.004 - sheetTop + (TOP + row * LINEH) / U : 0), feedY: 0 };
     newSheet(M[k]);
   }
@@ -49,7 +53,7 @@ export function createTypewriters(scene, gltf, desks, S) {
     const colX = m.left - (MARGIN + (m.col + 0.5) * CHARW) / U;
     m.car.position.x = m.printX - colX;
   }
-  function newSheet(m) { m.ctx.clearRect(0, 0, m.canvas.width, m.canvas.height); m.col = 0; m.row = 0; m.tex.needsUpdate = true; placeCarriage(m);
+  function newSheet(m) { m.glyphs.length = 0; m.ctx.clearRect(0, 0, m.canvas.width, m.canvas.height); m.col = 0; m.row = 0; m.tex.needsUpdate = true; placeCarriage(m);
     m.feedY = m.feed.position.y = m.feedAt(0); }                 // a fresh sheet: only its top shows above the platen
   function update(dt) {                                             // the line feed: a quick roll up to the current line (about 0.15 s)
     for (const m of Object.values(M)) { const t = m.feedAt(m.row), y = m.feed.position.y; if (Math.abs(t - y) < 1e-5) continue;
@@ -60,9 +64,10 @@ export function createTypewriters(scene, gltf, desks, S) {
     if (m.col >= COLS || (ch === ' ' && m.col === 0)) { if (m.col >= COLS) { m.col = 0; m.row++; } if (ch === ' ') return placeCarriage(m); }
     if (m.row >= ROWS) newSheet(m);
     const c = m.ctx;
-    c.font = `${Math.round(CHARW * PX * 1.62)}px "Courier New", Courier, monospace`;
+    c.font = `${FONT_SIZE}px "Courier New", Courier, monospace`;
     c.fillStyle = 'rgba(28,24,22,0.9)'; c.textBaseline = 'alphabetic';
-    c.fillText(ch, (MARGIN + m.col * CHARW) * PX, (TOP + m.row * LINEH) * PX);
+    const x = (MARGIN + m.col * CHARW) * PX, y = (TOP + m.row * LINEH) * PX;
+    c.fillText(ch, x, y); m.glyphs.push([ch, x, y]);
     m.tex.needsUpdate = true;
     m.col++;
     if (ch === ' ') { const next = TEXT.slice(m.idx % TEXT.length).split(' ')[0].length; if (m.col + next > COLS) { m.col = 0; m.row++; } }

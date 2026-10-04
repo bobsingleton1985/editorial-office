@@ -7,7 +7,7 @@ const round = n => Math.round(n * 1e5) / 1e5;
 const textureCache=new WeakMap(), geometryCache=new WeakMap();
 function canvasSnapshot(texture){
   if(!texture?.image?.toDataURL)return null;
-  let c=textureCache.get(texture);if(!c||c.version!==texture.version){c={version:texture.version,png:texture.image.toDataURL('image/png')};textureCache.set(texture,c);}return c.png;
+  let c=textureCache.get(texture);if(!c||c.version!==texture.version){c={version:texture.version,png:texture.userData.simulationImage ? texture.userData.simulationImage() : texture.image.toDataURL('image/png')};textureCache.set(texture,c);}return c.png;
 }
 function geometrySnapshot(o){
   if(!o.userData.simulationGeometry)return null;
