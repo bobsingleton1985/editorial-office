@@ -108,12 +108,19 @@ const danceBoost = (id, now) => ((st.chars[id]?.needs?.drunk ?? 0) / 100) * 1.5 
 // 'music' — offered only while music plays (he stops when it ends); 'quiet' — only while it does not; director.effect = 'tv_music' —
 // turning the knob. The wish to dance is a separate need: it comes with the dance clips.
 const TV_PROGRAM = ['anchor', 'weather', 'coffee', 'korea', 'jazz', 'suburb', 'stars', 'boxing'], TV_MUSIC_MIN = 10;
-function musicOn(now) {
-  if (st.tvMusic && now >= st.tvMusic.at && now < st.tvMusic.until) return true;
-  const h = cityUtc === null ? new Date(now).getHours() : new Date(now + cityUtc * 1000).getUTCHours();
-  if (h >= 1 && h < 6) return true;
-  return TV_PROGRAM[Math.floor(now / 60000) % TV_PROGRAM.length] === 'jazz' && now % 60000 < 30000;   // the grid's music minute, while half of it is left
+// 04.10: the page switches the channel at st.tvMusic.FROM (the knob is turned ~4 s after he crouches), not at AT. Until then the
+// music is «pending»: nobody is offered to listen to it (the heroine «waited for music» at the TV) and nobody else goes to turn it on.
+// Invariant: whenever musicOn() is true the page really plays music (the grid window here is only the first half of the page's minute).
+function musicLeftMs(now) {                                           // how long the music is still sure to play
+  let left = 0;
+  if (st.tvMusic && now >= st.tvMusic.from && now < st.tvMusic.until) left = st.tvMusic.until - now;
+  const d = cityUtc === null ? new Date(now) : new Date(now + cityUtc * 1000), h = cityUtc === null ? d.getHours() : d.getUTCHours();
+  if (h >= 1 && h < 6) { const m = cityUtc === null ? d.getMinutes() : d.getUTCMinutes(), sec = cityUtc === null ? d.getSeconds() : d.getUTCSeconds(); left = Math.max(left, (6 - h) * 3600000 - (m * 60 + sec) * 1000); }
+  if (TV_PROGRAM[Math.floor(now / 60000) % TV_PROGRAM.length] === 'jazz') left = Math.max(left, 30000 - now % 60000);   // the grid's music minute, while half of it is left
+  return Math.max(0, left);
 }
+const musicOn = (now) => musicLeftMs(now) > 0;
+const musicPending = (now) => !!st.tvMusic && now >= st.tvMusic.at && now < st.tvMusic.from;
 // drunk (owner 30.09): a glass of whisky adds about 25 (registry 'whisky'), he sobers by 0.4 a minute; from 80 the page gives him the drunk walk
 const cleanNeeds = (n) => Object.fromEntries(Object.entries(n && typeof n === 'object' ? n : {}).filter(([k, r]) => /^[a-z][a-z_]{0,30}$/.test(k) && Number.isFinite(r)));
 
@@ -259,8 +266,8 @@ function ownerCalls(now) {
 // the answer) and a nod or a shake. Agreed: the one who called goes first, the other follows LAG later (they do not smoke in step);
 // «not now»: he comes later by himself. A refusal is remembered by both and the same pair is not asked again for a while.
 const INV = { answer: 2200, go: 4500, lag: 4000, later: 16000, cool: { accept: 12, decline: 25, defer: 12 } };   // ms; cool: minutes before the same one asks the same one again
-const ACC = { columnist: 'колумниста', reporter: 'репортёра', newspaper_editor: 'редактора' }, DAT = { columnist: 'колумнисту', reporter: 'репортёру', newspaper_editor: 'редактору' };
-st.inviteCool ??= {}; st.inviteSeq ??= 0; st.steps ??= []; st.deferredInvites ??= {};
+const ACC = { columnist: 'колумниста', reporter: 'репортёра', newspaper_editor: 'редактора', heroine: 'героиню' }, DAT = { columnist: 'колумнисту', reporter: 'репортёру', newspaper_editor: 'редактору', heroine: 'героине' };
+st.inviteCool ??= {}; st.inviteSeq ??= 0; st.steps ??= []; st.deferredInvites ??= {}; st.failedUntil ??= {};
 const busyWith = (p) => !!p.sleep || !!p.sleepPending || Object.values(st.sleepDeskLeases).some(l=>st.chars[l.owner]===p) || (st.diningChairLease?.phase==='departing'&&st.chars[st.diningChairLease.owner]===p) || p.activity === 'phone' || p.activity === 'invite' || /^smoke/.test(p.activity);
 function canInvite(id, o, now) {
   const a = st.chars[id], b = st.chars[o]; if(id==='heroine'||o==='heroine'||!canAfford(st,id,'smoke',now)||!canAfford(st,o,'smoke',now))return false; if (!b || !PEOPLE[o] || st.invite || !supports(id,'smoke') || !supports(o,'smoke')) return false;
@@ -273,6 +280,29 @@ function startInvite(id, o, now) {                                   // the invi
   st.inviteSeq += 1; st.invite = { n: st.inviteSeq, from: id, to: o, at: now, answerAt: now + 1000 };
 }
 const talkOn = (p, t) => { p.entry = { ...(p.entry || {}), talk: t }; };
+// An invitation always ends: with an answer, or here as «no answer» (04.10: before, both people stood up to 60 s «calling» into the void
+// and the caller was never put back on his feet). The one who called returns to what he did before (or waits) and decides again.
+const INV_PATIENCE = 12000;   // ms after the answer was due; a slow model answer is not cut: this is checked only between attempts
+function restoreInviter(pa, t) {
+  if (pa.activity !== 'invite') return;                                   // he has already moved on
+  const a = Object.keys(st.chars).find((k) => st.chars[k] === pa), prior = pa.beforeSocialInvite;
+  updatePersonNeeds(a, t);
+  if (prior && typeof prior === 'object') { Object.assign(pa, prior); pa.busyUntil = Math.max(t + 8000, prior.busyUntil); }
+  else { pa.activity = 'wait'; pa.activityUntil = t; pa.busyUntil = t + 8000; pa.entry = { ...pa.entry, activity: 'wait' }; }
+  delete pa.beforeSocialInvite; delete pa.purchasePending; pa.seq++; rebindExecutionGate(pa, t);
+  if (prior?.purchasePending && !reservePurchase(st, a, pa.activity, pa.seq, t)) { pa.activity = 'wait'; pa.busyUntil = t; pa.entry = { ...pa.entry, activity: 'wait' }; }
+  pa.entry = { ...pa.entry, label: labelOf(a, pa.activity, pa.place), talk: undefined };   // the caption follows the fact, not the old intention
+}
+function closeInvite(v, reason, now) {
+  if (st.invite !== v) return;
+  st.invite = null; delete inviteNote[v.to]; delete inviteNote[v.from];
+  const pa = st.chars[v.from], pb = st.chars[v.to];
+  for (const [p, partner] of [[pa, v.to], [pb, v.from]]) { p.memory.push({ event: 'invitation_unanswered', partner: PEOPLE[partner].name, reason, at: hhmm(now) }); p.memory = p.memory.slice(-12); }
+  st.inviteCool[v.from + '>' + v.to] = now + INV.cool.defer * 60000;
+  restoreInviter(pa, now);
+  st.seq++; st.world = composeWorld(now); save();
+  log(`invite: ${PEOPLE[v.from].name} → ${PEOPLE[v.to].name} closed without an answer (${reason})`);
+}
 function stepsDue(now) {                                             // the moves an answer scheduled (the one who called goes first, the other a bit later)
   const due = st.steps.filter((x) => now >= x.at); if (!due.length) return false;
   st.steps = st.steps.filter((x) => now < x.at);
@@ -282,7 +312,54 @@ function stepsDue(now) {                                             // the move
     applyDecision(x.id, 'smoke@' + x.place, 'invite', null); }
   return true;
 }
+// ---------- the heroine asks someone to turn the music on (04.10): she has no knob clips of her own, so she «asks a colleague»
+// (before, she could only wait for music at the TV). He answers by himself: accept → he goes and turns the knob (activity tvmusic).
+function canTurnKnob(o, now) {                                      // can he (now) go and turn the TV to the music channel?
+  const x = REG.tvmusic;
+  if (!x || !PEOPLE[o] || o === 'heroine' || !supports(o, 'tvmusic') || (x.people && !x.people.includes(o))) return false;
+  if (musicLeftMs(now) > 0 || musicPending(now) || (st.failedUntil[o + ':tvmusic'] || 0) > now) return false;
+  return !takenBy(o).has('tvKnob') && !Object.values(st.chars).some((q) => q.place === 'tvKnob');
+}
+function canAskMusic(a, o, now) {
+  const pa = st.chars[a], pb = st.chars[o];
+  if (a !== 'heroine' || !pa || !pb || o === a || st.invite || !canTurnKnob(o, now)) return false;
+  if (busyWith(pa) || busyWith(pb) || now < (pa.arriveAt || 0) || now < (pb.arriveAt || 0)) return false;
+  return (st.inviteCool[a + '>' + o] || 0) <= now;
+}
+async function answerMusicInvite(now) {
+  const v = st.invite, a = v.from, b = v.to, pa = st.chars[a], pb = st.chars[b], key = 'invitation-' + v.n, cur = labelOf(b, pb.activity, pb.place);
+  const avail = [
+    { id: 'accept:' + key, description: `Согласиться: подойти к телевизору, присесть и повернуть ручку на музыкальный канал; музыка заиграет для всех на ${TV_MUSIC_MIN} минут (бросить то, чем занят сейчас: ${cur})` },
+    { id: 'decline:' + key, description: `Отказаться и продолжать: ${cur}` }];
+  inviteNote[b] = `${PEOPLE[a].name} просит тебя включить музыку по телевизору`;
+  const diagnosticId = newTraceId();
+  trace(diagnosticId, 'choice_started', { actorId: b, revision: st.seq, choiceKinds: offeredKinds(avail), optionCount: avail.length, offered: avail });
+  let d = null, source = 'jev';
+  if (process.env.NO_JEV || st.jevToday >= DAILY) { requestFailed(st, b, 'physical', diagnosticId, new Error(process.env.NO_JEV ? 'model_disabled' : 'daily_limit'), Date.now()); await publishModelStatus(); delete inviteNote[b]; return; }
+  try { d = await askJev(b, avail, null, diagnosticId); st.jevToday += 1; }
+  catch { delete inviteNote[b]; trace(diagnosticId, 'application', { actorId: b, source: 'none', status: 'request_failed', physicalExecution: 'existing_command_preserved' }); return; }
+  delete inviteNote[b];
+  if (st.invite !== v || pa.sleepPending || pb.sleepPending || pa.sleep || pb.sleep) { trace(diagnosticId, 'application', { actorId: b, action: d?.action ?? null, source, status: 'stale_rejected', revisionAfter: st.seq, physicalExecution: 'not_confirmed_by_response' }); return; }
+  if (!d || !avail.some((x) => x.id === d.action)) { source = 'rule'; d = { action: ((pb.needs.music ?? 0) >= 30 ? 'accept:' : 'decline:') + key, confidence: null }; }
+  let ans = d.action.split(':')[0]; const t = Date.now();
+  if (ans === 'accept' && !canTurnKnob(b, t)) ans = 'decline';          // the situation changed while he thought (music started, the knob is taken)
+  talkOn(pb, { at: t, to: a, icon: 'social', mark: ans === 'accept' ? 'yes' : 'no' });
+  const said = { accept: 'согласился', decline: 'отказался' }[ans];
+  pa.memory.push({ event: 'music_request', to: PEOPLE[b].name, answer: said, at: hhmm(t), source }); pa.memory = pa.memory.slice(-12);
+  pb.memory.push({ event: 'music_requested', by: PEOPLE[a].name, answer: said, at: hhmm(t), source }); pb.memory = pb.memory.slice(-12);
+  st.inviteCool[a + '>' + b] = t + (ans === 'accept' ? 20 : 25) * 60000;
+  st.invite = null;
+  restoreInviter(pa, t);
+  if (ans === 'accept') {
+    applyDecision(b, 'tvmusic@tvKnob', 'invitation', null);
+    if (pa.activity === 'wait' && st.tvMusic) pa.busyUntil = Math.min(pa.busyUntil, Math.max(t + 2000, st.tvMusic.from + 2000));   // she was only waiting: she decides again when the music starts
+  }
+  st.seq++; st.world = composeWorld(t); save();
+  trace(diagnosticId, 'application', { actorId: b, action: d.action, source, status: 'invitation_response_recorded', revisionAfter: st.seq, physicalExecution: 'not_confirmed_by_response' });
+  log(`music request: ${PEOPLE[a].name} → ${PEOPLE[b].name}: ${ans} (${source})`);
+}
 async function answerInvite(now) {
+  if(st.invite?.kind === 'music') return answerMusicInvite(now);
   if(st.invite?.kind === 'social') return answerSocialInvite(now);                                   // the one invited decides now, whatever he is doing
   const v = st.invite, a = v.from, b = v.to, pa = st.chars[a], pb = st.chars[b];
   const inv = 'invitation-' + v.n, cur = labelOf(b, pb.activity, pb.place);
@@ -363,7 +440,10 @@ const LABEL = {sleep_desk: (id,p)=>`${st.chars[id].sleep?.phase==='asleep'?'сп
   rest_lounge: (id,p) => p==='diningChair'?'отдыхает на стуле у обеденного стола':'отдыхает на скамье у круглого стола', read_wire:()=> 'читает ленту телетайпа',wait: (id,p)=>PLACES[p].kind==='chair'?'сидит на стуле у обеденного стола':PLACES[p].kind==='desk'?'сидит за столом':PLACES[p].kind==='bench'?'сидит на скамье':p==='teletype'?'стоит у телетайпа':p==='teletypeRead'?'стоит перед телетайпом':'стоит '+PLACES[p].name,
   phone: (id, p) => (PLACES[p].kind === 'desk' ? `говорит по телефону за столом ${PLACES[p].desk}` : 'говорит по телефону у стола A'),
   conversation: (id) => {const p=pairOf(st,id);return p?`общается с ${PEOPLE[p.members.find(x=>x!==id)].name.toLowerCase()}`:'ждёт решения после разговора';},
-  invite: (id) => (st.invite?.from === id ? `зовёт ${ACC[st.invite.to] || st.invite.to} покурить` : 'зовёт покурить') };
+  // The caption says what the invitation REALLY is (smoke / talk / music) and never shows a raw id (04.10: «зовёт heroine покурить» was written for a talk invitation)
+  invite: (id) => { const v = st.invite; if (v?.from !== id) return 'ждёт ответа';
+    const acc = ACC[v.to] || PEOPLE[v.to]?.name?.toLowerCase() || 'коллегу', dat = DAT[v.to] || PEOPLE[v.to]?.name?.toLowerCase() || 'коллеге';
+    return v.kind === 'social' ? `предлагает ${dat} поговорить` : v.kind === 'music' ? `просит ${acc} включить музыку` : `зовёт ${acc} покурить`; } };
 function labelOf(id, a, p) {
   if (LABEL[a]) return LABEL[a](id, p);
   const kind = PLACES[p].kind === 'spot' ? (p === 'window2' ? 'window' : PLACES[p].at || p) : PLACES[p].kind, w = REG[a]?.where.find((x) => kindOf(x.at) === kind) || REG[a]?.where[0];
@@ -393,7 +473,7 @@ function updatePersonNeeds(id, now, witnessedWorkMs=0) {
     if(p.sleep)p.busyUntil=now+60000;
     advanceFlirtNeed(p,min*FAST,PEOPLE[id].personality,needGrowth(id,'drunk',now)+(usesConsumption(id,p.activity)?0:(REG[p.activity]?.needs?.drunk??0)*acting/(min||1)),ownFinancialFlirtPressure(id));
     for (const k of Object.keys(PEOPLE[id].grow).filter(k=>k!=='flirt')) p.needs[k] = Math.max(0, Math.min(100, (p.needs[k] ?? 0) + (needGrowth(id, k, now) * min + (usesConsumption(id,p.activity)?0:(smokingNeedBlocked(id,k,p.activity)?0:(REG[p.activity]?.needs?.[k] ?? 0))) * acting) * FAST));
-    if (REG[p.activity]?.when === 'music' && !musicOn(now) && now > (p.arriveAt || 0)) p.busyUntil = Math.min(p.busyUntil, now);   // the music is over: he decides again
+    if (REG[p.activity]?.when === 'music' && !musicOn(now)) p.busyUntil = Math.min(p.busyUntil, now);   // the music is over: he decides again
     if (!supports(id,'work') || p.activity !== 'work' || now <= p.arriveAt) return;
     let t = taskOf(id); if (!t && waiting()[0]) { t = waiting()[0]; t.by = id; teletypeDirty = true; }   // at his desk with nothing to do: he takes the next story off the wire
     if (!t) return;
@@ -439,7 +519,8 @@ function actions(id) {
   if(id==='heroine'&&p.activity==='heroine_serve')return serviceActions(st,id,Date.now(),serviceInput(Date.now())).filter(a=>a.id.startsWith('money_drinks_cancel@'));
   const performance=committedPerformance(st,id);if(performance)return [{id:'continue',description:'Продолжить согласованное выступление: исполнитель автоматически организует посадку зрителя и танец; повторного согласия не требуется.'},{id:`money_performance_cancel@${performance.id}`,description:'Отменить согласованное выступление без оплаты.'}];
   loadRegistry();                                                   // picks up registry edits without a restart
-  const music = musicOn(Date.now()), fits = (x) => !x?.when || (x.when === 'music') === music;   // listening only while music plays, turning it on only while it does not
+  const nowMs = Date.now(), musicLeft = musicLeftMs(nowMs), pending = musicPending(nowMs);
+  const fits = (x, pl) => !x?.when || (x.when === 'music' ? musicLeft > ((pl ? travelSeconds(here, pl) : 0) + 10) * 1000 : musicLeft <= 0 && !pending);   // listening only while enough music is left to get there, turning it on only in silence and when nobody is already on the way to the knob
   if (p.activity !== 'phone' && p.activity !== 'invite' && !REG[p.activity]?.once && fits(REG[p.activity])) out.push({ id: 'continue', description: `Продолжать текущее занятие: ${labelOf(id, p.activity, here)} (${EFFECT(id, p.activity)})` });   // a call and a once-activity (a cigarette, lunch) end by themselves: no «one more» in a loop (owner 30.09)
   // work: at his own desk; if it is taken, at a free one; not getting up — where he sits
   const free = DESK_IDS.filter((d) => !taken.has(d)), workDesks = [...new Set([...(P.kind === 'desk' ? [here] : []), ...(free.includes(home) ? [home] : free)])];
@@ -455,7 +536,7 @@ function actions(id) {
     if (x.people && !x.people.includes(id)) continue;
     if (verb==='heroine_serve') continue;
     if(id==='heroine'&&verb==='smoke'&&(!['window','window2'].includes(pl)||executionCapabilities?.actors?.[id]?.smokingAvailable!==true))continue;
-    if (!consumptionReady(id,verb,pl,executionCapabilities,Date.now())||!fits(x)||st.hostessMode==='drinks'&&verb.includes('dance')) continue;
+    if (!consumptionReady(id,verb,pl,executionCapabilities,Date.now())||!fits(x, pl)||(st.failedUntil[id + ':' + verb] || 0) > nowMs||st.hostessMode==='drinks'&&verb.includes('dance')) continue;
     if (pl === here && p.activity === verb) continue;
     if (!out.some((a) => a.id === verb + '@' + pl)) add(verb + '@' + pl, `${fill(w.jev, pl)} (${EFFECT(id, verb)})`);
   }
@@ -465,6 +546,8 @@ function actions(id) {
     out.push({ id: 'invite@' + o, description: `Позвать ${ACC[o] || o} покурить вместе у окна (он сейчас: ${labelOf(o, st.chars[o].activity, st.chars[o].place)}); он решит сам — может согласиться, отказать или подойти позже` });
   const later = deferredInvite(id, Date.now());
   if (later && !taken.has(later.place) && !out.some(x => x.id === 'smoke@' + later.place)) add('smoke@' + later.place, `Теперь присоединиться к ${DAT[later.from] || later.from}: покурить вместе у окна (${EFFECT(id, 'smoke')})`);
+  if (id === 'heroine') for (const o of Object.keys(st.chars)) if (canAskMusic(id, o, Date.now()))
+    out.push({ id: 'music_ask@' + o, description: `Попросить ${ACC[o] || o} включить музыку по телевизору (сама ты ручку не поворачиваешь; он ответит сам — согласится или откажет; ответ он даёт сразу)` });
   out.push(...socialActions(id));
   const affordable=list=>expandMealActions(list.filter(a=>st.hostessMode!=='drinks'||!a.id.split('@')[0].includes('dance')), socialReady(id,Date.now())?executionCapabilities.actors[id].meals:null).filter(a=>a.id==='continue'||(!price(st,a.id.split('@')[0])||executionCapabilities?.actors?.[id]?.moneyWitness===1)&&canReplacePurchase(st,id,a.id.split('@')[0],Date.now())).map(a=>({...a,description:a.description+(price(st,a.id.split('@')[0])?` Стоимость ${price(st,a.id.split('@')[0])/100} USD; списание при исполнении.`:'' )}));
   out.push(...moneyActions(st,id,pairOf(st,id),Date.now(),Object.fromEntries(Object.entries(PEOPLE).map(([id,p])=>[id,p.name]))));
@@ -505,7 +588,7 @@ async function snapshot(id, avail) {
         note: 'Работа продвигается только за письменным столом (work_variant); закончится внешним событием work_finished.' } : null,
       finances:{...moneyContext(st,id),...performanceContext(st,id),...serviceContext(st,id),canWork:supports(id,'work'),livelihood:livelihoodContext(st,id,avail,now)}, pending_tasks: waiting().map((x) => ({ id: x.id, title: x.title, arrived: x.arrived })), memory: structuredClone(p.memory.slice(-6)), relationships:publicRelations(st,id), courtship:Object.fromEntries(Object.entries(p.relationships).map(([other,r])=>[other,courtshipStatus(r,id,other)])), currentActivity: publicConversation(st,id), recentEpisodes: structuredClone(p.memory.filter(x=>x.event==='conversation_finished'||x.event==='conversation_cancelled').slice(-3)) },
     situation: { local_time: hhmm(now), room: 'вечерняя редакция нью-йоркской газеты, 1956 год: три письменных стола (A, B, C), скамья у круглого стола, окна на город, телетайп, бар, телевизор',
-      music: musicOn(now) ? 'по телевизору играет музыка' : 'музыка не играет',
+      music: musicOn(now) ? 'по телевизору играет музыка' : musicPending(now) ? 'кто-то идёт включать музыку, она вот-вот заиграет' : 'музыка не играет',
       others: others(id), ...(inviteNote[id] ? { invitation: inviteNote[id] } : {}), ...(deferredInvite(id, now) ? { deferred_invitation: `${PEOPLE[st.deferredInvites[id].from].name} ещё курит у окна. Ты ответил «не сейчас»; можно присоединиться или выбрать другое занятие.` } : {}), teletype: waiting().length ? `на ленте ждут правки сообщений: ${waiting().length}` : 'новых сообщений на ленте нет', ...ownerNote(now) },
     ...(await characterRules() ? { characterRules: rules } : {}),
     sleep: {available:supports(id,'sleep_desk'),current:p.sleep||null,pending:p.sleepPending||null,threshold:SLEEP.threshold,wakeBelow:SLEEP.wakeBelow,note:'Есть одна шкала усталости. Она растёт быстрее вечером, обычный отдых её снижает. При 95 сон назначается автоматически и имеет приоритет перед другими делами. Исполненный сон снижает усталость и опьянение; пробуждение — при усталости не выше 30 и не раньше минуты сна.'},
@@ -757,6 +840,7 @@ function applyDecision(id, action, source, confidence, expected=null, performanc
   const invitePartner=verb==='social_invite'?variant:verb==='social_join'?st.social.deferred[variant]?.from:null;
   const proposed=invitePartner&&socialProposal(id,invitePartner,now);
   if(['social_invite','social_join'].includes(verb)&&!proposed)return false;
+  if(verb==='music_ask'&&!canAskMusic(id,variant,now))return false;
   if(verb==='social_intent'&&(!pair||pair.phase!=='active'||!socialIntentReady(id,variant,now)||!chooseIntent(st,pair,id,variant,now,source,actorStyles(id))))return false;
   if(verb==='social_relation'&&(!pair||pair.phase!=='active'||!chooseRelation(st,pair,id,variant,now,source)))return false;
   if(verb!=='continue'&&!canReplacePurchase(st,id,verb,now))return false;
@@ -773,6 +857,7 @@ function applyDecision(id, action, source, confidence, expected=null, performanc
   else if (verb === 'phone' && PLACES[variant]) { activity = 'phone'; place = variant; }
   else if (verb === 'invite' && PEOPLE[variant]) { activity = 'invite'; }
   else if (verb === 'social_invite' && PEOPLE[variant]) { p.beforeSocialInvite={purchasePending:!!st.economy.reservations[`${id}:${p.seq}`],activity:p.activity,activityUntil:p.activityUntil,busyUntil:p.busyUntil,since:p.since,arriveAt:p.arriveAt,entry:{...p.entry}};activity='invite'; }
+  else if (verb === 'music_ask' && PEOPLE[variant]) { p.beforeSocialInvite={purchasePending:!!st.economy.reservations[`${id}:${p.seq}`],activity:p.activity,activityUntil:p.activityUntil,busyUntil:p.busyUntil,since:p.since,arriveAt:p.arriveAt,entry:{...p.entry}};activity='invite'; }
   else if (verb === 'social_join' && st.social.deferred[variant]) { p.beforeSocialInvite={purchasePending:!!st.economy.reservations[`${id}:${p.seq}`],activity:p.activity,activityUntil:p.activityUntil,busyUntil:p.busyUntil,since:p.since,arriveAt:p.arriveAt,entry:{...p.entry}};activity='invite'; }
   else if (verb === 'conversation' && PLACES[variant]) {activity='conversation';place=variant;p.socialStyle='neutral';}
   else if(verb==='social_intent'){activity='conversation';p.socialStyle='neutral';}
@@ -800,11 +885,13 @@ function applyDecision(id, action, source, confidence, expected=null, performanc
   if (REG[activity]?.effect === 'tv_music') { const from = now + (travel + 6) * 1000; st.tvMusic = { ch: 'jazz', at: now, from, until: from + TV_MUSIC_MIN * 60000 }; }   // the knob turns ~4 s after he crouches
   if (supports(id,'work') && activity === 'work' && !taskOf(id) && waiting()[0]) waiting()[0].by = id;       // he sits down to the next story on the wire
   if (verb === 'invite' && PEOPLE[variant]) startInvite(id, variant, now);
+  if (verb === 'music_ask' && PEOPLE[variant]) { startInvite(id, variant, now); st.invite.kind = 'music'; }
   if(verb==='social_invite'||verb==='social_join') {const o=verb==='social_invite'?variant:st.social.deferred[variant]?.from;startInvite(id,o,now);st.invite.kind='social';st.invite.proposal=structuredClone(proposed);st.invite.proposal.actorRevisions[id]=p.seq;if(verb==='social_join')delete st.social.deferred[variant];}
   if (verb === 'smoke' && st.deferredInvites[id]?.place === place) delete st.deferredInvites[id];
   const t = taskOf(id), talk = p.entry?.talk && now - p.entry.talk.at < 6000 ? p.entry.talk : undefined;   // the last words stay while their bubble runs
   p.entry = { talk, from: target(from), cmd: move ? target(place) : null, at: now, label: labelOf(id, activity, place), activity, source, confidence, action:selectedAction, meal:activity==='lunch'?resolved.meal:null, fatigue: before,
     story: activity === 'work' && t ? { id: t.id, en: WIRE_EN[t.title] || '' } : undefined };
+  if (verb === 'music_ask' && st.invite) { p.entry.talk = { at: now, to: st.invite.to, icon: 'social', mark: 'q' }; p.busyUntil = now + 60000; }
   if ((verb === 'social_invite'||verb==='social_join') && st.invite) {p.entry.talk={at:now,to:st.invite.to,icon:'social',mark:'q'};p.busyUntil=now+60000;}
   if (verb === 'invite' && PEOPLE[variant]) { p.entry.talk = { at: now, to: variant, icon: 'smoke', mark: 'q' }; p.busyUntil = now + 60000; }   // his next step comes from the answer
   serviceCommandChanged(st,id,selectedAction,now);
@@ -890,11 +977,7 @@ async function answerSocialInvite(now) {
     if(pair){pair.assignments=structuredClone(proposal.assignments);pair.placeKind=proposal.kind;delete pa.beforeSocialInvite;applyDecision(a,'conversation@'+places[a],'invitation',null);applyDecision(b,'conversation@'+places[b],'invitation',null);}
   }else {
     if(answer==='defer')st.social.deferred[key]={from:a,to:b,notBefore:t+16000,expires:t+600000};
-    updatePersonNeeds(a,t);const prior=pa.beforeSocialInvite;
-    if(prior && typeof prior==='object'){Object.assign(pa,prior);pa.busyUntil=Math.max(t+8000,prior.busyUntil);}
-    else {pa.activity='wait';pa.activityUntil=t;pa.busyUntil=t+8000;pa.entry={...pa.entry,activity:'wait'};}
-    delete pa.beforeSocialInvite;delete pa.purchasePending;pa.seq++;rebindExecutionGate(pa,t);
-    if(prior?.purchasePending&&!reservePurchase(st,a,pa.activity,pa.seq,t)){pa.activity='wait';pa.busyUntil=t;pa.entry={...pa.entry,activity:'wait',label:labelOf(a,'wait',pa.place)};}
+    restoreInviter(pa,t);
     if(answer==='accept'){pa.memory.push({event:'conversation_cancelled',partner:b,source:'executor',reason:'place_or_executor_unavailable',participatingSeconds:0,at:t});}
   }
   trace(diagnosticId,'application',{actorId:b,action:d.action,source,status:answer==='accept'?(pairOf(st,b)?'conversation_commands_created':'place_or_executor_rejected'):'invitation_response_recorded',revisionAfter:st.seq+1,physicalExecution:'not_confirmed_by_response'});
@@ -910,6 +993,26 @@ function releaseDiningChair(now){
 }
 // A restored invitation command has a new revision. Await its own receipt;
 // the superseded command can never acknowledge it, even after a restart.
+// 04.10: the gate waits until the page reports «executing». Without a limit a command the page received but cannot perform (no music on
+// the page, a blocked route, a missing clip) kept the person «busy» forever: the director extended his time every 2 s (updatePersonNeeds).
+// Now: the page has the command (same seq and activity) but is not executing for GATE_PATIENCE after the expected start → the command
+// is dropped, the person decides again, and the same action is not offered to him for a while.
+const GATE_PATIENCE = 45000, GATE_COOL = 3 * 60000, GATE_EXEMPT = new Set(['sleep_desk', 'conversation']);   // sleeping and talking have their own state machines
+function gateStuck(p, a, now) {
+  const g = p.executionGate;
+  if (!g || GATE_EXEMPT.has(p.activity) || a?.loaded !== true || a.seq !== p.seq || a.seq !== g.seq || a.activity !== p.activity) return false;
+  if (!executionCapabilities || !(executionCapabilities.at <= now) || now - executionCapabilities.at >= 3500 || a.executing === true) { if (a?.executing === true) delete g.seenAt; return false; }
+  g.seenAt ??= now;
+  return now - Math.max(g.expectedStart, g.seenAt) > GATE_PATIENCE;
+}
+function abortExecution(id, p, why, now) {
+  updatePersonNeeds(id, now);
+  p.memory.push({ event: 'execution_failed', activity: p.activity, why, at: hhmm(now) }); p.memory = p.memory.slice(-12);
+  st.failedUntil[id + ':' + p.activity] = now + GATE_COOL;
+  log(`${PEOPLE[id].name}: «${p.activity}» was not started by the page (${why}); dropped, he decides again`);
+  p.activity = 'wait'; p.since = p.arriveAt = p.activityUntil = p.busyUntil = now; delete p.executionGate; p.seq++;
+  p.entry = { from: target(p.place), cmd: null, at: now, label: labelOf(id, 'wait', p.place), activity: 'wait', source: 'executor_timeout', fatigue: p.fatigue };
+}
 function rebindExecutionGate(p,now){
  if(!p.executionGate||p.executionGate.seq===p.seq)return false;
  p.executionGate={seq:p.seq,requestedAt:now,expectedStart:Math.max(now,p.arriveAt||0)};
@@ -931,7 +1034,7 @@ async function pollParticipation(now,status) {
       if(p.activity==='heroine_serve'&&a.serviceWitness?.trayOnTable===true){p.place='trayTable';st.trayDelivery={id:p.entry.service.id,recipients:p.entry.service.recipients,poured:a.serviceWitness.poured,at:now};}
       p.activity='wait';p.since=p.arriveAt=p.activityUntil=p.busyUntil=now;delete p.executionGate;p.seq++;
       p.entry={from:target(p.place),cmd:null,at:now,label:labelOf(id,'wait',p.place),activity:'wait',source:'executor_completion',fatigue:p.fatigue};gateChanged=true;
-    }else if(p.executionGate && a?.loaded===true && a.seq===p.seq && a.seq===p.executionGate.seq && a.activity===p.activity && executionCapabilities.at<=now && now-executionCapabilities.at<3500 && (a.executing===true||(p.activity==='conversation'&&a.conversationReady&&a.conversationId===pairOf(st,id)?.id))){updatePersonNeeds(id,now);const delay=Math.max(0,now-p.executionGate.expectedStart);p.activityUntil+=delay;p.busyUntil=p.activityUntil;p.arriveAt=now;delete p.executionGate;gateChanged=true;}}
+    }else if(p.executionGate && a?.loaded===true && a.seq===p.seq && a.seq===p.executionGate.seq && a.activity===p.activity && executionCapabilities.at<=now && now-executionCapabilities.at<3500 && (a.executing===true||(p.activity==='conversation'&&a.conversationReady&&a.conversationId===pairOf(st,id)?.id))){updatePersonNeeds(id,now);const delay=Math.max(0,now-p.executionGate.expectedStart);p.activityUntil+=delay;p.busyUntil=p.activityUntil;p.arriveAt=now;delete p.executionGate;gateChanged=true;}else if(gateStuck(p,a,now)){abortExecution(id,p,'page_not_executing',now);gateChanged=true;}}
     if(st.chars.heroine){const running=activityRunning('heroine',now);if(running!==heroineFeedbackRunning){updatePersonNeeds('heroine',now);heroineFeedbackRunning=running;gateChanged=true;}}
     const before=JSON.stringify(st.social);for(const report of r.items||[]){executionSeq=Math.max(executionSeq,report.seq);for(const id of Object.keys(report.actors||{}))if(st.chars[id])updatePersonNeeds(id,now);applyParticipation(st,report,now,FAST);}
     for(const [id,p]of Object.entries(st.chars)){const was=p.sleep;if(was&&executionCapabilities&&now-executionCapabilities.at<3500&&acceptSleepSample(p,executionCapabilities.actors?.[id],now,FAST,executionCapabilities.at)){gateChanged=true;if(!p.sleep){p.activity=PLACES[p.place].kind==='chair'?'rest_lounge':'rest_desk';p.since=now;p.busyUntil=now;p.arriveAt=now;delete p.executionGate;p.seq++;p.entry={from:target(p.place),cmd:null,at:now,label:(id==='heroine'?'проснулась ':'проснулся ')+sleepPlaceText(p.place),activity:p.activity,source:'sleep_executor',fatigue:p.fatigue};}}}
@@ -976,8 +1079,8 @@ async function tick() {
     if(mandatorySleep(Date.now())){st.seq++;st.world=composeWorld(Date.now());save();await relay('/director/world',st.world);}
     ownerCalls(now);                                                 // the owner's call rings once someone watches
     if (stepsDue(now)) { await relay('/director/world', st.world); return; }
-    if (st.invite && now >= st.invite.answerAt && requestAllowed(st,st.invite.to,'physical',now)) { await answerInvite(now); await relay('/director/world', st.world); return; }
-    if (st.invite && now - st.invite.at > 60000) st.invite = null;     // never stuck
+    if (st.invite && now >= st.invite.answerAt && requestAllowed(st,st.invite.to,'physical',now)) { const v = st.invite; await answerInvite(now); if (st.invite === v) closeInvite(v, 'no_answer', Date.now()); await relay('/director/world', st.world); return; }   // still open after the attempt = nobody answered
+    if (st.invite && (now - st.invite.answerAt > INV_PATIENCE || now - st.invite.at > 60000)) { closeInvite(st.invite, 'no_answer', now); await relay('/director/world', st.world); }   // never stuck
     // one decision per tick, the people in turn; they may walk at the same time — the page walks them together (crowd, keep right; owner 30.09)
     const ids = Object.keys(st.chars).filter((k) => PEOPLE[k] && !(st.invite && (k === st.invite.from || k === st.invite.to)) && !st.steps.some((x) => x.id === k));
     let id = null, nextTurn = turn; for (let k = 0; k < ids.length; k++) { const c = ids[(turn + k) % ids.length]; if (requestAllowed(st,c,'physical',now)&&!st.chars[c].sleep&&!st.chars[c].sleepPending&&!Object.values(st.sleepDeskLeases).some(l=>l.owner===c)&&!(st.diningChairLease?.owner===c&&st.diningChairLease.phase==='departing')&&now >= st.chars[c].busyUntil) { id = c; nextTurn = (turn + k + 1) % ids.length; break; } }
