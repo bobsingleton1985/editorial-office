@@ -97,6 +97,8 @@ export function applySimulation(graph, frame) {
   const { nodes, externalParents } = graph, { a, b, alpha } = frame;
   for (let i = 0; i < nodes.length; i++) {
     const o = nodes[i], x = a.states[i], y = b.states[i];
+    // Preserve the graph schema for existing viewers; new viewers own cosmetics.
+    if (o.userData.browserSmokeFx && (alpha >= 1 ? b.meta : a.meta)?.smokeFxVersion === 1) continue;
     const s = alpha >= 1 ? y : x;
     const parent = s.p < 0 ? externalParents[i] : nodes[s.p];
     if (o.parent !== parent) { if (parent) parent.add(o); else o.removeFromParent(); }

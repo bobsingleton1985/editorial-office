@@ -10,6 +10,7 @@
 // Lengths in the approved page are pack metres; here the character is scaled by S, so every length is multiplied by U.
 import * as THREE from 'three';
 import { W_MOUTH } from './smoke-data.js';
+import { buildSmokeTimeline, smokeVisualCue, sampleSmokeStatus, createSmokeDisplayClock } from './smoke-presentation.mjs';
 
 const FPS = 30, XF = 0.35, IN = 0.4;
 const SEQ = ['smoke_start', 'smoke_light', 'smoke_hold', 'smoke_inhale1', 'smoke_flick', 'smoke_inhale2', 'smoke_look1', 'smoke_inhale3', 'smoke_stop'];
@@ -105,6 +106,7 @@ export function createSmoking({ scene, root, B, mixer, U, addon, strip, camera, 
   const fx = new THREE.Group(); fx.name = 'SMOKE fx'; scene.add(fx);
   const NP = 1400, pos = new Float32Array(NP * 3), size = new Float32Array(NP), alpha = new Float32Array(NP), P = []; for (let i = 0; i < NP; i++) P.push({ live: false });
   const geo = new THREE.BufferGeometry();
+  geo.setDrawRange(0, 0);
   geo.setAttribute('position', new THREE.BufferAttribute(pos, 3).setUsage(THREE.DynamicDrawUsage));
   geo.setAttribute('aSize', new THREE.BufferAttribute(size, 1).setUsage(THREE.DynamicDrawUsage));
   geo.setAttribute('aAlpha', new THREE.BufferAttribute(alpha, 1).setUsage(THREE.DynamicDrawUsage));
@@ -112,7 +114,7 @@ export function createSmoking({ scene, root, B, mixer, U, addon, strip, camera, 
     uniforms: { uPPU: { value: 100 }, uColor: { value: new THREE.Color(0.86, 0.87, 0.9) } },
     vertexShader: 'uniform float uPPU;attribute float aSize;attribute float aAlpha;varying float vA;void main(){gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);gl_PointSize=aSize*uPPU;vA=aAlpha;}',
     fragmentShader: 'uniform vec3 uColor;varying float vA;void main(){vec2 c=gl_PointCoord-.5;float a=smoothstep(.5,.05,length(c));a=a*a*vA;if(a<.003)discard;gl_FragColor=vec4(uColor,a);}' });
-  const pts = new THREE.Points(geo, smokeMat); pts.frustumCulled = false; fx.add(pts);
+  const pts = new THREE.Points(geo, smokeMat); pts.frustumCulled = false; pts.visible = false; fx.add(pts);
   let spawnIdx = 0;
   function spawn(p0, v, life, s0, s1, a0, kind) {
     for (let k = 0; k < NP; k++) { const i = (spawnIdx + k) % NP; if (!P[i].live) { spawnIdx = i + 1; Object.assign(P[i], { live: true, p: p0.clone(), v: v.clone(), age: 0, life, s0, s1, a0, kind, seed: Math.random() * 6.28 }); return; } }
@@ -121,20 +123,21 @@ export function createSmoking({ scene, root, B, mixer, U, addon, strip, camera, 
   function stepParticles(dt) {
     let n = 0;
     for (let i = 0; i < NP; i++) { const q = P[i];
-      if (!q.live) { alpha[i] = 0; size[i] = 0; continue; }
-      q.age += dt; if (q.age >= q.life) { q.live = false; alpha[i] = 0; continue; }
+      if (!q.live) continue;
+      q.age += dt; if (q.age >= q.life) { q.live = false; continue; }
       const t = q.age / q.life;
       if (q.kind === 'exhale') { q.v.multiplyScalar(Math.exp(-1.7 * dt)); q.v.y += 0.07 * U * dt; }
       else if (q.kind === 'ash') q.v.y -= 2.5 * U * dt;
       else { q.v.multiplyScalar(Math.exp(-0.4 * dt)); q.v.y += 0.03 * U * dt; }
       const sway = q.kind === 'ash' ? 0 : Math.sin(q.age * 2.6 + q.seed) * 0.018 * U * (0.3 + t);
       q.p.addScaledVector(q.v, dt); q.p.x += sway * dt; if (q.kind !== 'ash') q.p.z += Math.cos(q.age * 2.1 + q.seed) * 0.012 * U * dt;
-      pos[i * 3] = q.p.x; pos[i * 3 + 1] = q.p.y; pos[i * 3 + 2] = q.p.z;
-      size[i] = q.kind === 'ash' ? q.s0 : q.s0 + (q.s1 - q.s0) * Math.sqrt(t);
-      alpha[i] = q.kind === 'ash' ? q.a0 * (1 - t) : q.a0 * Math.min(1, t / 0.12) * (1 - t) * (1 - t); n++;
+      pos[n * 3] = q.p.x; pos[n * 3 + 1] = q.p.y; pos[n * 3 + 2] = q.p.z;
+      size[n] = q.kind === 'ash' ? q.s0 : q.s0 + (q.s1 - q.s0) * Math.sqrt(t);
+      alpha[n] = q.kind === 'ash' ? q.a0 * (1 - t) : q.a0 * Math.min(1, t / 0.12) * (1 - t) * (1 - t); n++;
     }
     geo.attributes.position.needsUpdate = true; geo.attributes.aSize.needsUpdate = true; geo.attributes.aAlpha.needsUpdate = true;
-    pts.visible = n > 0; liveN = n;
+    // Only this live prefix is drawn and captured. Pool slots stay stable.
+    geo.setDrawRange(0,n);pts.visible = n > 0; liveN = n;
   }
   const glowTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'), r = g.createRadialGradient(32, 32, 0, 32, 32, 32);
     r.addColorStop(0, 'rgba(255,200,120,1)'); r.addColorStop(0.3, 'rgba(255,110,40,.7)'); r.addColorStop(1, 'rgba(255,60,10,0)'); g.fillStyle = r; g.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
@@ -204,6 +207,7 @@ export function createSmoking({ scene, root, B, mixer, U, addon, strip, camera, 
   // ---------- the smoking clock: which clip, at what time, with what cross-fade weight
   // [clip, length, cross-fade into it]; seated no Stop at all; standing Stop 1–71 with the ending's calm right arm, then the ending
   const segs = { stand: [...SEQ.slice(0, -1).map((n) => [n, D[n]]), ['smoke_stop', STOP_CUT / FPS, 0.6], ['smoke_stop_end', D.smoke_stop_end]], sit: SEQ.slice(0, -1).map((n) => [n, D[n]]) };
+  const visualTimeline = buildSmokeTimeline(segs, INFO, FPS, REST);
   const cig = { stand: segs.stand.reduce((s, x) => s + x[1], 0), sit: segs.sit.reduce((s, x) => s + x[1], 0) };
   function at(mode, t) {                         // → { list: [{name, time, w}], cur, f, rest }
     const L = segs[mode], C = cig[mode] + REST[mode], tc = t % C, cyc = Math.floor(t / C);
@@ -219,12 +223,12 @@ export function createSmoking({ scene, root, B, mixer, U, addon, strip, camera, 
   }
 
   // ---------- state
-  const sm = { on: false, t: 0, allow: 1, seq: null, mode: null, desk: null, P: 0, W: 0, lw: 0, lit: false, prevF: 0, exhaleT: -1, cur: null, f: 0, rest: true, list: [] };
+  const sm = { generation: 0, on: false, t: 0, allow: 1, seq: null, mode: null, desk: null, P: 0, W: 0, lw: 0, lit: false, prevF: 0, exhaleT: -1, cur: null, f: 0, rest: true, list: [] };
   const all = Object.values(A);
   // pre: after the editor's layer weights, before the mixer. want = { mode: 'stand' | 'sit', desk } or null
   function pre(dt, want, base) {
     // one cigarette per director's command: a further 'continue' allows the next one, which starts from its beginning
-    if (want && (!sm.on || sm.mode !== want.mode)) { sm.drink = false; sm.on = true; sm.mode = want.mode; sm.desk = want.desk || null; sm.t = 0; sm.allow = 1; sm.seq = want.seq; sm.lit = false; sm.exhaleT = -1; }
+    if (want && (!sm.on || sm.mode !== want.mode)) { sm.generation++; sm.drink = false; sm.on = true; sm.mode = want.mode; sm.desk = want.desk || null; sm.t = 0; sm.allow = 1; sm.seq = want.seq; sm.lit = false; sm.exhaleT = -1; }
     else if (want && want.seq !== sm.seq) { sm.seq = want.seq; sm.allow++; }
     const C = sm.mode ? cig[sm.mode] + REST[sm.mode] : 1, cap = sm.allow * C - 1e-3;
     if (want) sm.t = Math.min(sm.t + dt, cap); else if (sm.on && sm.P <= 0) sm.on = false;
@@ -298,42 +302,67 @@ export function createSmoking({ scene, root, B, mixer, U, addon, strip, camera, 
           new THREE.Matrix4().copy(N.flame.parent.matrixWorld).invert().multiply(FW).decompose(N.flame.position, N.flame.quaternion, N.flame.scale); }
       } else N.flame.visible = false;
     } else { N.cig.visible = false; N.lighter.visible = false; N.flame.visible = false; tl.r.x.set(0, 0, 0); tl.r.v.set(0, 0, 0); tl.l.x.set(0, 0, 0); tl.l.v.set(0, 0, 0); }
-    effects(dt, name, f);
-    stepParticles(dt);
-    // points are sized in world units: pixels per world unit of the orthographic camera
-    if (camera.isOrthographicCamera) smokeMat.uniforms.uPPU.value = renderer.domElement.height / ((camera.top - camera.bottom) / camera.zoom);
+    // The authority sends smoking time and real prop poses, never particles.
+    if (window.__simulationMode !== 'authority') drawEffects(dt, {...smokingStatus(), fxTime: sm.t});
   }
-  function effects(dt, name, f) {
-    const I = name ? INFO[name] : null;
-    const cigOn = N.cig.visible, lit = sm.lit && cigOn, inh = (g) => I && I.inhale.some(([a, b]) => g >= a && g <= b);
-    const inhale = lit && inh(f);
-    if (lit && !inhale && inh(sm.prevF)) sm.exhaleT = 0;
-    if (I && I.ash && lit) I.ash.forEach((a) => { if (sm.prevF < a && f >= a) { const t = wpos(N.tip); for (let i = 0; i < 7; i++) spawn(t, new THREE.Vector3((Math.random() - 0.5) * 0.05 * U, (-0.05 - Math.random() * 0.1) * U, (Math.random() - 0.5) * 0.05 * U), 0.45, 0.006 * U, 0.006 * U, 0.8, 'ash'); } });
-    sm.prevF = f;
-    const tip = cigOn ? wpos(N.tip, tmp) : null, now = performance.now();
-    const flick = 0.85 + 0.3 * Math.sin(now * 0.023) + 0.15 * Math.random(), heat = !lit ? 0 : inhale ? 3.2 * flick : 0.9 + 0.2 * Math.sin(now * 0.004);
+  let previousAsh = null;
+  function effects(dt, smoke) {
+    const cue = smokeVisualCue(visualTimeline, smoke), cigOn = N.cig.visible;
+    const { lit, inhale } = cue;
+    if (previousAsh !== null && cue.ash > previousAsh && lit) {
+      const t = wpos(N.tip);
+      for (let i = 0; i < 7 * Math.min(2, cue.ash - previousAsh); i++) spawn(t, new THREE.Vector3((Math.random() - 0.5) * 0.05 * U, (-0.05 - Math.random() * 0.1) * U, (Math.random() - 0.5) * 0.05 * U), 0.45, 0.006 * U, 0.006 * U, 0.8, 'ash');
+    }
+    previousAsh = cue.ash;
+    const tip = cigOn ? wpos(N.tip, tmp) : null, now = (smoke.fxTime ?? smoke.t ?? 0) * 1000;
+    const flick = 0.85 + 0.3 * Math.sin(now * 0.023) + 0.15 * (0.5 + 0.5 * Math.sin(now * 0.037)), heat = !lit ? 0 : inhale ? 3.2 * flick : 0.9 + 0.2 * Math.sin(now * 0.004);
     if (emberMat) { emberMat.emissive.setRGB(1, 0.28, 0.06); emberMat.emissiveIntensity = heat; }
     glow.visible = !!tip && lit; emberLight.intensity = 0;
     if (tip && lit) { glow.position.copy(tip); glow.scale.setScalar((inhale ? 0.028 * flick : 0.016) * U); glow.material.opacity = inhale ? 1 : 0.7; emberLight.position.copy(tip); emberLight.intensity = inhale ? 0.035 * flick * LI : 0; }
     if (tip && lit && !inhale) { tipAcc += dt * 38; while (tipAcc > 1) { tipAcc--; spawn(tip, new THREE.Vector3((Math.random() - 0.5) * 0.01 * U, (0.08 + Math.random() * 0.04) * U, (Math.random() - 0.5) * 0.01 * U), 2.4 + Math.random(), 0.008 * U, 0.09 * U, 0.16, 'tip'); } }
-    if (sm.exhaleT >= 0) {
-      sm.exhaleT += dt; const T = sm.exhaleT, { m } = mouthAxis(), dir = wpos(N.fwd, tmp2).sub(m).normalize(), rate = T < 0.2 ? 0 : T < 1.0 ? 100 : T < 2.0 ? 42 : 0;
+    if (cue.exhale >= 0) {
+      const T = cue.exhale, { m } = mouthAxis(), dir = wpos(N.fwd, tmp2).sub(m).normalize(), rate = T < 0.2 ? 0 : T < 1.0 ? 100 : T < 2.0 ? 42 : 0;
       exAcc += dt * rate;
       while (exAcc > 1) { exAcc--;
         const v = dir.clone().multiplyScalar((0.18 + Math.random() * 0.34) * U).add(new THREE.Vector3((Math.random() - 0.5) * 0.16 * U, (-0.04 + (Math.random() - 0.5) * 0.1) * U, (Math.random() - 0.5) * 0.16 * U));
         const p0 = m.clone().addScaledVector(dir, 0.01 * U).add(new THREE.Vector3((Math.random() - 0.5) * 0.02 * U, (Math.random() - 0.5) * 0.015 * U, (Math.random() - 0.5) * 0.02 * U));
         spawn(p0, v, 3.0 + Math.random() * 1.6, (0.03 + Math.random() * 0.03) * U, (0.3 + Math.random() * 0.3) * U, 0.13 + Math.random() * 0.07, 'exhale'); }
-      if (T > 2.1) sm.exhaleT = -1;
+
     }
-    if (N.flame.visible) { flameLight.position.copy(wpos(N.flame, tmp2)); flameLight.intensity = (0.35 + Math.random() * 0.12) * LI; } else flameLight.intensity = 0;
+    if (N.flame.visible) { flameLight.position.copy(wpos(N.flame, tmp2)); flameLight.intensity = (0.35 + (0.5 + 0.5 * Math.sin(now * 0.061)) * 0.12) * LI; } else flameLight.intensity = 0;
   }
+  function clearEffects() {
+    for (const q of P) q.live = false;
+    tipAcc = exAcc = 0; previousAsh = null; liveN = 0;
+    geo.setDrawRange(0, 0); pts.visible = glow.visible = false;
+    emberLight.intensity = flameLight.intensity = 0;
+  }
+  function drawEffects(dt, smoke) {
+    effects(dt, smoke); stepParticles(dt);
+    if (camera.isOrthographicCamera) smokeMat.uniforms.uPPU.value = renderer.domElement.height / ((camera.top - camera.bottom) / camera.zoom);
+  }
+  function smokingStatus() {
+    return { on: sm.on, mode: sm.mode, sip: sm.dT >= 0 && sm.dW > 0.05, t: +sm.t.toFixed(2), clip: sm.cur, frame: Math.round(sm.f), W: +sm.W.toFixed(2), lit: sm.lit, rest: sm.rest, cig: N.cig.visible, lighter: N.lighter.visible, particles: liveN };
+  }
+  const displayClock = createSmokeDisplayClock(); let displayedGeneration = null;
+  fx.traverse(o => { o.userData.browserSmokeFx = true; });
+  fx.userData.smokeCue = () => ({ version: 1, time: +sm.t.toFixed(5), generation: sm.generation });
+  fx.userData.renderSmoke = (frame, id) => {
+    const smoke = sampleSmokeStatus(frame, id); if (!smoke) return;
+    const clock = displayClock(frame); if (clock.stale) return;
+    const generation = smoke.mode + ':' + smoke.fxGeneration;
+    if (clock.reset || generation !== displayedGeneration) clearEffects();
+    displayedGeneration = generation;
+    drawEffects(clock.dt, smoke);
+  };
+  fx.userData.smokeDiagnostics = () => ({ particles: liveN, drawCount: geo.drawRange.count, locallyRendered: true });
   return {
     fx, pre, post, setSitBase, setDrinkL, sipTime: () => sm.dT, clockT: () => sm.t,
     sipsBefore: (t) => { if (sm.mode !== 'sit' || !SIPS.length) return 0; const C = cig.sit + REST.sit, tc = t % C; return Math.floor(t / C) * SIPS.length + SIPS.filter((s0) => tc >= s0).length; },
     done: () => sm.on && sm.t >= sm.allow*(cig[sm.mode]+REST[sm.mode])-1e-3 && sm.W <= .001,
     active: () => sm.on && sm.W > 0.001,
     blend: () => (sm.on && sm.mode === 'stand' ? { W: sm.W, list: sm.list.map((e) => [e.name, e.w]) } : null),   // for keeping the feet planted over the cross-fades
-    status: () => ({ on: sm.on, mode: sm.mode, sip: sm.dT >= 0 && sm.dW > 0.05, t: +sm.t.toFixed(2), clip: sm.cur, frame: Math.round(sm.f), W: +sm.W.toFixed(2), lit: sm.lit, rest: sm.rest, cig: N.cig.visible, lighter: N.lighter.visible, particles: liveN }),
+    status: smokingStatus,
     props: N, ikL: (d) => ik('l', d), sipW: () => sm.dW,
   };
 }

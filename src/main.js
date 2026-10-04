@@ -769,7 +769,7 @@ window.__simulationTick=(dt,at)=>{
 };
 let capturePrevious=null;
 window.__simulationCapture=()=>{
-  const actors={};eachPerson((ed,id)=>actors[id]={status:ed.status(),social:ed.socialStatus(),sound:ed.audioState(),performancePose:ed.performancePose(),conversation:ed.conversationStatus(),moving:ed.moving(),knob:ed.knobTurn()});
+  const actors={};eachPerson((ed,id)=>actors[id]={status:ed.status(),social:ed.socialStatus(),smokeFx:ed.fx?.userData.smokeCue?.(),sound:ed.audioState(),performancePose:ed.performancePose(),conversation:ed.conversationStatus(),moving:ed.moving(),knob:ed.knobTurn()});
   const snapshot=captureSimulation(simulationGraph,{actors,smokeFxVersion:1,soundVersion:1,audio:simulationAudio,worldSeq:latest?.seq,gaze:gaze?.status()});
   const next=snapshot.states.map(s=>JSON.stringify(s));
   const out=capturePrevious?{protocol:snapshot.protocol,changes:snapshot.states.flatMap((s,i)=>next[i]===capturePrevious[i]?[]:[[i,s]]),meta:snapshot.meta}:snapshot;
