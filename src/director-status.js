@@ -66,7 +66,7 @@ const NEED = { fatigue: 'Усталость', boredom: 'Скука', social: 'О
 // resumes the director's state/rate, even while the assignment is in transit.
 const editing=new Set();
 function slider(k, v, nv, row, ctl) {
-  const i = el('input', 'nr'); i.type = 'range'; i.min = 0; i.max = 100; i.step = 1; i.value = v; i.setAttribute('aria-label', NEED[k] || k);
+  const i = el('input', 'nr'); i.type = 'range'; i.min = 0; i.max = 100; i.step = 1; i.value = v; i.setAttribute('aria-label', NEED[k] || k); i.dataset.peopleFocus = 'need:' + k; i.setAttribute('aria-description', row.title);
   let keyboard=false;
   i.addEventListener('keydown',ev=>{if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','PageUp','PageDown','Home','End'].includes(ev.key)){keyboard=true;editing.add(i);}});
   i.addEventListener('keyup',()=>{keyboard=false;editing.delete(i);});
@@ -74,14 +74,16 @@ function slider(k, v, nv, row, ctl) {
   const rel=()=>{editing.delete(i);};
   i.addEventListener('pointerdown', ev=>{keyboard=false;editing.add(i);i.setPointerCapture?.(ev.pointerId);});
   for(const event of ['pointerup','pointercancel','lostpointercapture','blur'])i.addEventListener(event,rel);
-  i.addEventListener('input', () => { nv.textContent = `${i.value} из 100`; row.classList.toggle('hi', +i.value >= 70); });
+  i.addEventListener('input', () => { nv.textContent = `${i.value}%`; row.classList.toggle('hi', +i.value >= 70); });
   i.addEventListener('change', () => { if(!keyboard)rel();ctl.set(k,+i.value);if(!keyboard)ctl.refresh(); });
   return i;
 }
 let needsCss = false;
 function scales(state, now, ctl) {
   if (!needsCss) { needsCss = true; const st = document.createElement('style'); st.textContent = `
-    #settings .needs { margin:6px 0 10px; } #settings .nd { display:grid; grid-template-columns:1fr auto; gap:3px 8px; margin:8px 0; font-size:13px; }
+    #settings .needs { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px 16px; margin:4px 0 10px; }
+    #settings .nd { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:0 5px; align-content:start; margin:0; min-width:0; font-size:12px; }
+    #settings .needs > .hint, #settings .needs > .task, #settings .nd > .hint { grid-column:1 / -1; }
     #settings .nd .nv { color:var(--muted); font-variant-numeric:tabular-nums; font-size:12px; }
     #settings .nd .nb { grid-column:1 / -1; height:7px; border-radius:4px; background:rgba(255,255,255,.09); overflow:hidden; }
     #settings .nd .nb i { display:block; height:100%; border-radius:4px; background:linear-gradient(90deg,#7fa36b,#e0913a); }
@@ -92,12 +94,13 @@ function scales(state, now, ctl) {
   for (const [k, n] of Object.entries(state.needs || {})) {
     const v = Math.max(0, Math.min(100, (n.v ?? 0) + (n.rate ?? 0) * mins)), r = n.rate ?? 0;
     const trend = r > 0 ? ` ↑ +${r}/мин` : r < 0 ? ` ↓ ${r}/мин` : '';
-    const row = el('div', 'nd' + (v >= 70 ? ' hi' : '')), nv = el('span', 'nv', `${Math.round(v)} из 100${trend}`);
-    row.append(el('span', null, NEED[k] || k), nv);
+    const row = el('div', 'nd' + (v >= 70 ? ' hi' : '')), nv = el('span', 'nv', `${Math.round(v)}%${r > 0 ? ' ↑' : r < 0 ? ' ↓' : ''}`);
+    row.title = `${NEED[k] || k}: ${Math.round(v)} из 100${trend}`;
+    row.append(el('span', null, ({music:'Музыка',dance:'Танцы'})[k] || NEED[k] || k), nv);
     if (ctl) row.append(slider(k, Math.round(v), nv, row, ctl));
     else { const bar = el('div', 'nb'), fill = el('i'); fill.style.width = v.toFixed(1) + '%'; bar.append(fill); row.append(bar); }
     box.append(row);
-    if(state.needLimitations?.[k])box.append(el('div','hint',state.needLimitations[k]));
+    if(state.needLimitations?.[k])row.append(el('div','hint',state.needLimitations[k]));
   }
   const t = state.task;
   if (t) {
@@ -117,10 +120,25 @@ export function addDirectorStatus(section, get, loadJournal) {
   const sec = section('Персонажи', 'director'), tabs = el('div', 'btns ptabs'), box = el('div', 'rep'); sec.append(tabs, box);
   const moneySec=section('Деньги','money'),moneyBox=el('div','money-content');moneySec.append(moneyBox);
   const visible=s=>s.open&&!s.closest('[hidden]');
-  if (!document.getElementById('ptabs-css')) { const st = document.createElement('style'); st.id = 'ptabs-css'; st.textContent = '#settings .ptabs button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }'; document.head.append(st); }
+  if (!document.getElementById('ptabs-css')) { const st = document.createElement('style'); st.id = 'ptabs-css'; st.textContent = `
+    #settings .ptabs { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:5px; margin:6px 0 10px; }
+    #settings .ptabs button { padding:6px; border-radius:7px; font-size:12px; }
+    #settings .ptabs button[aria-pressed="true"] { border-color:var(--accent); color:var(--accent); }
+    #settings .person-now { margin:0 0 8px; font-size:12px; }
+    #settings .person-now .dim { margin-right:5px; }
+    #settings .person-vitals { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:5px 12px; margin:0 0 10px; font-size:12px; }
+    #settings .person-vitals > div { display:flex; justify-content:space-between; gap:6px; }
+    #settings .person-vitals strong { font-variant-numeric:tabular-nums; }
+    #settings .person-vitals .hi strong { color:#f3ae62; }
+    #settings .person-fold { border-top:1px solid var(--line); }
+    #settings .person-fold > summary { cursor:pointer; padding:10px 0; font-weight:600; }
+    #settings .person-fold > :last-child { margin-bottom:10px; }
+    #settings .person-fold .relationships > .sub:first-child { display:none; }
+    #settings .person-fold .hint { line-height:1.4; }
+  `; document.head.append(st); }
   const names = () => Object.fromEntries(peopleOf(get().world).map(([id, e]) => [id, e.name || id]));
   if (loadJournal) { const b = el('div', 'btns'), btn = el('button', null, '📜 Журнал действий'); btn.addEventListener('click', () => openJournal(loadJournal, get().focus, names())); b.append(btn); sec.append(b); }
-  let tabKey = '',moneyKey='',renderedMoneyActor=null,renderedRelationshipsActor=null;const moneyOpen=new Map(),relationshipOpen=new Map();
+  let tabKey = '',moneyKey='',renderedMoneyActor=null,renderedRelationshipsActor=null;const moneyOpen=new Map(),relationshipOpen=new Map(),peopleOpen=new Map();
   function renderMoney(){
     const {world,focus,setFocus}=get(),list=peopleOf(world),id=list.some(([k])=>k===focus)?focus:list[0]?.[0],entry=list.find(([k])=>k===id)?.[1];
     const key=JSON.stringify([id,list.map(([k,e])=>[k,e.name,e.finances])]);
@@ -135,11 +153,11 @@ export function addDirectorStatus(section, get, loadJournal) {
   }
   function render() {
     if(editing.size)return; // native pointer capture releases even outside the row
-    const focused = box.contains(document.activeElement) && document.activeElement.matches?.('input.nr') ? document.activeElement.getAttribute('aria-label') : null;
+    const focused = sec.contains(document.activeElement) ? document.activeElement.dataset.peopleFocus : null;
     const { net, world, executionStatus, now, focus, setFocus, setNeed } = get(), list = peopleOf(world);
     const id = list.some(([k]) => k === focus) ? focus : list[0]?.[0], e = list.find(([k]) => k === id)?.[1];
     const key = list.map(([k, x]) => k + ':' + (x.name || '')).join('|') + '#' + id;
-    if (key !== tabKey) { tabKey = key; tabs.replaceChildren(...(list.length > 1 ? list.map(([k, x]) => { const b = el('button', null, '👤 ' + (x.name || k)); b.setAttribute('aria-pressed', String(k === id));
+    if (key !== tabKey) { tabKey = key; tabs.replaceChildren(...(list.length > 1 ? list.map(([k, x]) => { const b = el('button', null, '👤 ' + (x.name || k)); b.setAttribute('aria-pressed', String(k === id)); b.dataset.peopleFocus = 'actor:' + k;
       b.addEventListener('click', () => { setFocus(k); render(); }); return b; }) : [])); }
     const rows = [];
     rows.push(['Связь с редакцией', net.online ? `есть · смотрят: ${net.viewers ?? '—'}` : (net.reason === 'no_relay' ? 'не настроена' : 'нет')]);
@@ -152,7 +170,7 @@ export function addDirectorStatus(section, get, loadJournal) {
       if (e.label) rows.push(['Назначено', e.label]);
     } else rows.push(['Последнее решение', 'ещё не получено']);
     const tb = el('table'); for (const [k, v] of rows) { const tr = el('tr'); tr.append(el('td', 'dim', k), el('td', null, v)); tb.append(tr); }
-    const st = e?.state || (list.length === 1 ? world?.state : null), sub = el('div', 'sub', list.length > 1 && e ? `Шкалы потребностей: ${e.name || id}` : 'Шкалы потребностей');
+    const st = e?.state || (list.length === 1 ? world?.state : null);
     const ctl = setNeed && net.online && e && st ? {set:(k,val)=>setNeed(id,k,val),refresh:render} : null;
     const needs = st && typeof st.at === 'number' ? scales(st, now, ctl) : el('div', 'hint', 'Шкалы появятся после следующего решения режиссёра.');
     const sleepInfo=el('div','hint');
@@ -162,10 +180,17 @@ export function addDirectorStatus(section, get, loadJournal) {
     const lastSleep=e?.memory?.filter(x=>x.event==='sleep_finished').at(-1);
     if(lastSleep)sleepInfo.append(el('div',null,`Помнит: ${id==='heroine'?'спала':'спал'} ${lastSleep.kind==='chair'?'на стуле у круглого стола':'за столом'} ${Math.round(lastSleep.participatingSeconds)} с; усталость ${Math.round(lastSleep.fatigueBefore)} → ${Math.round(lastSleep.fatigueAfter)}. ${lastSleep.reason==='restored'?'Силы восстановлены.':'Закончился период сна.'}`));
     for(const detail of box.querySelectorAll('[data-relationship-section]'))if(renderedRelationshipsActor)relationshipOpen.set(renderedRelationshipsActor+':'+detail.dataset.relationshipSection,detail.open);
-    const relations=relationshipView(e,names());for(const detail of relations.querySelectorAll('[data-relationship-section]'))detail.open=relationshipOpen.get(id+':'+detail.dataset.relationshipSection)??false;
+    for(const detail of box.querySelectorAll('[data-people-section]'))if(renderedRelationshipsActor)peopleOpen.set(renderedRelationshipsActor+':'+detail.dataset.peopleSection,detail.open);
+    const relations=relationshipView(e,names());for(const detail of relations.querySelectorAll('[data-relationship-section]')){detail.open=relationshipOpen.get(id+':'+detail.dataset.relationshipSection)??false;detail.querySelector('summary').dataset.peopleFocus='relation:'+detail.dataset.relationshipSection;}
     renderedRelationshipsActor=id;
-    box.replaceChildren(sub, needs, sleepInfo, relations, tb, el('div', 'hint', 'Jev думает, только пока редакцию кто-то смотрит. Время редакции (и шкалы) идёт тоже только при зрителях.' + (ctl ? ' Потяните шкалу — человек пересмотрит, чем заняться (это увидят все зрители).' : '')));
-    if(focused) Array.from(box.querySelectorAll('input.nr')).find(i=>i.getAttribute('aria-label')===focused)?.focus({preventScroll:true});
+    const fold=(key,title,content,initial=false)=>{const d=el('details','person-fold'),summary=el('summary',null,title);d.dataset.peopleSection=key;summary.dataset.peopleFocus='section:'+key;d.open=peopleOpen.get(id+':'+key)??initial;d.append(summary,content);return d;};
+    const current=el('div','person-now');current.append(el('span','dim','Сейчас:'),el('span',null,executionStatus?.(id)?.label||'исполнение ещё не подтверждено'));
+    const vitals=el('div','person-vitals');
+    if(st&&typeof st.at==='number')for(const k of ['fatigue','hunger','stress','drunk']){const n=st.needs?.[k];if(!n)continue;const v=Math.max(0,Math.min(100,(n.v??0)+(n.rate??0)*Math.max(0,(now-st.at)/60000))),row=el('div',v>=70?'hi':null);row.append(el('span','dim',NEED[k]),el('strong',null,Math.round(v)+'%'));vitals.append(row);}
+    const info=el('div');info.append(tb,el('div','hint','Jev думает, только пока редакцию кто-то смотрит. Время редакции (и шкалы) идёт тоже только при зрителях.'+(ctl?' Потяните шкалу — человек пересмотрит, чем заняться (это увидят все зрители).':'')));
+    const sleepTitle=e?.sleep?({entering:'Сон · готовится',asleep:'Сон · спит',waking:'Сон · просыпается'}[e.sleep.phase]||'Сон и восстановление'):e?.sleepPending?'Сон · назначен':'Сон и восстановление';
+    box.replaceChildren(current,vitals,fold('needs','Все потребности'+(ctl?' · изменить':''),needs),fold('relationships','Отношения с коллегами',relations),fold('sleep',sleepTitle,sleepInfo),fold('decisions','Решения и связь',info));
+    if(focused) Array.from(sec.querySelectorAll('[data-people-focus]')).find(i=>i.dataset.peopleFocus===focused)?.focus({preventScroll:true});
   }
   const refresh=()=>{if(visible(sec))render();if(visible(moneySec))renderMoney();};
   setInterval(refresh,1000);
