@@ -537,7 +537,7 @@ function behaviorWireSnapshot(snap) {
     let id = a.id;
     if (!safeId.test(id)) {
       const verb = /^[a-z][a-z0-9_]{0,39}$/.test(id.split('@')[0]) && !['accept','decline','defer'].includes(id.split('@')[0]) ? id.split('@')[0] : 'choice';
-      const base = `${verb}@${snap.requestId.replaceAll('-', '_')}_option_${index}`;
+      const base = `${verb}@${snap.requestId.replace(/^request-/, 'r').replaceAll('-', '_')}_${index}`;
       id = base;
       for (let suffix = 1; reserved.has(id); suffix++) id = `${base}_${suffix}`;
     }
@@ -579,8 +579,25 @@ async function askJev(id, avail, reflection = null, diagnosticId=newTraceId()) {
       else { try { await session('resume'); } catch (e) { if (!/session_not_paused/.test(e.message)) throw e; } }
       const snap=await snapshot(id,structuredClone(avail));
       if(reflection){snap.self.reflection=structuredClone(reflection);snap.limits.push('This request is dedicated reflection, not a choice of physical activity. Assess only the listed dimension using the listed actual events, prior appraisals and your character. Keeping the value is allowed. A friendly conversation can matter without proving romance; a refusal is not misconduct. Do not infer unknown thoughts or a topic.');}
-      const original=structuredClone(snap),wire = behaviorWireSnapshot(fitRelationshipRequest(original));
+      const original=structuredClone(snap);
       requestId=original.requestId;
+      let projected;
+      try { projected=fitRelationshipRequest(original); }
+      catch(e){
+        if(e.message!=='relationship_request_core_exceeds_budget')throw e;
+        // This is the intermediate byte target. Preserve the core and let the
+        // verified server measure its final compact body before any model call.
+        let status=null;
+        try {
+          const response=await fetch(JEV+'/api/status');
+          if(response.ok)status=await response.json();
+        } catch { /* No verified final guard: retain the original context block. */ }
+        projected=fitRelationshipRequest(original,65000,status);
+        trace(diagnosticId,'context_guard_delegated',{requestId,actorId:id,
+          intermediateBytes:new TextEncoder().encode(JSON.stringify(projected)).length,
+          historyTargetBytes:65000,guardVersion:status.jev_context_guard.version});
+      }
+      const wire=behaviorWireSnapshot(projected);
       trace(diagnosticId,'director_request',{attempt,actorId:id,requestId:original.requestId,revision:original.revision,
         choiceKinds:offeredKinds(avail),optionCount:avail.length,snapshot:original,wireSnapshot:wire.snapshot,aliases:Object.fromEntries(wire.choices)});
       const d = await jevPost('/api/behavior-decide', { session_id: sid, snapshot: wire.snapshot, diagnostic_id:diagnosticId });

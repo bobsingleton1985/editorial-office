@@ -8,7 +8,17 @@ export function relationProjection(r,decisions=12){
  if(out.courtship)out.courtship.history=out.courtship.history.slice(-16);
  return out;
 }
-export function fitRelationshipRequest(input,maxBytes=65000){
+// maxBytes is a target for the intermediate snapshot, not a Jev token limit.
+// Only the verified v4 server can admit its final compact System One body.
+export function finalContextGuardReady(status){
+ const g=status?.jev_context_guard;
+ return status?.model==='typesafe/jev-1.13'&&g?.version==='jev-context-v4'&&g.ready===true&&g.enforced===true
+  &&g.mode==='estimated'&&g.strict===false&&g.exact_token_count===false
+  &&g.measurement==='local_lexical_estimate_v1'&&g.safety_reserve_percent===20
+  &&g.admission_context_limit===25600&&g.admission_request_limit===51200
+  &&g.state_and_longest_question_limit===32000&&g.request_limit===64000&&g.target===24000&&g.counter_available===true;
+}
+export function fitRelationshipRequest(input,maxBytes=65000,serverStatus=null){
  const out=structuredClone(input),s=out.self;
  s.relationships=Object.fromEntries(Object.entries(s.relationships||{}).map(([id,r])=>[id,relationProjection(r,6)]));
  if(s.currentActivity?.relationship){
@@ -28,7 +38,10 @@ export function fitRelationshipRequest(input,maxBytes=65000){
     ||relations.some(r=>Object.values(r.dimensions||{}).some(d=>pop(d.basis,1)))||relations.some(r=>pop(r.courtship?.history,3))
     ||relations.some(r=>pop(r.dimensionDecisions))||relations.some(r=>pop(r.observations,1))||pop(s.finances?.transactions,1)
     ||pop(s.memory,1)||pop(s.recentEpisodes,1))continue;
-  throw Error('relationship_request_core_exceeds_budget'); // never discard choices or the reflection evidence under evaluation
+  // Keep every choice and remaining fact for the final server compactor. A
+  // byte target before compaction must not reject a request that can fit there.
+  if(finalContextGuardReady(serverStatus))break;
+  throw Error('relationship_request_core_exceeds_budget');
  }
  return out;
 }

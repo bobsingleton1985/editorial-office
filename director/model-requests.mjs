@@ -1,4 +1,4 @@
-const CONTEXT=/^jev_context_/;
+const CONTEXT=/^(?:jev_context_|relationship_request_core_exceeds_budget$)/;
 const SAFE=new Set(['request_interrupted','session_unavailable','session_expired','session_not_owned','action_not_available','pilot_call_limit','daily_limit','model_disabled']);
 export const requestKey=(actor,kind)=>actor+':'+kind;
 const health=st=>st.modelRequests??={version:1,current:{},history:[]};
