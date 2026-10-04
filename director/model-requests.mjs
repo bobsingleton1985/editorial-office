@@ -1,0 +1,12 @@
+const CONTEXT=/^jev_context_/;
+const SAFE=new Set(['request_interrupted','session_unavailable','session_expired','session_not_owned','action_not_available','pilot_call_limit','daily_limit','model_disabled']);
+export const requestKey=(actor,kind)=>actor+':'+kind;
+const health=st=>st.modelRequests??={version:1,current:{},history:[]};
+export function requestAllowed(st,actor,kind,now){const x=health(st).current[requestKey(actor,kind)];return !x||x.status==='ok'||x.status==='retry_requested'||x.status==='error'&&!x.blocked&&now>=x.retryAt;}
+export function requestStarted(st,actor,kind,id,now){const h=health(st),key=requestKey(actor,kind),old=h.current[key];h.current[key]={actor,kind,id,status:'pending',startedAt:now,error:old?.error??null,failedAt:old?.failedAt??null,failures:old?.failures||0};}
+export function requestFailed(st,actor,kind,id,error,now){const h=health(st),key=requestKey(actor,kind),old=h.current[key];const raw=String(error?.message||error),code=CONTEXT.test(raw)&&/^[a-z0-9_]{1,90}$/.test(raw)||SAFE.has(raw)?raw:'request_failed';const failures=(old?.failures||0)+1,blocked=CONTEXT.test(code)||['daily_limit','model_disabled'].includes(code);const item={actor,kind,id,status:'error',error:code,failedAt:now,failures,blocked,retryAt:blocked?null:now+Math.min(60000,5000*2**Math.min(failures-1,4))};h.current[key]=item;h.history.push({...item});h.history=h.history.slice(-20);return item;}
+export function requestSucceeded(st,actor,kind,id,now){const h=health(st),key=requestKey(actor,kind);h.current[key]={actor,kind,id,status:'ok',completedAt:now,failures:0};h.history.push({actor,kind,id,status:'ok',completedAt:now});h.history=h.history.slice(-20);}
+export function retryModelRequest(st,actor,kind,id,now){const item=health(st).current[requestKey(actor,kind)];if(!item||item.id!==id||item.status!=='error')return false;item.status='retry_requested';item.blocked=false;item.retryAt=now;return true;}
+// A process restart cannot complete an old in-flight request. Preserve the error
+// visibly, keeping context failures blocked until a new explicit owner retry.
+export function recoverInterruptedRequests(st,now){let changed=false;for(const item of Object.values(health(st).current))if(item.status==='pending'){requestFailed(st,item.actor,item.kind,item.id,new Error(item.error||'request_interrupted'),now);changed=true;}return changed;}

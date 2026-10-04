@@ -1,0 +1,19 @@
+# Local credentials and connection settings
+.director-token
+.owner-token
+.tg-token
+.tg-channel
+.tg-offset
+.env
+.env.*
+relay-url.txt
+owner-link.txt
+
+# Runtime state, memories, incoming calls and diagnostics
+director/director-state*.json
+director/director-state*.json.chronicle/
+calls/
+logs/
+traces/
+node_modules/
+.DS_Store

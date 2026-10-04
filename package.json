@@ -1,0 +1,10 @@
+{
+  "name": "editorial-office",
+  "private": true,
+  "type": "module",
+  "description": "Editorial browser client and Mac director source. Director has no npm dependencies.",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "director": "./run-director.sh"
+  }
+}

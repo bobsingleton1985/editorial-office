@@ -1,0 +1,18 @@
+{
+  "enabled": true,
+  "currency": "USD",
+  "startingCents": 2000,
+  "workRewardCents": 300,
+  "prices": {
+    "lunch": 200,
+    "whisky": 100,
+    "coffee": 100,
+    "smoke_coffee": 105,
+    "smoke": 5
+  },
+  "offerAmounts": [
+    100,
+    500
+  ],
+  "loanDays": 3
+}

@@ -1,0 +1,516 @@
+{
+  "styles": [
+    {
+      "id": "gestures-standing__IDLE-088",
+      "title": "Позвать правой рукой над головой",
+      "entries": [
+        "gestures-standing/IDLE-088"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "gestures-standing__IDLE-089",
+      "title": "Позвать обеими руками",
+      "entries": [
+        "gestures-standing/IDLE-089"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "gestures-standing__IDLE-090",
+      "title": "Позвать размашистым махом",
+      "entries": [
+        "gestures-standing/IDLE-090"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "gestures-standing__IDLE-081",
+      "title": "Поздороваться правой рукой",
+      "entries": [
+        "gestures-standing/IDLE-081"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "gestures-standing__IDLE-083",
+      "title": "Сдержанно поздороваться",
+      "entries": [
+        "gestures-standing/IDLE-083"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "gestures-standing__IDLE-087",
+      "title": "Поздороваться левой рукой",
+      "entries": [
+        "gestures-standing/IDLE-087"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "gestures-standing__IDLE-082",
+      "title": "Коротко кивнуть",
+      "entries": [
+        "gestures-standing/IDLE-082"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "gestures-standing__IDLE-084",
+      "title": "Медленно кивнуть",
+      "entries": [
+        "gestures-standing/IDLE-084"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "gestures-standing__IDLE-085",
+      "title": "Указать правой рукой",
+      "entries": [
+        "gestures-standing/IDLE-085"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "gestures-standing__IDLE-086",
+      "title": "Указать левой рукой",
+      "entries": [
+        "gestures-standing/IDLE-086"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "gestures-standing__IDLE-058",
+      "title": "Погрозить левым кулаком",
+      "entries": [
+        "gestures-standing/IDLE-058"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "gestures-standing__IDLE-061",
+      "title": "Погрозить правым кулаком",
+      "entries": [
+        "gestures-standing/IDLE-061"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "gestures-standing__IDLE-064",
+      "title": "Трясти обоими кулаками",
+      "entries": [
+        "gestures-standing/IDLE-064"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "emotions-quiet__IDLE-210",
+      "title": "Посмотреть на часы",
+      "entries": [
+        "emotions-quiet/IDLE-210"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "emotions-quiet__IDLE-211",
+      "title": "Оглядываться в ожидании",
+      "entries": [
+        "emotions-quiet/IDLE-211"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "emotions-quiet__IDLE-040",
+      "title": "Смахнуть с груди",
+      "entries": [
+        "emotions-quiet/IDLE-040"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "emotions-quiet__IDLE-153",
+      "title": "Разглядывать ногти",
+      "entries": [
+        "emotions-quiet/IDLE-153"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "emotions-quiet__IDLE-156",
+      "title": "Грызть ноготь",
+      "entries": [
+        "emotions-quiet/IDLE-156"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "emotions-quiet__IDLE-201",
+      "title": "Стоять с опущенными плечами",
+      "entries": [
+        "emotions-quiet/IDLE-201"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "emotions-quiet__IDLE-022",
+      "title": "Тяжело дышать",
+      "entries": [
+        "emotions-quiet/IDLE-022"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "emotions-quiet__IDLE-017",
+      "title": "Разминать плечи",
+      "entries": [
+        "emotions-quiet/IDLE-017"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "emotions-quiet__IDLE-002",
+      "title": "Отвести взгляд со скрещёнными руками",
+      "entries": [
+        "emotions-quiet/IDLE-002"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "emotions-loud__IDLE-047",
+      "title": "Вскинуть обе руки в ликовании",
+      "entries": [
+        "emotions-loud/IDLE-047"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "emotions-loud__IDLE-048",
+      "title": "Вскинуть левую руку в ликовании",
+      "entries": [
+        "emotions-loud/IDLE-048"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "emotions-loud__IDLE-058",
+      "title": "Погрозить левым кулаком",
+      "entries": [
+        "emotions-loud/IDLE-058"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "emotions-loud__IDLE-061",
+      "title": "Погрозить правым кулаком",
+      "entries": [
+        "emotions-loud/IDLE-061"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "emotions-loud__IDLE-064",
+      "title": "Трясти обоими кулаками",
+      "entries": [
+        "emotions-loud/IDLE-064"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "emotions-loud__IDLE-070",
+      "title": "Выкрик с широким жестом",
+      "entries": [
+        "emotions-loud/IDLE-070"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "emotions-loud__IDLE-071",
+      "title": "Короткий выкрик",
+      "entries": [
+        "emotions-loud/IDLE-071"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "mixamo-gap__mxg_sad_idle",
+      "title": "Поникнуть, покачиваться",
+      "entries": [
+        "mixamo-gap/mxg_sad_idle"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "mixamo-gap__mxg_disappointed",
+      "title": "Разочарованно вздохнуть",
+      "entries": [
+        "mixamo-gap/mxg_disappointed"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "mixamo-gap__mxg_defeated",
+      "title": "Стоять подавленно",
+      "entries": [
+        "mixamo-gap/mxg_defeated"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "mixamo-gap__mxg_surprised",
+      "title": "Отшатнуться в удивлении",
+      "entries": [
+        "mixamo-gap/mxg_surprised"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "mixamo-gap__mxg_terrified",
+      "title": "Съёжиться, закрывая лицо",
+      "entries": [
+        "mixamo-gap/mxg_terrified"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "mixamo-gap__mxg_victory_idle",
+      "title": "Победный жест",
+      "entries": [
+        "mixamo-gap/mxg_victory_idle"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "mixamo-gap__mxg_laughing",
+      "title": "Смеяться, согнувшись",
+      "entries": [
+        "mixamo-gap/mxg_laughing"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "mixamo-gap__mxg_arguing",
+      "title": "Спорить стоя",
+      "entries": [
+        "mixamo-gap/mxg_arguing"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "mixamo-gap__mxg_angry_gesture",
+      "title": "Раздражённо взмахнуть руками",
+      "entries": [
+        "mixamo-gap/mxg_angry_gesture"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "mixamo-gap__mxg_annoyed_shake",
+      "title": "Качнуть головой с досадой",
+      "entries": [
+        "mixamo-gap/mxg_annoyed_shake"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "mixamo-gap__mxg_bored",
+      "title": "Переминаться от скуки",
+      "entries": [
+        "mixamo-gap/mxg_bored"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "mixamo-gap__mxg_thoughtful_nod",
+      "title": "Задумчиво кивнуть",
+      "entries": [
+        "mixamo-gap/mxg_thoughtful_nod"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "mixamo-gap__mxg_thoughtful_shake",
+      "title": "Задумчиво не согласиться",
+      "entries": [
+        "mixamo-gap/mxg_thoughtful_shake"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "mixamo-gap__mxg_thinking",
+      "title": "Задуматься, рука у подбородка",
+      "entries": [
+        "mixamo-gap/mxg_thinking"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "mixamo-gap__mxg_shrugging",
+      "title": "Пожать плечами",
+      "entries": [
+        "mixamo-gap/mxg_shrugging"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "mixamo-gap__mxg_look_away",
+      "title": "Неловко отвести взгляд",
+      "entries": [
+        "mixamo-gap/mxg_look_away"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "mixamo-gap__mxg_whatever",
+      "title": "Небрежно отмахнуться",
+      "entries": [
+        "mixamo-gap/mxg_whatever"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "arms_crossed",
+      "title": "Слушать, скрестив руки",
+      "entries": [
+        "emotions-loud/IDLE-014",
+        "emotions-loud/IDLE-006",
+        "emotions-loud/IDLE-013"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "hands_hips",
+      "title": "Говорить с руками в боках",
+      "entries": [
+        "emotions-loud/IDLE-109",
+        "emotions-loud/IDLE-102",
+        "emotions-loud/IDLE-106"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "clap_a",
+      "title": "Поаплодировать собеседнику",
+      "entries": [
+        "emotions-loud/IDLE-053",
+        "emotions-loud/IDLE-052",
+        "emotions-loud/IDLE-054"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "clap_b",
+      "title": "Поаплодировать собеседнику — второй вариант",
+      "entries": [
+        "emotions-loud/IDLE-056",
+        "emotions-loud/IDLE-055",
+        "emotions-loud/IDLE-057"
+      ],
+      "repeat": false
+    },
+    {
+      "id": "desk-front__SEAT-146",
+      "title": "Говорить за столом — 1",
+      "entries": [
+        "talk-seated/SEAT-146"
+      ],
+      "repeat": false,
+      "profile": "desk-front",
+      "chairTransition": false
+    },
+    {
+      "id": "desk-front__SEAT-147",
+      "title": "Говорить за столом — 2",
+      "entries": [
+        "talk-seated/SEAT-147"
+      ],
+      "repeat": false,
+      "profile": "desk-front",
+      "chairTransition": false
+    },
+    {
+      "id": "bench-front__SEAT-018",
+      "title": "Спокойно говорить вперёд",
+      "entries": [
+        "talk-seated/SEAT-022",
+        "talk-seated/SEAT-018",
+        "talk-seated/SEAT-023"
+      ],
+      "repeat": false,
+      "profile": "bench-front",
+      "chairTransition": true
+    },
+    {
+      "id": "bench-front__SEAT-020",
+      "title": "Говорить вперёд, широкие жесты",
+      "entries": [
+        "talk-seated/SEAT-022",
+        "talk-seated/SEAT-020",
+        "talk-seated/SEAT-023"
+      ],
+      "repeat": false,
+      "profile": "bench-front",
+      "chairTransition": true
+    },
+    {
+      "id": "bench-front__SEAT-021",
+      "title": "Говорить вперёд, жесты руками",
+      "entries": [
+        "talk-seated/SEAT-022",
+        "talk-seated/SEAT-021",
+        "talk-seated/SEAT-023"
+      ],
+      "repeat": false,
+      "profile": "bench-front",
+      "chairTransition": true
+    },
+    {
+      "id": "bench-left__SEAT-024",
+      "title": "Говорить соседу слева — 1",
+      "entries": [
+        "talk-seated/SEAT-027",
+        "talk-seated/SEAT-024",
+        "talk-seated/SEAT-028"
+      ],
+      "repeat": false,
+      "profile": "bench-left",
+      "chairTransition": true
+    },
+    {
+      "id": "bench-left__SEAT-025",
+      "title": "Говорить соседу слева — 2",
+      "entries": [
+        "talk-seated/SEAT-027",
+        "talk-seated/SEAT-025",
+        "talk-seated/SEAT-028"
+      ],
+      "repeat": false,
+      "profile": "bench-left",
+      "chairTransition": true
+    },
+    {
+      "id": "bench-right__SEAT-029",
+      "title": "Говорить соседу справа — 1",
+      "entries": [
+        "talk-seated/SEAT-032",
+        "talk-seated/SEAT-029",
+        "talk-seated/SEAT-033"
+      ],
+      "repeat": false,
+      "profile": "bench-right",
+      "chairTransition": true
+    },
+    {
+      "id": "bench-right__SEAT-030",
+      "title": "Говорить соседу справа — 2",
+      "entries": [
+        "talk-seated/SEAT-032",
+        "talk-seated/SEAT-030",
+        "talk-seated/SEAT-033"
+      ],
+      "repeat": false,
+      "profile": "bench-right",
+      "chairTransition": true
+    }
+  ]
+}
