@@ -13,8 +13,8 @@ export function voiceMood(intent,style=''){
  return 'talk';
 }
 export function createAnimationAudio(sound){
- const previous=new Map();let enabled=false;
- function reset(){previous.clear();}
+ const previous=new Map(),typists=new Map();let enabled=false,typingOwner=null;
+ function reset(){if(typingOwner!==null)sound.stop?.(typingOwner+':type');typingOwner=null;previous.clear();typists.clear();}
  function voice(s){const id=s.id;
   const speech=s.speech||s.vocal;
   if(speech&&speech.role==='speaker'&&speech.active&&!s.clapping){
@@ -27,13 +27,16 @@ export function createAnimationAudio(sound){
  }
  function update(s,dt){
   if(!s)return;const old=previous.get(s.id);previous.set(s.id,s);
+  // Keep one audible machine for the entire typing episode. Collect every actor
+  // before selecting it, so actor iteration order cannot interrupt the owner.
+  if(enabled&&s.rendered&&!s.replaying&&!s.discontinuity&&s.typing&&s.actions.type?.weight>.55)typists.set(s.id,[]);
   if(old&&old.seq!==s.seq)sound.stopActor?.(s.id);
   // Clip wraps, interpolation priming and phrase boundaries must not restart speech.
   if(enabled&&s.rendered&&!s.replaying&&old&&old.seq===s.seq)voice(s);
   if(!enabled||!s.rendered||s.replaying||s.discontinuity||old?.discontinuity||!old||old.seq!==s.seq||s.time<=old.time||s.time-old.time>.3||dt<=0||dt>.25)return;
   const id=s.id,shot=(tag,asset,gain=1)=>sound.shot(id+':'+tag,asset,{gain});
   const crossed=(name,t)=>{const a=s.actions[name],b=old.actions[name];return a&&b&&a.weight>.55&&b.weight>.3&&(a.time>=b.time?(b.time<t&&a.time>=t):(a.duration>0&&b.time>a.duration*.7&&a.time<a.duration*.3&&(t>b.time||t<=a.time)));};
-  if(s.typing&&old.typing&&s.actions.type)for(const t of TYPE_KEYS)if(crossed('type',t))shot('type','typekey',.8);
+  if(typists.has(id)&&old.typing)for(const t of TYPE_KEYS)if(crossed('type',t))typists.get(id).push(t);
   if(s.writing&&old.writing&&s.writing.down&&old.writing.down&&Math.hypot(s.writing.x-old.writing.x,s.writing.z-old.writing.z)>.00008)sound.loop(id+':pencil',id==='reporter'?'pencil2':'pencil1',{gain:.7});
   if(crossed('g_write_stop',20/30))shot('pencildown','pencildown');
   if(s.chair!==null&&old.chair!==null&&s.chair.key===old.chair.key&&Math.hypot(...s.chair.position.map((v,i)=>v-old.chair.position[i]))>.0002)sound.loop(id+':chair','chair',{gain:.5});
@@ -62,5 +65,10 @@ export function createAnimationAudio(sound){
   }
 
  }
- return {begin(active){const next=!!active&&sound.on;if(next!==enabled)reset();enabled=next;if(!next)reset();sound.beginFrame(next);},update,end(){sound.endFrame();},reset};
+ return {begin(active){const next=!!active&&sound.on;if(next!==enabled)reset();enabled=next;if(!next)reset();typists.clear();sound.beginFrame(next);},update,end(){
+  const next=typists.has(typingOwner)?typingOwner:typists.keys().next().value??null;
+  if(next!==typingOwner){if(typingOwner!==null)sound.stop?.(typingOwner+':type');typingOwner=next;}
+  if(typingOwner!==null)for(const t of typists.get(typingOwner))sound.shot(typingOwner+':type','typekey',{gain:.8});
+  sound.endFrame();
+ },reset};
 }
