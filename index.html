@@ -22,7 +22,7 @@
   #nojs { margin-top:8px; font:12px/1.35 -apple-system, "Segoe UI", Roboto, sans-serif; color:#e7b37a; }
   body.js #nojs { display:none; }
   .bottom { position:fixed; left:16px; right:16px; bottom:max(16px, env(safe-area-inset-bottom)); display:flex;
-    gap:10px; align-items:center; justify-content:space-between; pointer-events:none; }
+    gap:10px; align-items:center; justify-content:flex-end; pointer-events:none; }
   button { pointer-events:auto; font:14px -apple-system, "Segoe UI", Roboto, sans-serif; color:var(--ink);
     background:var(--panel); border:1px solid var(--line); border-radius:999px; padding:9px 14px; cursor:pointer; }
   button:disabled { opacity:.45; cursor:default; }
@@ -104,11 +104,10 @@
   <div id="nojs">Если эта надпись не исчезает 20 секунд, скрипты сайта не загрузились. Вероятно, мешают ограничения сети.</div>
 </div>
 <div class="bottom">
-  <button id="tty" disabled>📠 Пришло сообщение</button>
   <span id="fps">…</span>
 </div>
 <noscript><div class="panel" style="top:auto;bottom:16px">Для офиса нужен JavaScript.</div></noscript>
-<script src="app.js?v=performance-followthrough-20261004-v01" defer></script>
+<script src="app.js?v=model-status-fold-20261004-v01" defer></script>
 <script src="chronicle.js?v=20261004" defer></script>
 </body>
 </html>

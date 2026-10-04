@@ -320,7 +320,6 @@ function setup(g) {
   }
   new THREE.TextureLoader().load('assets/tv_news.jpg', (t) => { t.flipY = false; t.colorSpace = THREE.SRGBColorSpace; newsTex = t; });
   applyScene(S);
-  $('tty').disabled = false;
   if (CHAR) loadEditor(g.scene);
 }
 
@@ -582,7 +581,6 @@ function incoming() {
   ttyBusy = true; for (const a of tty) a.reset().play();
   setTimeout(() => { ttyBusy = false; }, 9700);
 }
-$('tty').addEventListener('click', incoming);
 
 // MUSIC ON THE TV (director's activity 'tvmusic', owner 30.09): someone turns the knob and the TV plays the music channel for everybody
 // until world.tv.until. A viewer who sees the knob turned switches at that moment; the others (late ones) at world.tv.from.
