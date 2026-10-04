@@ -1,3 +1,4 @@
+import {processBonusQueue} from './owner-bonuses.mjs';
 import {recoverInterruptedRequests,requestAllowed,requestStarted,requestFailed,requestSucceeded,retryModelRequest} from './model-requests.mjs';
 import {ChronicleStore} from './chronicle-store.mjs';
 import {extractChronicle,DanceObserver} from './chronicle-core.mjs';
@@ -25,6 +26,7 @@ import {styleAllowed,CONVERSATION_POLICY_VERSION} from './conversation-policy.mj
 // the stories on the wire, the chairs and the Jev budget are shared. Nobody sits where another sits or goes.
 //   RELAY_URL=https://… DIRECTOR_TOKEN=… node director.mjs
 import fs from 'node:fs';
+import {dirname} from 'node:path';
 import { SOCIAL, initializeSocial, pairOf, beginConversation, publicConversation, finishConversation, applyParticipation, pauseParticipation, expireParticipation } from './social-core.mjs';
 import { DESKS, DINING_CHAIR, BENCH, SPOTS, CHAIR_REST, CHAIR_TUCKED } from './layout-v79.mjs';
 
@@ -349,7 +351,13 @@ async function deliverChronicle(){
   fs.writeFileSync(CHRONICLE_CURSOR+'.tmp',JSON.stringify({cursor:batch.cursor}));fs.renameSync(CHRONICLE_CURSOR+'.tmp',CHRONICLE_CURSOR);chronicleCursor=batch.cursor;
  }catch(e){chronicleError(e);}finally{chronicleSending=false;}
 }
-const save = () => { captureChronicle();try { fs.writeFileSync(STATE + '.tmp', JSON.stringify(st, null, 1)); fs.renameSync(STATE + '.tmp', STATE); } catch (e) { log('save failed', e.message); } };
+const save = (durable=false) => { captureChronicle();try {
+  fs.writeFileSync(STATE + '.tmp', JSON.stringify(st, null, 1));
+  if(durable){const fd=fs.openSync(STATE+'.tmp','r');try{fs.fsyncSync(fd);}finally{fs.closeSync(fd);}}
+  fs.renameSync(STATE + '.tmp', STATE);
+  if(durable){const fd=fs.openSync(dirname(STATE),'r');try{fs.fsyncSync(fd);}finally{fs.closeSync(fd);}}
+  return true;
+} catch (e) { log('save failed', e.message); return false; } };
 
 const LABEL = {sleep_desk: (id,p)=>`${st.chars[id].sleep?.phase==='asleep'?'спит':st.chars[id].sleep?.phase==='waking'?'просыпается':'готовится ко сну'} ${sleepPlaceText(p)}`, work: (id, p) => (taskOf(id) ? `правит «${taskOf(id).title}» за столом ${PLACES[p].desk}` : `работает за столом ${PLACES[p].desk}`), rest_desk: (id, p) => `отдыхает за столом ${PLACES[p].desk}`,
   rest_lounge: (id,p) => p==='diningChair'?'отдыхает на стуле у обеденного стола':'отдыхает на скамье у круглого стола', read_wire:()=> 'читает ленту телетайпа',wait: (id,p)=>PLACES[p].kind==='chair'?'сидит на стуле у обеденного стола':PLACES[p].kind==='desk'?'сидит за столом':PLACES[p].kind==='bench'?'сидит на скамье':p==='teletype'?'стоит у телетайпа':p==='teletypeRead'?'стоит перед телетайпом':'стоит '+PLACES[p].name,
@@ -952,6 +960,7 @@ async function tick() {
   if (busy) return; busy = true;
   try {
     const now = Date.now();
+    try { const award=processBonusQueue(st,HERE+'owner-commands/',now,()=>{st.seq++;st.world=composeWorld(now);teletypeDirty=true;return save(true);});if(award)log('owner bonus',award.id,award.status); } catch(e) { log('owner bonus:',e.message); return; }
     const moneyRevision=st.economy.revision;tickEconomy(st,now);tickPerformances(st,now);tickServices(st,now);if(moneyRevision!==st.economy.revision){st.seq++;teletypeDirty=true;}
     if (st.day !== new Date().toDateString()) { st.day = new Date().toDateString(); st.jevToday = 0; }
     let status;

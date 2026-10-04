@@ -29,7 +29,7 @@ function post(st,key,from,to,cents,kind,now,extra={}) {
   if(from&&available(st,from)<cents)return false;
   if(from)e.accounts[from]-=cents;if(to)e.accounts[to]+=cents;
   const tx={id:key,from,to,cents,kind,at:now,...extra};e.ledger.push(tx);e.receipts[key]=tx;e.revision++;
-  for(const id of [from,to].filter(Boolean))remember(st,id,{id:`transaction:${key}:${id}`,event:'money_'+kind,partner:id===from?to:from,cents,summary:`${({drink_service:'Доставка напитка',performance:'Оплата согласованного танца',opening:'Стартовый запас',work:'Заработок за выполненную работу',purchase:'Покупка',treat_purchase:'Угощение коллеги',gift:'Подарок',loan:'Заём',repayment:'Возврат долга'})[kind]||kind}: ${id===from?'−':'+'}${(cents/100).toFixed(2)} USD.`},now,{important:kind!=='purchase'});
+  for(const id of [from,to].filter(Boolean))remember(st,id,{id:`transaction:${key}:${id}`,event:'money_'+kind,partner:id===from?to:from,cents,summary:`${({bonus:'Премия от владельца',drink_service:'Доставка напитка',performance:'Оплата согласованного танца',opening:'Стартовый запас',work:'Заработок за выполненную работу',purchase:'Покупка',treat_purchase:'Угощение коллеги',gift:'Подарок',loan:'Заём',repayment:'Возврат долга'})[kind]||kind}: ${id===from?'−':'+'}${(cents/100).toFixed(2)} USD.`},now,{important:kind!=='purchase'});
   return tx;
 }
 export function available(st,id){const e=st.economy;return (e.accounts[id]||0)-Object.values(e.reservations).filter(r=>(r.payer||r.actor)===id).reduce((n,r)=>n+r.cents,0);}
@@ -172,4 +172,28 @@ export function settleService(st,s,id,now){
  if(e.receipts[key])return e.receipts[key];
  if(s.status!=='running'||s.performer!=='heroine'||id==='heroine'||s.centsPerGuest!==100||!s.consent||g?.status!=='accepted'||!g.consent||!r||r.service!==s.id||r.payer!==id||r.cents!==100||!r.credit)return false;
  delete e.reservations[key];const result=post(st,key,id,'heroine',100,'drink_service',now,{service:s.id});if(!result)e.reservations[key]=r;return result;
+}
+
+// Only the trusted local owner queue calls this; it is not a Jev money action.
+export function grantOwnerBonus(st,command,now){
+ const e=st.economy;
+ if(!command||command.type!=='owner_bonus'||command.version!==1||typeof command.id!=='string'||!(/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$/).test(command.id))throw Error('invalid_command');
+ if(!Number.isSafeInteger(command.cents)||command.cents<=0)throw Error('invalid_amount');
+ if(typeof command.target!=='string'||!(/^[a-z][a-z0-9_]{0,30}$/).test(command.target))throw Error('invalid_target');
+ const fingerprint=JSON.stringify([command.target,command.cents]);
+ const old=e?.ownerBonusReceipts&&Object.hasOwn(e.ownerBonusReceipts,command.id)?e.ownerBonusReceipts[command.id]:null;
+ if(old){if(old.fingerprint!==fingerprint)throw Error('command_id_conflict');return old;}
+ if(!e?.config.enabled)throw Error('economy_disabled');
+ const recipients=command.target==='all'?Object.keys(st.chars).sort():[command.target];
+ if(!recipients.length||!Number.isSafeInteger(command.cents*recipients.length))throw Error('amount_overflow');
+ // Validate the entire batch before the first posting; no partial all-staff award.
+ for(const id of recipients){
+  if(!Object.hasOwn(st.chars,id)||!Object.hasOwn(e.accounts,id))throw Error('unknown_recipient');
+  if(!Number.isSafeInteger(e.accounts[id])||!Number.isSafeInteger(e.accounts[id]+command.cents))throw Error('balance_overflow');
+  if(Object.hasOwn(e.receipts,`owner_bonus:${command.id}:${id}`))throw Error('incomplete_receipt');
+ }
+ for(const id of recipients)post(st,`owner_bonus:${command.id}:${id}`,null,id,command.cents,'bonus',now,{ownerCommand:command.id,funding:'owner'});
+ const receipt={id:command.id,status:'applied',type:'owner_bonus',fingerprint,recipients,centsEach:command.cents,totalCents:command.cents*recipients.length,at:now};
+ e.ownerBonusReceipts??={};e.ownerBonusReceipts[command.id]=receipt;
+ return receipt;
 }

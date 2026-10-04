@@ -67,6 +67,8 @@ export function dayStory(events=[],state=null,options={}){
   }else if(key==='money'){
    const wage=list.filter(e=>e.kind==='money_work').reduce((sum,e)=>sum+(e.facts.cents||0),0),other=list.filter(e=>e.kind!=='money_work');
    let text=wage?`За выполненную работу начислено ${(wage/100).toLocaleString('ru-RU')} USD.`:'';
+   const bonuses=other.filter(e=>e.kind==='money_bonus');
+   for(const e of bonuses)text+=` Владелец начислил премию ${(e.facts.cents/100).toLocaleString('ru-RU')} USD для ${name(e.facts.to,3)}.`;
    const forgiven=other.filter(e=>e.kind==='debt_forgiven'),loans=other.filter(e=>e.kind==='money_loan'),gifts=other.filter(e=>e.kind==='money_gift'),overdue=other.filter(e=>e.kind==='money_loan_overdue');
    if(gifts.length)text+=gifts.length===1?' Был принят добровольный подарок.':' Были приняты добровольные подарки.';if(loans.length)text+=' Между коллегами появились обязательства по займам.';if(forgiven.length)text+=' Сохранились и прощённые долги.';if(overdue.length)text+=' У некоторых долгов прошёл срок возврата; причина задержки неизвестна.';
    if(!text.trim()&&other.length)text='В денежной истории редакции сохранились сделки и ответы на предложения; подробности — в событиях ниже.';

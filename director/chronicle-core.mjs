@@ -63,7 +63,7 @@ export function extractChronicle(st, names, now) {
   }
   const econ=st.economy||{};
   for(const tx of econ.ledger||[]) {
-    if(!['gift','loan','repayment','work','performance','treat_purchase','drink_service'].includes(tx.kind))continue;
+    if(!['bonus','gift','loan','repayment','work','performance','treat_purchase','drink_service'].includes(tx.kind))continue;
     add('money_'+tx.kind,tx.id,tx.at,members(tx.from,tx.to,tx.beneficiary),{from:text(tx.from),to:text(tx.to),beneficiary:text(tx.beneficiary),cents:numeric(tx.cents),title:text(tx.title),task:text(tx.task)},'money_ledger');
   }
   for(const d of econ.debts||[])for(const h of d.history||[]) {

@@ -2,7 +2,7 @@ const el=(tag,text,cls)=>{const e=document.createElement(tag);if(text!==undefine
 const stamp=at=>Number.isFinite(at)?new Date(at).toLocaleString('ru-RU',{timeZone:'Europe/Moscow',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'время неизвестно';
 const person=(id,names)=>names[id]||id||'редакция';
 const dollars=n=>Number.isFinite(n)?`${(n/100).toFixed(2)} $`:'—';
-const meaning={performance:'Оплата согласованного танца',opening:'Стартовый запас',work:'Оплата выполненной работы',purchase:'Покупка',treat_purchase:'Оплата угощения',gift:'Подарок',loan:'Заём',repayment:'Возврат долга'};
+const meaning={bonus:'Премия от владельца',performance:'Оплата согласованного танца',opening:'Стартовый запас',work:'Оплата выполненной работы',purchase:'Покупка',treat_purchase:'Оплата угощения',gift:'Подарок',loan:'Заём',repayment:'Возврат долга'};
 function section(key,title){const d=el('details',undefined,'money-fold'),summary=el('summary',title);d.dataset.moneySection=key;summary.dataset.moneyFocus=key;d.append(summary);return d;}
 export function moneyOverview(list,focus,onSelect){
   const box=el('div',undefined,'money-overview');
@@ -41,7 +41,7 @@ export function moneyPanel(entry,names){
     box.append(commitments);
   }
   const transactions=f.transactions||[],history=section('history',`История операций · ${transactions.length}`);
-  for(const t of [...transactions].reverse())history.append(el('p',`${stamp(t.at)} · ${meaning[t.kind]||t.kind}: ${dollars(t.cents)}. ${person(t.from,names)} → ${person(t.to,names)}.`,'hint'));
+  for(const t of [...transactions].reverse())history.append(el('p',`${stamp(t.at)} · ${meaning[t.kind]||t.kind}: ${dollars(t.cents)}. ${t.kind==='bonus'?'владелец':person(t.from,names)} → ${person(t.to,names)}.`,'hint'));
   if(!transactions.length)history.append(el('p','Операций пока нет.','hint'));
   box.append(history);
   return box;

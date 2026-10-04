@@ -17,3 +17,6 @@ logs/
 traces/
 node_modules/
 .DS_Store
+
+# Private owner bonus queue and receipts
+/owner-commands/

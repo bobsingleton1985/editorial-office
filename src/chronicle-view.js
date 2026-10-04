@@ -34,7 +34,7 @@ export function eventSentence(e,names={}) {
     case 'debt_forgiven':return `${who}: долг прощён${Number.isFinite(f.cents)?' — '+cents(f.cents):''}.`;
     case 'debt_repayment':return `${who}: зарегистрирован возврат долга${Number.isFinite(f.cents)?' — '+cents(f.cents):''}.`;
     default: {
-      const label={money_gift:'подарок принят',money_loan:'заём выдан',money_repayment:'долг возвращён',money_loan_forgiven:'долг прощён',money_loan_overdue:'срок возврата долга прошёл; причина не установлена',money_work:'получен заработок за работу',money_performance:'оплачено выступление',money_treat_purchase:'оплачено угощение коллеги',money_drink_service:'оплачена доставка напитков'}[e.kind];
+      const label={money_bonus:'начислена премия от владельца',money_gift:'подарок принят',money_loan:'заём выдан',money_repayment:'долг возвращён',money_loan_forgiven:'долг прощён',money_loan_overdue:'срок возврата долга прошёл; причина не установлена',money_work:'получен заработок за работу',money_performance:'оплачено выступление',money_treat_purchase:'оплачено угощение коллеги',money_drink_service:'оплачена доставка напитков'}[e.kind];
       return `${who}: ${label||'зарегистрировано событие'}${Number.isFinite(f.cents)?' — '+cents(f.cents):''}.`;
     }
   }
