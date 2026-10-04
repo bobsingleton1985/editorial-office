@@ -3,6 +3,7 @@ const REASONS={openrouter_http_429:'Провайдер ограничил час
 export function requestStatusText(item,now=Date.now()){
  const name=NAMES[item.actor]||'Персонаж',kind=item.kind==='reflection'?'оценка отношений':'выбор действия';
  const reason=REASONS[item.error]||(item.error==='qwen_context_provider_limit'?'Провайдер отклонил слишком большой запрос':/^(?:jev|qwen)_context_/.test(item.error||'')?'Запрос заблокирован проверкой контекста':'Не удалось получить ответ модели');
+ if(item.status==='deferred')return `${name} · ${kind}: ожидание зрителя. Запрос к провайдеру не отправлен.`;
  if(item.status==='ok')return `${name} · ${kind}: ответ получен`;
  if(item.status==='pending'||item.status==='retry_requested')return `${name} · ${kind}: ${item.error?reason+'. Повторный запрос':'ожидание ответа'}`;
  const time=new Date(item.failedAt).toLocaleTimeString('ru-RU');
@@ -30,9 +31,9 @@ export function createModelStatus(url){
   const current=Object.values(state?.current||{}),errors=current.filter(x=>x.error&&x.status!=='ok');
   panel.dataset.state=errors.length||!connected||!state?'error':'ok';
   label.textContent=errors.length?`Модель · ошибок: ${errors.length}`:!connected?'Модель · нет связи':!state?'Модель · нет данных':'Модель';
-  const title=errors.length?`Ошибки модели: ${errors.length}`:current.some(x=>x.status==='pending'||x.status==='retry_requested')?'Модель принимает решение':current.length?'Последние запросы выполнены':state?'Запросы ещё не отправлены':'Данные о запросах ещё не получены';
+  const title=errors.length?`Ошибки модели: ${errors.length}`:current.some(x=>x.status==='pending'||x.status==='retry_requested')?'Модель принимает решение':current.some(x=>x.status==='deferred')?'Модель ждёт зрителя':current.length?'Последние запросы выполнены':state?'Запросы ещё не отправлены':'Данные о запросах ещё не получены';
   headline.textContent=title+(connected?'':' · связь потеряна, показаны последние данные');
-  const visible=errors.length?errors:current.filter(x=>x.status==='pending');
+  const visible=errors.length?errors:current.filter(x=>x.status==='pending'||x.status==='deferred');
   const next=JSON.stringify([visible,connected]);
   if(next!==signature){signature=next;rows.replaceChildren();for(const item of visible){const row=document.createElement('div'),text=document.createElement('div');row.style.marginTop='6px';text.dataset.key=item.actor+':'+item.kind;text.textContent=requestStatusText(item);row.append(text);
    if(item.status==='error'&&item.blocked){const button=document.createElement('button');button.textContent='Повторить запрос';button.disabled=!connected;button.onclick=async()=>{button.disabled=true;try{const r=await fetch(url.replace(/\/$/,'')+'/settings/model-retry',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({person:item.actor,requestKind:item.kind,requestId:item.id})});if(!r.ok)throw Error();button.textContent='Запрос на повтор отправлен';}catch{button.textContent='Повтор не отправлен — попробовать ещё';button.disabled=false;}};row.append(button);}rows.append(row);}}
