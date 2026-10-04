@@ -508,15 +508,15 @@ async function snapshot(id, avail) {
       music: musicOn(now) ? 'по телевизору играет музыка' : 'музыка не играет',
       others: others(id), ...(inviteNote[id] ? { invitation: inviteNote[id] } : {}), ...(deferredInvite(id, now) ? { deferred_invitation: `${PEOPLE[st.deferredInvites[id].from].name} ещё курит у окна. Ты ответил «не сейчас»; можно присоединиться или выбрать другое занятие.` } : {}), teletype: waiting().length ? `на ленте ждут правки сообщений: ${waiting().length}` : 'новых сообщений на ленте нет', ...ownerNote(now) },
     ...(await characterRules() ? { characterRules: rules } : {}),
-    sleep: {available:supports(id,'sleep_desk'),current:p.sleep||null,pending:p.sleepPending||null,threshold:SLEEP.threshold,wakeBelow:SLEEP.wakeBelow,note:'Есть одна шкала усталости. Она растёт быстрее вечером, обычный отдых её снижает. При 95 сон назначается автоматически и имеет приоритет перед другими делами. Исполненный сон снижает усталость и опьянение; пробуждение — при усталости не выше 30 и не раньше минуты сна.'},
+    sleep: {available:supports(id,'sleep_desk'),current:p.sleep||null,pending:p.sleepPending||null,threshold:SLEEP.threshold,wakeBelow:SLEEP.wakeBelow,note:'Усталость растёт быстрее вечером; отдых снижает её. Сон обязателен при threshold, снижает усталость/опьянение; выход при wakeBelow или ниже, после минимум минуты сна.'},
     available_actions: avail,
-    limits: ['Money is denominated in integer USD cents. You know only your own balance. Gifts and loans require the other person’s independent listed reply; a gift never buys affection. Purchases debit once on confirmed execution, editorial income is per completed task. Debts persist even when episodes are forgotten.',
-      'For every character, consider self.finances.livelihood.wallet when choosing work, purchases, gifts, lending, repayment or paid entertainment. Financial pressure is a motive, not a mandatory sequence. Preserve independent consent and never infer other wallets. Expected income and receivables are not spendable cash.',
+    limits: ['Integer USD cents; only your own balance known. Gifts/loans need independent replies; gifts do not buy affection. Debit purchases once on execution; work pays per completed task. Debts persist beyond episodes.',
+      'Financial choices: follow self.finances.livelihood.planning and wallet. Receivables are not spendable cash.',
       'Only the listed actions are physically available now. No invented actions or motion.',
       'Walking, sitting down and standing up are performed by the executor after the choice.',
       'Places where someone else is (or is going) are not in the list.',
-      'Relationships have five independent directed dimensions. Dedicated reflection requests let you appraise real events while physical activity continues. Ordinary action selection does not need to compete with reflection. Use your own feelings and confirmed courtship history when deciding whom to approach, whether to flirt, invite or consider ordering a performance. Own feelings do not reveal partner feelings. Remember confirmed courtship responses and respect boundaries. Paid performance is professional work, not romantic consent. Dance together, kisses and forming a couple are unavailable until their complete joint execution is supported; do not invent them.',
-      'Flirt is one need, shared by personal flirt and interest in a paid performance. Use self.flirt, your own directed relationships and observed replies to decide whom to approach, treat or order a show from. Alcohol can increase this motive, never guarantees a purchase or changes consent. Reciprocal flirt, a drink offer, a show and a refusal are independent choices; no required sequence. Remember recent refusals and diminishing novelty. Never infer another person’s private need or wallet.',
+      'Five directed relationship dimensions are independent. Separate reflection appraises real events during physical activity. For approach/flirt/orders use own feelings and confirmed courtship replies/boundaries; partner feelings are unknown. Paid performance is work, not romantic consent. Joint dance, kisses and couples are unavailable.',
+      'Flirt: use self.flirt. Approach, flirt, treating, ordering, accepting and refusing remain independent choices. Never infer private needs, feelings or wallets.',
       'Conversation intent is your own declared manner. Conflict requires the observed basis in the listed action; do not invent a dispute, topic or partner thoughts.',
       'Joint actions: only an invitation from the list (invite@…) or an answer to an invitation; the other decides for himself.'] };
 }
@@ -548,7 +548,7 @@ function behaviorWireSnapshot(snap) {
       ...(long ? { description: Array.from(a.description).slice(0, 400).join('') + '… Полное описание и основание: description_full этого действия.', description_full: a.description } : {}) };
   });
   return { snapshot: { ...snap, available_actions,
-    limits: [...snap.limits, 'Choose an offered id exactly. semantic_id is its internal runtime identity, not a selectable id. If present, description_full contains the complete action meaning and factual basis.'] }, choices };
+    limits: [...snap.limits, 'Select listed id; semantic_id is internal. Wallet spendingChoices.action matches semantic_id, or id if absent. description_full gives complete meaning/basis.'] }, choices };
 }
 async function reflectRelationships(now){
   if(process.env.NO_JEV||st.jevToday>=DAILY)return false;
