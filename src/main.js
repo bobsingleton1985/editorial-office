@@ -194,7 +194,6 @@ async function choose(choice) {
     const j = await res.json(); applyWeather(j.weather);
   } catch (e) { showOutside('Не удалось сменить погоду: нет связи с редакцией.'); }
 }
-window.__dialogueCamera=cam;
 window.__cam = (pos, tgt, zoom = 1) => { cam.position.copy(B(...pos)); ctl.target.copy(B(...tgt)); cam.zoom = zoom; cam.updateProjectionMatrix(); ctl.update(); SC?.markDirty(); };
 L.apply(eff(S));
 let qMode = S.quality;
@@ -229,6 +228,7 @@ window.__quality = () => ({ level: QL.level.id, auto: QL.auto, tv: QL.tv, ratio:
 // ---------- main camera: orthographic, south-east (Blender coords -> three: x, z, -y)
 const B = (x, y, z) => new THREE.Vector3(x, z, -y);
 const cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 200);
+window.__dialogueCamera=cam;
 cam.position.copy(B(5.3, -7.05, 4.5));
 const target = B(0.4, 1.5, 1.5);
 function fit() {
