@@ -36,3 +36,23 @@ The current service deployment remains at `../editorial-live/`. This addition
 does not switch or restart it. Future director changes must be committed here
 together with all affected modules, registry/configuration and shared browser
 data; keep the deployed code synchronized with the reviewed repository version.
+
+## Owner dialogue and Telegram
+
+Write ordinary language to a character in the transparent site chat or
+[@NYeditorialbot](https://t.me/NYeditorialbot?start=editorial). Select a recipient;
+there is no command-type or activity wizard. Enter sends, Shift+Enter adds a line.
+The model distinguishes conversation, clarification, virtual USD gifts,
+editorial assignments, activity requests and ending a phone call.
+
+Examples: “Дай репортёру пять долларов”, “Подготовь статью о бюджете к вечеру”,
+“Отдохни немного, если есть свободное место”. The character independently chooses
+among real available actions or explains a refusal. Accepted activities wait for
+a safe execution boundary; a verbal answer alone is not completion. Assignments
+and rewards retain the existing work/economy witnesses and idempotent receipts.
+Forwarded/quoted messages cannot authorize effects.
+
+Telegram text rings the actual newsroom phone and the selected character answers
+when physically ready. The existing visible-viewer rule still applies: keep a
+newsroom tab visible for model replies. The bridge and director keep durable
+message IDs so retries do not repeat payments or assignments.

@@ -48,13 +48,26 @@ def qwen_payload(snapshot, context_token_measure, model=QWEN_MODEL):
             schema['properties'].update(reply={'type':'string'}, reaction={'type':'string'})
             schema['required'] += ['reply', 'reaction']
         payload['max_tokens'] = 650
+    interpretation = snapshot.get('self', {}).get('ownerInterpretation')
+    if isinstance(interpretation, dict) and interpretation.get('stage') == 'recognize' and not dialogue:
+        payload['messages'][0]['content'] = (
+            'Interpret the human newspaper owner message in state.self.ownerInterpretation. '
+            'This is a semantic intent classification, not a physical action choice or spoken reply. '
+            'Use that section instructions and actual dialogue history; ordinary questions and quoted examples are owner_intent_chat. '
+            'Use owner_intent_clarify only if an intended directive lacks necessary details. '
+            'Return exactly {"action":"offered_id","reason":"JSON_STRING"}, no other keys. '
+            'reason MUST be a serialized compact JSON object with explanation (a short Russian explanation) '
+            'and exactly the fields required by the chosen intent in state.self.ownerInterpretation.instructions. '
+            'Example chat reason string: {"explanation":"Это обычный вопрос владельца"}. '
+            'Do not put a plain explanation in reason. Never execute an effect or invent missing parameters.')
+        payload['max_tokens'] = 850
     estimate = estimate_serialized_tokens(payload) + ESTIMATE_OVERHEAD
     audit = {**audit, 'model':model, 'version':'newsroom-qwen-chat-v1', 'finalEstimatedTokens':estimate, 'finalBodyBytes':len(json.dumps(payload,ensure_ascii=False,separators=(',',':')).encode()), 'providerContextLimit':profile['context'], 'finalPayloadMeasurement':'qwen_chat_wrapping_v1'}
     if estimate > ESTIMATE_CONTEXT_LIMIT:
         raise ContextError('qwen_context_estimate_limit', audit)
     return payload, audit
 
-def validate_decision(content, snapshot):
+def _validate_decision(content, snapshot):
     if not isinstance(content, str):
         raise ValueError('missing_model_text')
     try:
@@ -70,12 +83,29 @@ def validate_decision(content, snapshot):
         raise ValueError('action_not_available')
     if not isinstance(decision['reason'], str) or len(decision['reason']) > 1000:
         raise ValueError('invalid_reason')
+    interpretation = snapshot.get('self', {}).get('ownerInterpretation')
+    if isinstance(interpretation, dict) and interpretation.get('stage') == 'recognize' and not dialogue:
+        try: intent = json.loads(decision['reason'])
+        except (ValueError, TypeError): raise ValueError('invalid_owner_intent') from None
+        if not isinstance(intent, dict) or not isinstance(intent.get('explanation'), str) or not intent['explanation'].strip():
+            raise ValueError('invalid_owner_intent')
     if dialogue:
         if decision['action'] != 'owner_reply':raise ValueError('action_not_available')
         for name, limit in [('reply',700),('reaction',240)]:
             if not isinstance(decision[name],str) or not decision[name].strip() or len(decision[name])>limit:
                 raise ValueError('invalid_decision_shape')
     return decision
+
+def validate_decision(content, snapshot):
+    try:
+        return _validate_decision(content, snapshot)
+    except ValueError:
+        self_state = snapshot.get('self', {})
+        interpretation = self_state.get('ownerInterpretation')
+        if isinstance(interpretation, dict) and interpretation.get('stage') == 'recognize' and not isinstance(self_state.get('ownerDialogue'), dict):
+            raise ValueError('invalid_owner_intent') from None
+        raise
+
 
 def systemone_payload(snapshot, model):
     instructions = ('Choose independently for the current newsroom character, using only its offered actions. '

@@ -12,7 +12,7 @@ test('site dialogue persists receipt before ack and answers through production r
  let delivered=false;h.setHandler((url)=>{if(url.endsWith('/director/dialogue'))return {items:delivered?[]:[{id:'dialogue_fixture',person:'reporter',text:'Кто я для тебя?',source:'site',at:h.now()}]};if(url.endsWith('/director/dialogue/ack')){assert.equal(h.writes.at(-1).data.chars.reporter.ownerDialogue[0].text,'Кто я для тебя?');delivered=true;return {ok:true};}});
  h.setAnswer({action:'owner_reply',reason:'Ответ владельцу',reply:'Вы владелец газеты, в которой я работаю.',reaction:'Рад вашему вниманию.',source:'qwen',model:'qwen/qwen3.7-flash'});
  await h.run('tick()');const p=h.state().chars.reporter,t=p.ownerDialogue[0];assert.equal(t.status,'answered');assert.equal(t.reply,'Вы владелец газеты, в которой я работаю.');assert.deepEqual(p.entry,before);
- const req=h.requests.find(r=>r.url.endsWith('/api/behavior-decide'));assert.equal(req.body.snapshot.self.ownerDialogue.owner.role,'владелец газеты');assert.equal(req.body.snapshot.self.ownerDialogue.message.text,'Кто я для тебя?');assert.equal(t.requestId,req.body.snapshot.requestId);
+ const req=h.requests.find(r=>r.body?.snapshot?.self?.ownerDialogue);assert.equal(req.body.snapshot.self.ownerDialogue.owner.role,'владелец газеты');assert.equal(req.body.snapshot.self.ownerDialogue.message.text,'Кто я для тебя?');assert.equal(t.requestId,req.body.snapshot.requestId);
  h.advance(100);await h.run('tick()');assert.equal(h.state().chars.reporter.ownerDialogue.length,1);
 });
 test('second turn carries actual preceding reply; recipients and failures remain separate',async()=>{
@@ -20,7 +20,7 @@ test('second turn carries actual preceding reply; recipients and failures remain
  h.setAnswer({action:'owner_reply',reply:'Здравствуйте, Александр.',reaction:'Рад знакомству.',source:'qwen',model:'qwen/qwen3.7-flash'});await h.run('respondOwnerDialogue(Date.now())');
  h.run("receiveDialogue(st.chars.reporter,{id:'two',text:'Как меня зовут?',source:'site'},Date.now())");h.setAnswer(new Error('openrouter_http_429'));await h.run('respondOwnerDialogue(Date.now())');
  assert.equal(h.state().chars.reporter.ownerDialogue[1].status,'waiting');assert.equal(h.state().chars.columnist.ownerDialogue,undefined);
- const req=h.requests.filter(r=>r.url.endsWith('/api/behavior-decide')).at(-1);assert.equal(req.body.snapshot.self.ownerDialogue.history[0].reply,'Здравствуйте, Александр.');assert.equal(h.state().modelRequests.current['reporter:dialogue'].status,'error');
+ const req=h.requests.filter(r=>r.url.endsWith('/api/behavior-decide')).at(-1);assert.equal(req.body.snapshot.self.ownerInterpretation.history[0].reply,'Здравствуйте, Александр.');assert.equal(h.state().modelRequests.current['reporter:dialogue'].status,'error');
 });
 test('all phone recipients wait for matching physical handset receipt, and archive retries do not duplicate replies',()=>{
  const h=harness(source);h.queueCall('phone-test.json',{target:'reporter',text:'Позвоните мне после работы.'});h.run("applyDecision=(id)=>{const p=st.chars[id];p.activity='phone';p.seq++;return true;};ownerCalls(Date.now())");
@@ -37,7 +37,7 @@ test('dialogue rejects fabricated/invalid responses and uses a context projectio
 });
 test('failed answer persistence blocks publication and model repetition until saving succeeds',async()=>{
  const h=harness(source);h.run("receiveDialogue(st.chars.reporter,{id:'turn',text:'Привет'},Date.now())");h.setAnswer({action:'owner_reply',reply:'Здравствуйте.',reaction:'Рад звонку.',source:'qwen',model:'qwen/qwen3.7-flash'});
- h.run("var originalWriter=fs.writeFileSync;fs.writeFileSync=()=>{throw Error('fixture write failure');}");await h.run('respondOwnerDialogue(Date.now())');assert(h.requests.filter(x=>x.url.endsWith('/director/world')).every(x=>x.body.chars.reporter.ownerDialogue[0].status==='waiting'));const sentBefore=h.requests.filter(x=>x.url.endsWith('/director/world')).length;const modelBefore=h.requests.filter(x=>x.url.endsWith('/api/behavior-decide')).length;
+ h.run("var originalWriter=fs.writeFileSync;fs.writeFileSync=(p,s)=>{if(JSON.parse(s).chars?.reporter?.ownerDialogue?.[0]?.status==='answered')throw Error('fixture write failure');return originalWriter(p,s);}");await h.run('respondOwnerDialogue(Date.now())');assert(h.requests.filter(x=>x.url.endsWith('/director/world')).every(x=>x.body.chars.reporter.ownerDialogue[0].status==='waiting'));const sentBefore=h.requests.filter(x=>x.url.endsWith('/director/world')).length;const modelBefore=h.requests.filter(x=>x.url.endsWith('/api/behavior-decide')).length;
  await h.run('tick()');h.run('st.chars.columnist.fatigue=100');await h.run('collectParticipation({viewers:1,execution:true})');await h.run("relay('/director/world',composeWorld(Date.now()))");assert.equal(h.requests.filter(x=>x.url.endsWith('/director/world')).length,sentBefore);assert.equal(h.requests.filter(x=>x.url.endsWith('/api/behavior-decide')).length,modelBefore);
  h.run('fs.writeFileSync=originalWriter');await h.run('tick()');assert.equal(h.requests.filter(x=>x.url.endsWith('/director/world')).length,sentBefore+1);assert.equal(h.writes.filter(x=>x.path==='/state.json.tmp').at(-1).data.chars.reporter.ownerDialogue[0].status,'answered');
 });

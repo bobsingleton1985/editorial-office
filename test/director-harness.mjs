@@ -1,6 +1,7 @@
 import * as sharedDrinks from '../director/shared-drinks.mjs';
 import * as dialogueCommands from '../director/owner-dialogue-commands.mjs';
 import * as television from '../director/tv-control.mjs';
+import * as ownerIntent from '../director/owner-intent.mjs';
 import * as ownerDialogue from '../director/owner-dialogue.mjs';
 import * as requestsHealth from '../director/model-requests.mjs';
 import * as service from '../director/drink-service.mjs';
@@ -40,7 +41,7 @@ export function harness(source, initialState=null, config= economy.UNCONFIGURED_
   const logs = [], requests = [], writes = [], calls=new Map(), archived=[],timers=[];let handler=null,archiveFailure=false;
   class TestDate extends Date { constructor(...args) { super(...(args.length ? args : [clock])); } static now() { return clock; } }
   const context = vm.createContext({ DESKS, DINING_CHAIR, BENCH, SPOTS, CHAIR_REST, CHAIR_TUCKED,
-    ...sharedDrinks,...dialogueCommands,...television,...ownerDialogue,dirname,TextEncoder,TV_PROGRAM,onAir,processBonusQueue,parseOwnerCall,compactSnapshot,...requestsHealth,...service,...chronicle,ChronicleStore,...flirt,...transport,...diagnostic,...projection,...development,...livelihood,...consumption,...performance,HER_SOCIAL_CATALOG,...meals,...economy,...work,...social,...relationship,...policy,...places,...heroine,...sleep, Date: TestDate, URL, Math: Object.assign(Object.create(Math), { random: () => 0 }),
+    ...ownerIntent,...sharedDrinks,...dialogueCommands,...television,...ownerDialogue,dirname,TextEncoder,TV_PROGRAM,onAir,processBonusQueue,parseOwnerCall,compactSnapshot,...requestsHealth,...service,...chronicle,ChronicleStore,...flirt,...transport,...diagnostic,...projection,...development,...livelihood,...consumption,...performance,HER_SOCIAL_CATALOG,...meals,...economy,...work,...social,...relationship,...policy,...places,...heroine,...sleep, Date: TestDate, URL, Math: Object.assign(Object.create(Math), { random: () => 0 }),
     setTimeout:(fn,delay)=>{timers.push({fn,delay});return timers.length;},
     process: { env: { HOME: '/isolated', FAST:String(speed), REGISTRY_FILE: '/registry.json', STATE_FILE: '/state.json', DIRECTOR_TOKEN: 'test-only', RELAY_URL: 'http://test-relay', JEV_URL: 'http://test-jev' } },
     console: { log: (...a) => logs.push(a.join(' ')), error: (...a) => logs.push(a.join(' ')) },
@@ -52,7 +53,7 @@ export function harness(source, initialState=null, config= economy.UNCONFIGURED_
       if(handler){const value=await handler(url,body);if(value!==undefined)return {ok:true,json:async()=>structuredClone(value)};}
       if (url.endsWith('/api/character-rules')) result = { version: 'test', text: 'ISOLATED TEST RULES' };
       else if (url.endsWith('/api/behavior-session')) result = { session_id: 'test-session', state: body.action === 'pause' ? 'paused' : 'active' };
-      else if (url.endsWith('/api/behavior-decide')) { if (answer instanceof Error) throw answer; const selected=body.snapshot.available_actions.find(a=>(a.semantic_id||a.id)===answer.action); result = {...answer,action:selected?.id||answer.action}; }
+      else if (url.endsWith('/api/behavior-decide')) { if (answer instanceof Error) throw answer; if(body.snapshot.self?.ownerInterpretation && answer.action==='owner_reply') return {ok:true,json:async()=>({action:body.snapshot.available_actions.find(a=>(a.semantic_id||a.id)==='owner_intent_chat').id,reason:JSON.stringify({explanation:'Изолированный тест обычного разговора'}),source:'qwen',model:'qwen/qwen3.7-flash'})}; const selected=body.snapshot.available_actions.find(a=>(a.semantic_id||a.id)===answer.action); result = {...answer,action:selected?.id||answer.action}; }
       else if (url.endsWith('/director/status')) result = { viewers: 1, seq: 1, nudge: 0, boot: 'test' };
       else if(url.includes('/director/execution'))result={capabilities:JSON.parse(vm.runInContext('JSON.stringify(executionCapabilities ? {...executionCapabilities,at:Date.now()} : null)',context)),items:[]};
       else if (url.endsWith('/health')) result = { weather: { utc: 0, name: 'test' } };

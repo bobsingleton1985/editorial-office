@@ -1,0 +1,11 @@
+--- a/ai-character-pilot/browser/server.py
++++ b/ai-character-pilot/browser/server.py
+@@ -262,7 +262,7 @@
+             return self.send_json(status,{'error':str(e),'context_budget':e.report})
+         except (ValueError,RuntimeError) as e:
+             code=str(e)
+-            safe=code if code in {'jev_context_provider_limit','qwen_context_provider_limit','qwen_context_estimate_limit','openrouter_connection_failed','invalid_systemone_response','invalid_choice_probabilities','action_not_available','invalid_provider_response','invalid_decision_json','invalid_decision_shape','incomplete_model_response'} or re.fullmatch(r'openrouter_http_[1-5]\d\d',code) else 'provider_response_failed'
++            safe=code if code in {'jev_context_provider_limit','qwen_context_provider_limit','qwen_context_estimate_limit','openrouter_connection_failed','invalid_systemone_response','invalid_choice_probabilities','action_not_available','invalid_provider_response','invalid_decision_json','invalid_decision_shape','incomplete_model_response','invalid_owner_intent'} or re.fullmatch(r'openrouter_http_[1-5]\d\d',code) else 'provider_response_failed'
+             return self.send_json(502,{'error':safe})
+         except Exception:
+             return self.send_json(502,{'error':'provider_response_failed'})

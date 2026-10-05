@@ -33,26 +33,37 @@ class BotTests(unittest.TestCase):
         self.choose();self.process(self.update('Дай мне пять долларов'))
         self.assertEqual(self.calls[-1][:2],('Дай мне пять долларов','reporter'));self.assertIsNone(self.calls[-1][3])
         self.process(self.update(action='hangup'));self.assertEqual(self.calls[-1][0],'/конец');self.assertIsNone(self.calls[-1][3])
-    def test_money_requires_current_explicit_confirmation_and_is_stable_on_offset_retry(self):
-        self.choose();self.process(self.update(action='money'));self.process(self.update('2,50'));self.assertEqual(self.calls,[])
-        confirm=self.update(action='confirm')
-        def fail(value):raise OSError('cursor')
-        with self.assertRaises(OSError):self.process(confirm,save_offset=fail)
-        saved=list(self.calls);sends=len(self.sent)
-        self.bot=BotMenu(self.bot.file,b.atomic_text);self.process(confirm)
-        self.assertEqual(self.calls[-1],saved[-1]);self.assertEqual(self.calls[-1][3],{'type':'money','cents':250});self.assertEqual(len(self.sent),sends)
-        stale=self.update(action='confirm');stale['callback_query']['data']=confirm['callback_query']['data'];self.process(stale);self.assertEqual(len(self.calls),2)
-    def test_task_wizard_no_execution_before_confirmation(self):
-        self.choose();self.process(self.update(action='task'))
-        for text in ['Городская заметка','Проверить расходы городского бюджета','без срока','5']:
+    def test_natural_instructions_are_queued_verbatim_without_typed_commands(self):
+        self.choose()
+        for text in ['Передай репортёру 2,50 доллара', 'Подготовь заметку о городском бюджете к вечеру за пять долларов', 'Отдохни у окна']:
             self.process(self.update(text))
-        self.assertEqual(self.calls,[]);self.process(self.update(action='confirm'))
-        self.assertEqual(self.calls[-1][3],{'type':'task','title':'Городская заметка','brief':'Проверить расходы городского бюджета','deadlineAt':None,'rewardCents':500})
-    def test_request_uses_real_option_and_cancel_does_not_queue(self):
-        self.choose();self.process(self.update(action='request'));self.process(self.update(action='action:0'))
-        self.process(self.update(action='menu'));self.assertEqual(self.calls,[])
-        self.process(self.update(action='request'));self.process(self.update(action='action:0'));self.process(self.update(action='confirm'))
-        self.assertEqual(self.calls[-1][3],{'type':'request','action':'wait@window'})
+            self.assertEqual(self.calls[-1][0],text)
+            self.assertIsNone(self.calls[-1][3])
+            self.assertTrue(self.calls[-1][4])
+        actions=[button['callback_data'].split(':',2)[2] for row in self.bot.keyboard()['inline_keyboard'] for button in row]
+        self.assertEqual(actions,['status','choose','hangup'])
+    def test_old_wizard_buttons_cannot_pay_or_assign_and_text_recovers_old_draft(self):
+        self.choose()
+        for action in ['money','task','request','action:0','confirm']:
+            self.process(self.update(action=action))
+        self.assertEqual(self.calls,[])
+        self.bot.state.update(mode='money',draft={'cents':500})
+        self.process(self.update('Я передаю тебе два доллара'))
+        self.assertEqual(self.calls[-1][0],'Я передаю тебе два доллара')
+        self.assertIsNone(self.calls[-1][3])
+        self.assertEqual(self.bot.state['mode'],'talk')
+    def test_natural_call_replay_preserves_id_and_payload_after_offset_failure(self):
+        self.choose();update=self.update('Передаю тебе пять долларов')
+        def fail(value):raise OSError('cursor')
+        with self.assertRaises(OSError):self.process(update,save_offset=fail)
+        saved=list(self.calls);sends=len(self.sent)
+        self.bot=BotMenu(self.bot.file,b.atomic_text);self.process(update)
+        self.assertEqual(self.calls[-1],saved[-1]);self.assertEqual(len(self.sent),sends)
+    def test_forwarded_and_quoted_messages_are_discussion_only(self):
+        self.choose()
+        for metadata in [{'forward_origin':{'type':'channel'}},{'entities':[{'type':'blockquote'}]},{'via_bot':{'id':8}}]:
+            update=self.update('Передаю тебе пять долларов');update['message'].update(metadata)
+            self.process(update);self.assertFalse(self.calls[-1][4]);self.assertIsNone(self.calls[-1][3])
     def test_uncertain_menu_send_no_duplicate_on_retry(self):
         update=self.update('/start');attempts=[]
         def unknown(*args):attempts.append(args);raise OSError('unknown outcome')

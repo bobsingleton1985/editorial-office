@@ -70,7 +70,7 @@ export function fitRelationshipRequest(input,maxBytes=65000,serverStatus=null){
  const relations=[...Object.values(s.relationships),...(s.currentActivity?.relationship?[s.currentActivity.relationship]:[])];
  while(new TextEncoder().encode(JSON.stringify(out)).length>maxBytes){
   // Prefer old supporting history over current personal memories and episodes.
-  const dialogueHistory=s.ownerDialogue?.history||s.ownerDialogueHistory;
+  const dialogueHistory=s.ownerDialogue?.history||s.ownerInterpretation?.history||s.ownerDialogueHistory;
   if(dialogueHistory?.length>1){
    s.contextProjection.omittedDialogueIds??=[];s.contextProjection.omittedDialogueIds.push(dialogueHistory[0].id);
    pop(dialogueHistory,1);continue;

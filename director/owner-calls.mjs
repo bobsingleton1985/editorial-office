@@ -17,9 +17,10 @@ export function callRecipient(value) {
 export function parseOwnerCall(value) {
   if (!value || typeof value.text !== 'string' || !value.text.trim()) throw Error('missing_call_text');
   const target = Object.hasOwn(value,'target') ? callRecipient(value.target) : null;
+  if(value.instructionEligible!==undefined&&typeof value.instructionEligible!=='boolean')throw Error('invalid_call_context');
   const command=normalizeDialogueCommand(value.command);
-  if(command&&(!target||['/конец','/hangup'].includes(value.text.trim().toLowerCase())))throw Error('invalid_dialogue_command');
-  return {text:value.text.trim().slice(0,500),target,...(command?{command}:{})};
+  if(command&&(value.instructionEligible===false||!target||['/конец','/hangup'].includes(value.text.trim().toLowerCase())))throw Error('invalid_dialogue_command');
+  return {text:value.text.trim().slice(0,500),target,...(command?{command}:{}),...(value.instructionEligible===false?{instructionEligible:false}:{})};
 }
 export function enqueueOwnerCall(dir, value, commandId=null) {
   const command = parseOwnerCall(value);
@@ -31,7 +32,7 @@ export function enqueueOwnerCall(dir, value, commandId=null) {
     for(const candidate of [file,path.join(dir,'done',id+'.json')]){
       try{
         const stored=parseOwnerCall(JSON.parse(fs.readFileSync(candidate,'utf8')));
-        if(stored.text!==command.text||stored.target!==command.target||JSON.stringify(stored.command??null)!==JSON.stringify(command.command??null))throw Error('call_id_conflict');
+        if(stored.text!==command.text||stored.target!==command.target||JSON.stringify(stored.command??null)!==JSON.stringify(command.command??null)||(stored.instructionEligible!==false)!==(command.instructionEligible!==false))throw Error('call_id_conflict');
         const fd=fs.openSync(candidate,'r');try{fs.fsyncSync(fd);}finally{fs.closeSync(fd);}
         const parent=fs.openSync(path.dirname(candidate),'r');try{fs.fsyncSync(parent);}finally{fs.closeSync(parent);}
         return {id,status:'queued',target:command.target,replayed:true};
@@ -41,7 +42,7 @@ export function enqueueOwnerCall(dir, value, commandId=null) {
   };
   if(commandId!==null){const receipt=existing();if(receipt)return receipt;}
   try {
-    fs.writeFileSync(temp,JSON.stringify({text:command.text,...(command.target?{target:command.target}:{}),...(command.command?{command:command.command}:{}),at:Date.now()}),{mode:0o600});
+    fs.writeFileSync(temp,JSON.stringify({text:command.text,...(command.target?{target:command.target}:{}),...(command.command?{command:command.command}:{}),...(command.instructionEligible===false?{instructionEligible:false}:{}),at:Date.now()}),{mode:0o600});
     const fd=fs.openSync(temp,'r');try{fs.fsyncSync(fd);}finally{fs.closeSync(fd);}
     try{fs.linkSync(temp,file);}catch(error){
       if(error.code!=='EEXIST'||commandId===null)throw error;

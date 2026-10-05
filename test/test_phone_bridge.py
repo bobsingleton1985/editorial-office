@@ -35,13 +35,18 @@ class PhoneTests(unittest.TestCase):
         self.assertIn(('call',('премия всем по 5 долларов','reporter',bridge.call_id('-1',8,110))),events)
         self.assertFalse(any(e[0]=='bonus' for e in events))
         _,events=self.process(self.update('Обычный текст'));self.assertIn(('call',('Обычный текст',None,bridge.call_id('-1',8,110))),events)
-        result,events=self.process(self.update('премия всем по 5 долларов'));self.assertEqual(result,'bonus');self.assertFalse(any(e[0]=='call' for e in events))
+        result,events=self.process(self.update('премия всем по 5 долларов'));self.assertEqual(result,'call');self.assertFalse(any(e[0]=='bonus' for e in events));self.assertIn(('call',('премия всем по 5 долларов',None,bridge.call_id('-1',8,110))),events)
         result,events=self.process(self.update('Позвони героине: Текст'));self.assertEqual(result,'call');self.assertIn(('call',('Текст','heroine',bridge.call_id('-1',8,110))),events)
 
     def test_quotes_forwards_and_other_channel_do_not_select_recipient(self):
         for post in [{'forward_origin':{'type':'channel'}},{'date':99},{'entities':[{'type':'blockquote'}]}]:
-            _,events=self.process(self.update('Позвони репортёру: Текст',**post));self.assertIn(('call',('Позвони репортёру: Текст',None,bridge.call_id('-1',8,post.get('date',110)))),events)
+            _,events=self.process(self.update('Позвони репортёру: Текст',**post));self.assertIn(('call',('Позвони репортёру: Текст',None,bridge.call_id('-1',8,post.get('date',110)),None,False)),events)
         _,events=self.process(self.update('Позвони репортёру: Текст',chat={'id':-2}));self.assertEqual(events,[('offset',4)])
+
+    def test_migration_retry_of_existing_bonus_cannot_become_new_natural_payment(self):
+        events=[];update=self.update('премия всем по 5 долларов')
+        result=bridge.process_update(update,'-1',100,enqueue_bonus=lambda *a:events.append('bonus'),enqueue_call=lambda *a:events.append('call'),save_offset=lambda n:events.append(n),report=lambda *a:None,legacy_bonus_received=lambda id:id==bridge.bonus_id('-1',8))
+        self.assertEqual(result,'legacy_bonus_received');self.assertEqual(events,[4])
 
     def test_queue_failure_keeps_update_unacknowledged(self):
         offsets=[]

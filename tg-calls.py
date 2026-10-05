@@ -121,6 +121,12 @@ def durable_command(here, command_id):
     finally: os.close(fd)
 
 
+def legacy_bonus_received(here, command_id):
+    if not (here/'owner-commands'/f'{command_id}.json').exists():return False
+    durable_command(here,command_id)
+    return True
+
+
 def queue_bonus(here, target, dollars, command_id):
     node = shutil.which('node')
     if node is None:
@@ -137,8 +143,8 @@ def queue_bonus(here, target, dollars, command_id):
     return receipt['status']
 
 
-def queue_call(here, text, target, command_id, command=None):
-    args = [str(here/'ring.sh'),'--id',command_id]+(['--to',target] if target else [])+(['--command',json.dumps(command,ensure_ascii=False)] if command else [])+['--',text]
+def queue_call(here, text, target, command_id, command=None, instruction_eligible=True):
+    args = [str(here/'ring.sh'),'--id',command_id]+(['--to',target] if target else [])+(['--command',json.dumps(command,ensure_ascii=False)] if command else [])+([] if instruction_eligible else ['--untrusted'])+['--',text]
     result = subprocess.run(args,capture_output=True,text=True,timeout=15)
     if result.returncode:
         if result.stderr.strip() in ['call_id_conflict','unsupported_call_recipient','invalid_call_id','invalid_dialogue_command']:
@@ -150,13 +156,21 @@ def queue_call(here, text, target, command_id, command=None):
     return receipt
 
 
-def process_update(update, channel, since, *, enqueue_bonus, enqueue_call, save_offset, report, track_call=None, conversation_target=None, is_own_reply=None, replay_target=None):
+def process_update(update, channel, since, *, enqueue_bonus, enqueue_call, save_offset, report, track_call=None, conversation_target=None, is_own_reply=None, replay_target=None, legacy_bonus_received=None):
     """Advance only after a durable bonus/call; retries retain message identity."""
     next_offset = update['update_id'] + 1
     post = update.get('channel_post')
     if not post or str(post.get('chat',{}).get('id')) != channel:
         save_offset(next_offset)
         return 'ignored'
+    # Preserve immutable queue identities from the old bridge across an unacked
+    # update at migration. This only checks existing records; no keyword parsing.
+    if legacy_bonus_received:
+        try: old_id=bonus_id(channel,post.get('message_id'))
+        except InvalidBonus: old_id=None
+        if old_id and legacy_bonus_received(old_id):
+            save_offset(next_offset)
+            return 'legacy_bonus_received'
     text = (post.get('text') or post.get('caption') or '').strip()
     if is_own_reply and is_own_reply(post.get('message_id'),text):
         save_offset(next_offset)
@@ -170,19 +184,8 @@ def process_update(update, channel, since, *, enqueue_bonus, enqueue_call, save_
     eligible = (isinstance(post.get('date'),int) and post['date'] >= since and
                 isinstance(post.get('text'),str) and not forwarded and
                 not any(e.get('type') in ['blockquote','expandable_blockquote','pre','code'] for e in post.get('entities',[])))
-    try:
-        command = parse_bonus(text) if eligible else None
-        if command:
-            command_id = bonus_id(channel,post.get('message_id'))
-            status = enqueue_bonus(*command,command_id)
-            save_offset(next_offset)
-            report('bonus',command_id,status)
-            return 'bonus'
-    except InvalidBonus as error:
-        # Permanent malformed/conflicting commands are consumed without payment.
-        report('bonus rejected',str(error))
-        save_offset(next_offset)
-        return 'rejected'
+    # Natural owner instructions are interpreted by Qwen in the director.
+    # The bridge routes text only; it never infers a payment from keywords.
     try:
         addressed = parse_call(text) if eligible else None
     except InvalidCall as error:
@@ -193,7 +196,8 @@ def process_update(update, channel, since, *, enqueue_bonus, enqueue_call, save_
     try:
         command_id = call_id(channel,post.get('message_id'),post.get('date'))
         if replay_target: target=replay_target(command_id,target)
-        enqueue_call(body,target,command_id)
+        if eligible: enqueue_call(body,target,command_id)
+        else: enqueue_call(body,target,command_id,None,False)
         if track_call: track_call(command_id,post.get('message_id'),target,body)
     except InvalidCall as error:
         report('phone rejected',str(error))
@@ -346,7 +350,8 @@ def main():
                 process_update(update,channel,since,enqueue_bonus=lambda *a:queue_bonus(HERE,*a),
                                enqueue_call=lambda *a:queue_call(HERE,*a),save_offset=save_offset,report=log,
                                track_call=dialogue.track,conversation_target=dialogue.target,is_own_reply=dialogue.is_own_reply,
-                               replay_target=lambda id,target:dialogue.state['calls'].get(id,{}).get('target',target))
+                               replay_target=lambda id,target:dialogue.state['calls'].get(id,{}).get('target',target),
+                               legacy_bonus_received=lambda id:legacy_bonus_received(HERE,id))
             replies()
         except Exception as error:
             # urllib errors may contain the bot token in their URL: never log str(error).
