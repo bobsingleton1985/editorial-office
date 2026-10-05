@@ -17,12 +17,13 @@ export function createOwnerReplyBubbles({now=()=>Date.now(),people=()=>window.__
   for(const [id,p]of Object.entries(world?.chars||{})){
    let item=bubbles.get(id);if(!item){const box=make('aside','owner-phone-reply'),name=make('strong','',NAMES[id]||p.name||id),words=make('p',''),reaction=make('p','owner-phone-reaction');box.hidden=true;box.setAttribute('aria-label','Ответ '+(NAMES[id]||p.name||id)+' на звонок');box.setAttribute('role','status');box.setAttribute('aria-live','polite');box.append(name,words,reaction);document.body.append(box);item={box,words,reaction,key:null};bubbles.set(id,item);}
    const {box}=item,t=recentOwnerReply(p,now()+offset),ed=people()?.[id]?.ed,cam=camera(),Vector3=window.__THREE?.Vector3;
+   box.dataset.displayReason=!connected?'disconnected':!enabled()?'disabled':!t?'no_recent_reply':!ed||!cam||!Vector3?'scene_loading':'anchor_pending';
    if(!connected||!enabled()||!t||!ed||!cam||!Vector3){box.hidden=true;continue;}
-   const head=ed.root?.getObjectByName('head');if(!head){box.hidden=true;continue;}
+   const head=ed.root?.getObjectByName('head');if(!head){box.dataset.displayReason='head_missing';box.hidden=true;continue;}
    ed.holder.updateMatrixWorld(true);const pos=head.getWorldPosition(new Vector3());pos.y+=.28;pos.project(cam);
-   if(pos.z < -1||pos.z>1||Math.abs(pos.x)>1||Math.abs(pos.y)>1){box.hidden=true;continue;}
+   if(pos.z < -1||pos.z>1||Math.abs(pos.x)>1||Math.abs(pos.y)>1){box.dataset.displayReason='offscreen';box.hidden=true;continue;}
    const key=JSON.stringify([t.id,t.reply,t.reaction]);if(item.key!==key){item.key=key;item.words.textContent=t.reply;item.reaction.textContent=t.reaction?'Реакция: '+t.reaction:'';item.reaction.hidden=!t.reaction;}
-   box.hidden=false;
+   box.hidden=false;box.dataset.displayReason='shown';
    const x=(pos.x*.5+.5)*innerWidth,y=(-pos.y*.5+.5)*innerHeight,width=box.offsetWidth,height=box.offsetHeight;
    const left=Math.max(12,Math.min(innerWidth-width-12,x-width/2)),top=Math.max(12,Math.min(innerHeight-height-12,y-height-12));
    box.style.left=left+'px';box.style.top=top+'px';box.style.setProperty('--tail',Math.max(12,Math.min(width-24,x-left))+'px');
