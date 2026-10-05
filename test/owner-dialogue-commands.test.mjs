@@ -55,7 +55,7 @@ test('amount parser preserves cents and rejects ambiguous, excessive and nonposi
 });
 test('director saves a payment before ack, sends changed wallet and real physical options to reply',async()=>{
  const h=harness(source,null,config);let delivered=false;
- h.setHandler(url=>url.endsWith('/director/dialogue')?{items:delivered?[]:[{id:'payment',person:'reporter',text:'Передаю 5 USD',command:{type:'money',cents:500}}]}:url.endsWith('/director/dialogue/ack')?(assert.equal(h.writes.at(-1).data.economy.accounts.reporter,1500),delivered=true,{ok:true}):undefined);
+ h.setHandler(url=>url.endsWith('/director/dialogue')?{items:delivered?[]:[{id:'payment',person:'reporter',text:'Передаю 5 USD',command:{type:'money',cents:500}}]}:url.endsWith('/director/dialogue/ack')?(assert.equal(h.writes.findLast(w=>w.path==='/state.json.tmp').data.economy.accounts.reporter,1500),delivered=true,{ok:true}):undefined);
  h.setAnswer({action:'owner_reply',reason:'Ответ владельцу',reply:'Спасибо.',reaction:'Рад',source:'qwen',model:'qwen/qwen3.7-flash'});
  await h.run('tick()');const req=h.requests.find(r=>r.url.endsWith('/api/behavior-decide'));
  assert.equal(req.body.snapshot.self.finances.balance,1500);assert.equal(req.body.snapshot.self.ownerDialogue.effect.status,'applied');
@@ -75,7 +75,7 @@ test('director completion integrates owner receipt and premium with witnessed wo
  const h=harness(source,null,config);h.run("receiveDialogue(st.chars.reporter,{id:'web_task',text:'Поручение',command:{type:'task',title:'Тема владельца',brief:'Проверить факты',deadlineAt:null,rewardCents:500}},Date.now());applyDialogueCommand(st,'reporter',st.chars.reporter.ownerDialogue[0],Date.now(),{canWork:true});st.chars.reporter.activity='work';st.chars.reporter.arriveAt=Date.now()-1;st.tasks[0].done_min=4.99;");
  await h.run('updatePersonNeeds(\'reporter\',Date.now(),1200)');const s=h.state();
  assert.equal(s.tasks.length,0);assert.equal(s.economy.accounts.reporter,1800);assert.equal(s.chars.reporter.ownerDialogue[0].effect.status,'completed');assert.equal(ownerTaskContext(s,'reporter',h.now()).length,0);
- assert.equal(h.writes.at(-1).data.economy.accounts.reporter,1800);
+ assert.equal(h.writes.findLast(w=>w.path==='/state.json.tmp').data.economy.accounts.reporter,1800);
 });
 test('requests retain actual options across restart and never force physical state',()=>{
  let st=fixture();const t=turn(st,'web_request',{type:'request',action:'coffee@bar'});
@@ -104,7 +104,7 @@ test('completion persistence failure blocks new decisions and publishing until r
  assert.equal(h.requests.filter(r=>r.url.endsWith('/director/world')||r.url.endsWith('/api/behavior-decide')).length,0);
  assert.equal(h.state().economy.accounts.reporter,1800);
  h.run('fs.writeFileSync=originalWriter');await h.run('tick()');
- assert.equal(h.writes.at(-1).data.economy.accounts.reporter,1800);assert.equal(h.state().tasks.length,0);
+ assert.equal(h.writes.findLast(w=>w.path==='/state.json.tmp').data.economy.accounts.reporter,1800);assert.equal(h.state().tasks.length,0);
 });
 test('later chat does not hide canonical assignment results from command projection',()=>{
  const st=fixture(),t=turn(st,'web_task',task);applyDialogueCommand(st,'reporter',t,3,{canWork:true});

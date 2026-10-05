@@ -8,6 +8,20 @@ export function phoneHarness(){
  h.run("executionCapabilities={at:Date.now(),styles:[],actors:{heroine:{loaded:true,seq:st.chars.heroine.seq,activity:st.chars.heroine.activity,phone:{ready:true,seq:st.chars.heroine.seq,occupied:false,phase:'idle',receiving:false}}}};");
  return h;
 }
+test('real heroine hangup safely returns the handset without exposing a new model capability',()=>{
+ const h=phoneHarness();h.run("startCall(Date.now(),'Текст','heroine');st.chars.heroine.ownerPhoneSession={until:Date.now()+120000};");
+ const seq=h.state().chars.heroine.seq;assert.equal(h.run("actions('heroine').some(a=>a.id==='wait@phoneA')"),false);
+ assert.equal(h.run("endOwnerPhone('heroine',Date.now())"),true);assert.equal(h.state().chars.heroine.activity,'wait');assert.equal(h.state().chars.heroine.seq,seq+1);assert.equal(h.state().chars.heroine.ownerPhoneSession,undefined);
+ assert.equal(h.state().phoneLease.actor,'heroine'); // Physical return still owns the shared handset.
+});
+test('owner hangup cancels unanswered turns and does not reopen them or ask the model',async()=>{
+ const h=phoneHarness();h.run("startCall(Date.now(),'Привет','heroine','first');executionCapabilities={at:Date.now(),actors:{heroine:{loaded:true,seq:st.chars.heroine.seq,activity:'phone',phone:{ready:true,seq:st.chars.heroine.seq,occupied:true,phase:'talk',receiving:true}}}};receiveOwnerCall(Date.now());requestFailed(st,'heroine','dialogue','failed',new Error('qwen_context_estimate_limit'),Date.now());startCall(Date.now(),'/конец','heroine','end');receiveOwnerCall(Date.now())");
+ const p=h.state().chars.heroine;assert.equal(p.activity,'wait');assert.deepEqual(p.ownerDialogue.map(t=>t.status),['cancelled','closed']);
+ assert.equal(h.state().modelRequests.current['heroine:dialogue'].status,'cancelled');assert(h.state().modelRequests.history.some(x=>x.status==='error'));
+ h.run("executionCapabilities={at:Date.now(),actors:{heroine:{loaded:true,seq:st.chars.heroine.seq,activity:'wait',phone:{ready:true,seq:st.chars.heroine.seq,occupied:false,phase:'idle',receiving:false}}}}");await h.run('respondOwnerDialogue(Date.now())');
+ assert.equal(h.state().chars.heroine.activity,'wait');assert.equal(h.state().chars.heroine.pendingOwnerCall,undefined);assert.equal(h.requests.filter(r=>r.url.endsWith('/api/behavior-decide')).length,0);
+ assert.notEqual(h.run("startCall(Date.now(),'Новый звонок','heroine','new')"),false);
+});
 test('addressed heroine dispatch uses the real director; memory waits for receipt',()=>{
  const h=phoneHarness();assert.notEqual(h.run("startCall(Date.now(),'Текст','heroine')"),false);
  const p=h.state().chars.heroine;
@@ -38,14 +52,14 @@ test('handset lease survives a command change and missing/stale occupancy report
  assert.notEqual(h.run("startCall(Date.now(),'Следующий','reporter')"),false);
  assert.equal(h.state().phoneLease.actor,'reporter');
 });
-test('only fresh matching physical receipt records message once and gives ten seconds of talk',()=>{
+test('only fresh matching physical receipt records message once and holds the owner conversation for two minutes of inactivity',()=>{
  const h=phoneHarness();h.run("startCall(Date.now(),'Текст','heroine')");
  const receipt="executionCapabilities={at:Date.now(),actors:{heroine:{loaded:true,seq:st.chars.heroine.seq,activity:'phone',phone:{seq:st.chars.heroine.seq,ready:true,occupied:true,phase:'talk',receiving:true}}}}";
  for(const bad of ["executionCapabilities.at-=3500","executionCapabilities.actors.heroine.seq--","executionCapabilities.actors.heroine.phone.seq--","executionCapabilities.actors.heroine.phone.receiving=false","executionCapabilities.actors.heroine.activity='wait'"]){
   h.run(receipt);h.run(bad);assert.equal(h.run('receiveOwnerCall(Date.now())'),false);assert.equal(h.state().chars.heroine.memory.filter(e=>e.event==='phone_call').length,0);
  }
  h.run(receipt);assert.equal(h.run('receiveOwnerCall(Date.now())'),true);assert.equal(h.run('receiveOwnerCall(Date.now())'),false);
- assert.equal(h.state().chars.heroine.memory.filter(e=>e.event==='phone_call').length,1);assert.equal(h.state().ownerMsg.by,'Героиня');assert.equal(h.state().chars.heroine.busyUntil,h.now()+10000);
+ assert.equal(h.state().chars.heroine.memory.filter(e=>e.event==='phone_call').length,1);assert.equal(h.state().ownerMsg.by,'Героиня');assert.equal(h.state().chars.heroine.busyUntil,h.now()+120000);
 });
 test('queue remains until physical receipt, interrupted approach retries without losing text',()=>{
  const h=phoneHarness();h.queueCall('01.json',{text:'Текст',target:'heroine'});h.run('ownerCalls(Date.now())');

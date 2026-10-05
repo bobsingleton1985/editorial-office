@@ -4,6 +4,10 @@
 .tg-token
 .tg-channel
 .tg-offset
+.tg-bonus-since
+.tg-dialogue-state.json
+.tg-calls.lock
+__pycache__/
 .env
 .env.*
 relay-url.txt
@@ -20,3 +24,6 @@ node_modules/
 
 # Private owner bonus queue and receipts
 /owner-commands/
+
+# Durably exported owner telephone replies
+director/phone-dialogue-replies.json*

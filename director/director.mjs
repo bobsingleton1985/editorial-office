@@ -5,7 +5,7 @@ import {TV_CHANNELS,tvActions,receiveTvSwitch} from './tv-control.mjs';
 import {processBonusQueue} from './owner-bonuses.mjs';
 import {parseOwnerCall} from './owner-calls.mjs';
 import {PROGRAM as TV_PROGRAM,onAir} from '../src/tv-schedule.js';
-import {recoverInterruptedRequests,requestAllowed,requestStarted,requestDeferred,requestFailed,requestSucceeded,retryModelRequest} from './model-requests.mjs';
+import {recoverInterruptedRequests,requestAllowed,requestStarted,requestDeferred,requestFailed,requestSucceeded,retryModelRequest,cancelOwnerDialogueRequest} from './model-requests.mjs';
 import {ChronicleStore} from './chronicle-store.mjs';
 import {extractChronicle,DanceObserver} from './chronicle-core.mjs';
 import {projectWorld} from './world-transport.mjs';
@@ -260,9 +260,17 @@ function releasePhone(now){
  if(!l||!p||p.activity==='phone'||!executionCapabilities||executionCapabilities.at>now||now-executionCapabilities.at>=3500||a?.loaded!==true||a.seq!==p.seq||a.phone?.seq!==p.seq||a.phone.occupied!==false)return false;
  delete st.phoneLease;return true;
 }
+const OWNER_PHONE_IDLE_MS=120000;
+function phoneDialogueReady(id,now){const p=st.chars[id],a=executionCapabilities?.actors?.[id];return p?.activity==='phone'&&socialReady(id,now)&&a?.activity==='phone'&&a.phone?.seq===p.seq&&a.phone.receiving===true;}
+function endOwnerPhone(id,now){const p=st.chars[id];if(p.activity==='phone'){if(applyDecision(id,'wait@'+p.place,'owner_hangup',null)===false)return false;}delete p.ownerPhoneSession;return true;}
 function startCall(now, text = null, recipient = null, callId = null) {            // addressed calls wait for their recipient; ordinary calls use proximity
   if (!text) st.nextCall = rnd(CALL_EVERY) * 60000 / FAST;         // text: the owner's message (Archie, ring.sh) — a fact for the one who answers
   releasePhone(now);
+  const ongoing=Object.entries(st.chars).find(([id,p])=>p.ownerPhoneSession?.until>now&&p.activity==='phone');
+  if(text&&ongoing){const [id,p]=ongoing;
+   if(recipient===null||recipient===id){if(p.pendingOwnerCall)return false;p.pendingOwnerCall={seq:p.seq,text,callId};p.busyUntil=p.activityUntil=p.ownerPhoneSession.until=now+OWNER_PHONE_IDLE_MS;st.world=composeWorld(now);save();return true;}
+   if(!nextDialogue(p)&&!p.pendingOwnerCall)endOwnerPhone(id,now);
+  }
   if(st.phoneLease||Object.values(st.chars).some(p=>p.activity==='phone')||executionCapabilities&&now-executionCapabilities.at<3500&&Object.values(executionCapabilities.actors).some(a=>a.phone?.occupied))return false;
   const ids = Object.keys(st.chars).filter((k) => PEOPLE[k]&&supports(k,'phone')&&(k!=='heroine'||recipient==='heroine'&&socialReady(k,now)&&executionCapabilities.actors[k].phone?.ready===true&&st.chars[k].activity!=='heroine_serve')&&!st.chars[k].sleep&&!st.chars[k].sleepPending&&!Object.values(st.sleepDeskLeases).some(l=>l.owner===k)&&!(st.diningChairLease?.owner===k&&st.diningChairLease.phase==='departing'));
   const id = recipient !== null ? ids.find(k=>k===recipient) : ids.find((k) => st.chars[k].place === 'deskA') || ids.sort((a, b) => travelSeconds(st.chars[a].place, 'phoneA') - travelSeconds(st.chars[b].place, 'phoneA'))[0];
@@ -296,9 +304,17 @@ function receiveOwnerCall(now){
    receiveDialogue(p,{id:'ph_'+(c.callId||id+'_'+c.seq),text:c.text,source:'phone',at:now},now);
    p.memory.push({event:'phone_call',from:'владелец газеты',text:c.text,at:hhmm(now)});p.memory=p.memory.slice(-12);
    st.ownerMsg={text:c.text,at:now,time:hhmm(now),by:PEOPLE[id].name};
-   p.busyUntil=now+10000/FAST;p.activityUntil=p.busyUntil;c.delivered=true;st.seq++;st.world=composeWorld(now);
+   p.ownerPhoneSession={until:now+OWNER_PHONE_IDLE_MS,lastMessageAt:now,ending:c.text.trim().toLowerCase()==='/конец'||c.text.trim().toLowerCase()==='/hangup'};p.busyUntil=p.activityUntil=p.ownerPhoneSession.until;c.delivered=true;st.seq++;st.world=composeWorld(now);
+  }
+  if(p.ownerPhoneSession?.ending||c.ending){
+   c.ending=true;const turn=p.ownerDialogue.find(t=>t.id==='ph_'+(c.callId||id+'_'+c.seq));turn.status='closing';
+   if(!endOwnerPhone(id,now)){save();continue;}
+   const firstWaiting=nextDialogue(p);if(firstWaiting?.source==='phone')cancelOwnerDialogueRequest(st,id,now);
+   for(const old of p.ownerDialogue)if(old!==turn&&old.source==='phone'&&['waiting','closing'].includes(old.status))Object.assign(old,{status:'cancelled',cancelledAt:now,control:{type:'owner_hangup',status:'applied'}});
+   Object.assign(turn,{status:'closed',closedAt:now,control:{type:'owner_hangup',status:'applied'}});st.seq++;st.world=composeWorld(now);
   }
   if(!save(true))continue;
+  if(!publishPhoneReplies(true))continue;
   if(c.queueFile){try{fs.mkdirSync(CALLS+'done',{recursive:true});if(fs.existsSync(CALLS+c.queueFile))fs.renameSync(CALLS+c.queueFile,CALLS+'done/'+c.queueFile);}catch(e){log('calls:',e.message);continue;}}
   delete p.pendingOwnerCall;save();received=true;
  }
@@ -946,8 +962,9 @@ function applyDecision(id, action, source, confidence, expected=null, performanc
   if(!consumptionReady(id,verb,variant,executionCapabilities,now)||!supports(id,verb)||st.hostessMode==='drinks'&&verb.includes('dance'))return false;
   const addressedPhone=id==='heroine'&&verb==='phone'&&source==='owner_call'&&['deskA','phoneA'].includes(variant)&&socialReady(id,now)&&executionCapabilities.actors[id].phone?.ready===true;
   if(id==='heroine'&&verb==='phone'&&!addressedPhone)return false;
+  const ownerPhoneHangup=source==='owner_hangup'&&verb==='wait'&&p.activity==='phone'&&variant===p.place&&!!p.ownerPhoneSession;
   const agreedConversation=verb==='conversation'&&pairOf(st,id)?.assignments?.[id]?.place===variant;
-  if(id==='heroine'&&verb!=='continue'&&!agreedConversation&&!performanceDispatch&&!serviceDispatch&&!sharedDrinkDispatch&&!forcedSleep&&!sleepWait&&!addressedPhone&&!actions(id).some(a=>a.id===selectedAction))return false;
+  if(id==='heroine'&&verb!=='continue'&&!agreedConversation&&!performanceDispatch&&!serviceDispatch&&!sharedDrinkDispatch&&!forcedSleep&&!sleepWait&&!addressedPhone&&!ownerPhoneHangup&&!actions(id).some(a=>a.id===selectedAction))return false;
   if(id==='heroine'&&verb==='continue'&&(!supports(id,p.activity)||REG[p.activity]?.once))return false;
   // A missing renderer report is not a new physical command. Preserve replay origin and sequence.
   if(id==='heroine'&&verb==='continue'&&!socialReady(id,now)){p.busyUntil=Math.max(p.busyUntil,now+30000/FAST);return false;}
@@ -1018,6 +1035,7 @@ function applyDecision(id, action, source, confidence, expected=null, performanc
   p.chairsAtStart = {}; for (const pl of [from, place]) if (['desk','chair'].includes(PLACES[pl].kind)) {const k=PLACES[pl].desk||PLACES[pl].chair;p.chairsAtStart[k]=st.chairs[k]??CHAIR_REST;};
   if (move) { if (['desk','chair'].includes(PLACES[from].kind)) st.chairs[PLACES[from].desk||PLACES[from].chair] = CHAIR_TUCKED; if (['desk','chair'].includes(PLACES[place].kind)) st.chairs[PLACES[place].desk||PLACES[place].chair] = 0; }
   if (verb !== 'continue') p.since = now;
+  if(activity!=='phone')delete p.ownerPhoneSession;
   p.place = place; p.activity = activity; p.activityUntil = p.busyUntil = now + (travel + decisionDwell) * 1000; p.seq += 1; p.lastNeeds = now; st.seq += 1;
   if(verb!=='continue'){cancelPurchases(st,id,now);reservePurchase(st,id,activity,p.seq,now,jointPurchase);}
   else {const oldKey=`${id}:${p.seq-1}`,reservation=st.economy.reservations[oldKey];if(reservation){delete st.economy.reservations[oldKey];reservation.seq=p.seq;st.economy.reservations[`${id}:${p.seq}`]=reservation;}}
@@ -1067,7 +1085,13 @@ async function pollNudges(now, status) {
   else save();
 }
 
-let dialogueSavePending=false;
+let dialogueSavePending=false,phoneReplySignature=null;
+// Telegram consumes only this projection, exported after canonical durable save.
+function publishPhoneReplies(saved=false){
+ const result={chars:Object.fromEntries(Object.entries(st.chars).map(([id,p])=>[id,{ownerDialogue:(p.ownerDialogue||[]).filter(t=>t.source==='phone'&&['answered','closed','cancelled'].includes(t.status)).map(t=>({id:t.id,source:t.source,status:t.status,reply:t.reply,reaction:t.reaction,control:t.control}))}]))};
+ const serialized=JSON.stringify(result);if(serialized===phoneReplySignature)return true;if(!saved&&!save(true))return false;
+ try{const file=HERE+'director/phone-dialogue-replies.json';fs.writeFileSync(file+'.tmp',serialized,{mode:0o600});const fd=fs.openSync(file+'.tmp','r');try{fs.fsyncSync(fd);}finally{fs.closeSync(fd);}fs.renameSync(file+'.tmp',file);const parent=fs.openSync(dirname(file),'r');try{fs.fsyncSync(parent);}finally{fs.closeSync(parent);}phoneReplySignature=serialized;return true;}catch{log('phone reply export failed; will retry');return false;}
+}
 // Durable relay inbox: save canonical receipt before acknowledging delivery.
 async function pollOwnerDialogue(now){
  const r=await relay('/director/dialogue');let changed=false;
@@ -1082,8 +1106,8 @@ async function pollOwnerDialogue(now){
  if(changed)await relay('/director/world',st.world);
 }
 async function respondOwnerDialogue(now){
- const id=IDS.find(id=>nextDialogue(st.chars[id])&&!st.chars[id].sleep&&!st.chars[id].sleepPending&&requestAllowed(st,id,'dialogue',now));
- if(!id)return false;
+ const id=IDS.find(id=>{const p=st.chars[id],t=nextDialogue(p);return t&&!p.sleep&&!p.sleepPending&&requestAllowed(st,id,'dialogue',now)&&(t.source!=='phone'||phoneDialogueReady(id,now));});
+ if(!id){const waiting=IDS.find(id=>{const p=st.chars[id],t=nextDialogue(p);return t?.source==='phone'&&!p.pendingOwnerCall&&!p.sleep&&!p.sleepPending&&p.activity!=='phone'&&requestAllowed(st,id,'dialogue',now);});if(waiting){const t=nextDialogue(st.chars[waiting]);startCall(now,t.text,waiting,t.id.slice(3));}return false;}
  const p=st.chars[id],turn=nextDialogue(p),traceId=newTraceId();
  if(process.env.NO_JEV||st.jevToday>=DAILY){requestFailed(st,id,'dialogue',traceId,new Error(process.env.NO_JEV?'model_disabled':'daily_limit'),now);await publishModelStatus();return false;}
  try{
@@ -1091,9 +1115,10 @@ async function respondOwnerDialogue(now){
   st.jevToday++;
   const ok=answerDialogue(p,turn.id,d,Date.now());
   if(!ok)throw Error('invalid_dialogue_reply');
+  if(turn.source==='phone'&&p.ownerPhoneSession)p.busyUntil=p.activityUntil=p.ownerPhoneSession.until=Date.now()+OWNER_PHONE_IDLE_MS;
   p.memory.push({event:'owner_dialogue_reply',owner:'владелец газеты',text:turn.text,reply:turn.reply,reaction:turn.reaction,at:hhmm(Date.now())});p.memory=p.memory.slice(-12);
   trace(traceId,'application',{actorId:id,requestId:d.requestId,action:'owner_reply',source:d.source,status:'applied',dialogueId:turn.id,physicalExecution:'dialogue_has_no_physical_command'});
-  st.seq++;st.world=composeWorld(Date.now());if(!save(true)){dialogueSavePending=true;log('owner dialogue reply awaiting durable save');return true;}await relay('/director/world',st.world);return true;
+  st.seq++;st.world=composeWorld(Date.now());if(!save(true)){dialogueSavePending=true;log('owner dialogue reply awaiting durable save');return true;}if(!publishPhoneReplies(true)){dialogueSavePending=true;return true;}await relay('/director/world',st.world);return true;
  }catch(e){if(e.message==='no_viewers')return false;requestFailed(st,id,'dialogue',traceId,e,Date.now());await publishModelStatus();return false;}
 }
 
@@ -1267,7 +1292,8 @@ async function tick() {
   const startedSerial=modelDecisionSerial;
   try {
     const now = Date.now();
-    if(dialogueSavePending){if(!save(true))return;dialogueSavePending=false;await relay('/director/world',st.world);return;}
+    if(dialogueSavePending){if(!save(true))return;if(!publishPhoneReplies(true))return;dialogueSavePending=false;await relay('/director/world',st.world);return;}
+    if(!publishPhoneReplies())return;
     try { const award=processBonusQueue(st,HERE+'owner-commands/',now,()=>{st.seq++;st.world=composeWorld(now);teletypeDirty=true;return save(true);});if(award)log('owner bonus',award.id,award.status); } catch(e) { log('owner bonus:',e.message); return; }
     const moneyRevision=st.economy.revision;tickEconomy(st,now);tickPerformances(st,now);tickServices(st,now);if(moneyRevision!==st.economy.revision){st.seq++;teletypeDirty=true;}
     if (st.day !== new Date().toDateString()) { st.day = new Date().toDateString(); st.jevToday = 0; }
@@ -1286,6 +1312,7 @@ async function tick() {
     if(mandatorySleep(Date.now())){st.seq++;st.world=composeWorld(Date.now());save();await relay('/director/world',st.world);}
     try{await pollOwnerDialogue(now);}catch(e){log('owner dialogue inbox unavailable');}
     if(dialogueSavePending)return;
+    for(const [id,p]of Object.entries(st.chars))if(p.ownerPhoneSession?.until<=now&&!p.pendingOwnerCall)endOwnerPhone(id,now);
     receiveOwnerCall(now);
     ownerCalls(now);                                                 // the owner's call rings once someone watches
     if(await respondOwnerDialogue(now))return;

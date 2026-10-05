@@ -39,10 +39,25 @@ test('failed answer persistence blocks publication and model repetition until sa
  const h=harness(source);h.run("receiveDialogue(st.chars.reporter,{id:'turn',text:'Привет'},Date.now())");h.setAnswer({action:'owner_reply',reply:'Здравствуйте.',reaction:'Рад звонку.',source:'qwen',model:'qwen/qwen3.7-flash'});
  h.run("var originalWriter=fs.writeFileSync;fs.writeFileSync=()=>{throw Error('fixture write failure');}");await h.run('respondOwnerDialogue(Date.now())');assert(h.requests.filter(x=>x.url.endsWith('/director/world')).every(x=>x.body.chars.reporter.ownerDialogue[0].status==='waiting'));const sentBefore=h.requests.filter(x=>x.url.endsWith('/director/world')).length;const modelBefore=h.requests.filter(x=>x.url.endsWith('/api/behavior-decide')).length;
  await h.run('tick()');h.run('st.chars.columnist.fatigue=100');await h.run('collectParticipation({viewers:1,execution:true})');await h.run("relay('/director/world',composeWorld(Date.now()))");assert.equal(h.requests.filter(x=>x.url.endsWith('/director/world')).length,sentBefore);assert.equal(h.requests.filter(x=>x.url.endsWith('/api/behavior-decide')).length,modelBefore);
- h.run('fs.writeFileSync=originalWriter');await h.run('tick()');assert.equal(h.requests.filter(x=>x.url.endsWith('/director/world')).length,sentBefore+1);assert.equal(h.writes.at(-1).data.chars.reporter.ownerDialogue[0].status,'answered');
+ h.run('fs.writeFileSync=originalWriter');await h.run('tick()');assert.equal(h.requests.filter(x=>x.url.endsWith('/director/world')).length,sentBefore+1);assert.equal(h.writes.filter(x=>x.path==='/state.json.tmp').at(-1).data.chars.reporter.ownerDialogue[0].status,'answered');
 });
 test('identical external IDs in phone and site cannot collide',async()=>{
  const h=harness(source);h.setHandler(url=>url.endsWith('/director/dialogue')?{items:[{id:'shared_id',person:'reporter',text:'Сайт',source:'site'}]}:undefined);await h.run('pollOwnerDialogue(Date.now())');
  h.queueCall('shared_id.json',{target:'reporter',text:'Звонок'});h.run("applyDecision=(id)=>{const p=st.chars[id];p.activity='phone';p.seq++;return true;};ownerCalls(Date.now());executionCapabilities={actors:{reporter:{activity:'phone',phone:{seq:st.chars.reporter.seq,receiving:true}}}};socialReady=id=>id==='reporter';receiveOwnerCall(Date.now())");
  assert.deepEqual(h.state().chars.reporter.ownerDialogue.map(t=>t.id),['web_shared_id','ph_shared_id']);assert.equal(h.archived.length,1);
+});
+test('phone follow-up uses the same handset command and holds the conversation until idle or hangup',async()=>{
+ const h=harness(source);
+ h.run("actions=()=>[];socialActions=()=>[];var pickups=0;applyDecision=(id,action)=>{pickups++;const p=st.chars[id];p.activity=action.startsWith('phone')?'phone':'wait';p.seq++;return true;};socialReady=id=>id==='reporter';startCall(Date.now(),'Привет','reporter','first');executionCapabilities={actors:{reporter:{activity:'phone',phone:{seq:st.chars.reporter.seq,receiving:true}}}};receiveOwnerCall(Date.now())");
+ const seq=h.state().chars.reporter.seq;assert.equal(h.state().chars.reporter.busyUntil,h.now()+120000);
+ h.setAnswer({action:'owner_reply',reply:'Здравствуйте.',reaction:'Рад звонку.',source:'qwen',model:'qwen/qwen3.7-flash'});await h.run('respondOwnerDialogue(Date.now())');
+ h.advance(1000);assert.equal(h.run("startCall(Date.now(),'Что нового?',null,'second')"),true);
+ h.run('receiveOwnerCall(Date.now())');assert.equal(h.state().chars.reporter.seq,seq);assert.equal(h.run('pickups'),1);assert.equal(h.state().chars.reporter.ownerDialogue.length,2);
+ await h.run('respondOwnerDialogue(Date.now())');h.run("startCall(Date.now(),'/конец','reporter','end');receiveOwnerCall(Date.now())");await h.run('respondOwnerDialogue(Date.now())');assert.equal(h.state().chars.reporter.activity,'wait');assert.equal(h.state().chars.reporter.ownerPhoneSession,undefined);
+});
+test('phone replies wait for an actual receiving handset, including after expiry or a restart',async()=>{
+ const h=harness(source);h.run("actions=()=>[];socialActions=()=>[];receiveDialogue(st.chars.reporter,{id:'ph_test',text:'Привет',source:'phone'},Date.now());startCall=()=>false");
+ h.setAnswer({action:'owner_reply',reply:'Привет.',reaction:'Радость.',source:'qwen',model:'qwen/qwen3.7-flash'});await h.run('respondOwnerDialogue(Date.now())');assert.equal(h.requests.filter(r=>r.url.endsWith('/api/behavior-decide')).length,0);
+ h.run("st.chars.reporter.activity='phone';executionCapabilities={actors:{reporter:{activity:'phone',phone:{seq:st.chars.reporter.seq+1,receiving:true}}}};socialReady=()=>true");await h.run('respondOwnerDialogue(Date.now())');assert.equal(h.requests.filter(r=>r.url.endsWith('/api/behavior-decide')).length,0);
+ h.run("executionCapabilities.actors.reporter.phone.seq=st.chars.reporter.seq");await h.run('respondOwnerDialogue(Date.now())');assert.equal(h.state().chars.reporter.ownerDialogue[0].status,'answered');
 });
