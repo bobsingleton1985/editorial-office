@@ -1,3 +1,4 @@
+import {processOwnerGiftRepairs} from '../director/owner-gift-repairs.mjs';
 import * as sharedDrinks from '../director/shared-drinks.mjs';
 import * as dialogueCommands from '../director/owner-dialogue-commands.mjs';
 import * as television from '../director/tv-control.mjs';
@@ -41,7 +42,7 @@ export function harness(source, initialState=null, config= economy.UNCONFIGURED_
   const logs = [], requests = [], writes = [], calls=new Map(), archived=[],timers=[];let handler=null,archiveFailure=false;
   class TestDate extends Date { constructor(...args) { super(...(args.length ? args : [clock])); } static now() { return clock; } }
   const context = vm.createContext({ DESKS, DINING_CHAIR, BENCH, SPOTS, CHAIR_REST, CHAIR_TUCKED,
-    ...ownerIntent,...sharedDrinks,...dialogueCommands,...television,...ownerDialogue,dirname,TextEncoder,TV_PROGRAM,onAir,processBonusQueue,parseOwnerCall,compactSnapshot,...requestsHealth,...service,...chronicle,ChronicleStore,...flirt,...transport,...diagnostic,...projection,...development,...livelihood,...consumption,...performance,HER_SOCIAL_CATALOG,...meals,...economy,...work,...social,...relationship,...policy,...places,...heroine,...sleep, Date: TestDate, URL, Math: Object.assign(Object.create(Math), { random: () => 0 }),
+    ...ownerIntent,...sharedDrinks,...dialogueCommands,...television,...ownerDialogue,dirname,TextEncoder,TV_PROGRAM,onAir,processBonusQueue,parseOwnerCall,compactSnapshot,...requestsHealth,...service,...chronicle,ChronicleStore,processOwnerGiftRepairs,...flirt,...transport,...diagnostic,...projection,...development,...livelihood,...consumption,...performance,HER_SOCIAL_CATALOG,...meals,...economy,...work,...social,...relationship,...policy,...places,...heroine,...sleep, Date: TestDate, URL, Math: Object.assign(Object.create(Math), { random: () => 0 }),
     setTimeout:(fn,delay)=>{timers.push({fn,delay});return timers.length;},
     process: { env: { HOME: '/isolated', FAST:String(speed), REGISTRY_FILE: '/registry.json', STATE_FILE: '/state.json', DIRECTOR_TOKEN: 'test-only', RELAY_URL: 'http://test-relay', JEV_URL: 'http://test-jev' } },
     console: { log: (...a) => logs.push(a.join(' ')), error: (...a) => logs.push(a.join(' ')) },

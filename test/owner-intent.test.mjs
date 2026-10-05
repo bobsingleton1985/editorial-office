@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {ownerIntentActions,ownerIntentContext,parseOwnerIntent,applyOwnerIntent} from '../director/owner-intent.mjs';
+import {ownerIntentActions,ownerIntentContext,parseOwnerIntent,applyOwnerIntent,applyOwnerMoneySplit} from '../director/owner-intent.mjs';
 import {receiveDialogue} from '../director/owner-dialogue.mjs';
 import {ensureEconomy,UNCONFIGURED_ECONOMY} from '../director/economy.mjs';
 import {completeOwnerTask,recordOwnerRequestChoice} from '../director/owner-dialogue-commands.mjs';
@@ -174,4 +174,40 @@ test('agreed activity skips only its own hangup dwell after a safe physical exit
    assert.equal(h.state().ownerDialogueEffects['crash-turn'].status,'requested','expired decision dwell is not proof of handset release');
   }
  }
+});
+
+
+const splitText='спасибо за танец. я дарю тебе 10 долларов. 3 из них передай репортеру за его усердный труд';
+const splitParams={target:'heroine',cents:1000,forward:[{target:'reporter',cents:300}],evidence:{messageId:'turn',quote:splitText}};
+test('one owner-funded gift preserves onward allocation, money source and exact replay',()=>{
+ const {st,turn,context}=fixture(splitText);const intent=parseOwnerIntent(decision('money_split',splitParams),context);
+ applyOwnerIntent(st,turn,intent,()=>[],()=>true,1001);
+ assert.equal(st.economy.accounts.heroine,1700);assert.equal(st.economy.accounts.reporter,1300);assert.equal(st.economy.ledger.filter(t=>t.kind==='bonus').length,1);assert.equal(st.economy.ledger.find(t=>t.kind==='gift').from,'heroine');assert.equal(turn.effect.retainedCents,700);assert.match(turn.effect.summary,/Репортёр — 3.00 USD/);
+ const restarted=JSON.parse(JSON.stringify(st));applyOwnerIntent(restarted,restarted.chars.reporter.ownerDialogue[0],intent,()=>[],()=>true,1002);assert.equal(restarted.economy.accounts.heroine,1700);assert.equal(restarted.economy.accounts.reporter,1300);
+ for(const bad of [{...splitParams,forward:[{target:'reporter',cents:1001}]},{...splitParams,forward:[{target:'reporter',cents:0}]},{...splitParams,forward:[{target:'heroine',cents:300}]},{...splitParams,forward:[{target:'reporter',cents:100},{target:'reporter',cents:200}]},{...splitParams,target:'all'}])assert.throws(()=>parseOwnerIntent(decision('money_split',bad),context));
+ assert.throws(()=>applyOwnerIntent(st,turn,{...intent,forward:[{target:'reporter',cents:200}]},()=>[],()=>true,1003),/dialogue_id_conflict/);
+});
+test('recipient overflow rejects entire gift before any posting',()=>{
+ const {st,turn,context}=fixture(splitText);st.economy.accounts.reporter=Number.MAX_SAFE_INTEGER;const intent=parseOwnerIntent(decision('money_split',splitParams),context),before=structuredClone(st.economy);
+ applyOwnerIntent(st,turn,intent,()=>[],()=>true,1001);assert.equal(turn.effect.status,'rejected');assert.deepEqual(st.economy,before);
+});
+test('reconcile exact already-funded gift completes only missing onward transfer, even after ledger partial recovery',()=>{
+ const {st,turn,context}=fixture(splitText);const initial=parseOwnerIntent(decision('money',{target:'heroine',cents:1000,evidence:splitParams.evidence}),context);applyOwnerIntent(st,turn,initial,()=>[],()=>true,1001);
+ const intent=parseOwnerIntent(decision('money_split',splitParams),context);assert.throws(()=>applyOwnerMoneySplit(st,turn,intent,1002),/dialogue_id_conflict/);
+ applyOwnerMoneySplit(st,turn,intent,1002,{reconcile:true});assert.equal(st.economy.accounts.heroine,1700);assert.equal(st.economy.accounts.reporter,1300);assert.equal(st.economy.ledger.filter(t=>t.kind==='bonus').length,1);assert.equal(st.economy.ledger.filter(t=>t.kind==='gift').length,1);
+ // Simulate a restored canonical old dialogue receipt, with durable economic postings retained.
+ const old={...turn.effect,forward:undefined,retainedCents:undefined,fingerprint:JSON.stringify(['heroine',{type:'money',cents:1000}]),ledgerIds:turn.effect.ledgerIds.slice(0,1)};st.ownerDialogueEffects.turn=old;turn.effect=old;delete st.economy.ownerGiftDistributionReceipts;
+ st.chars.columnist={memory:[]};st.economy.accounts.columnist=1000;assert.throws(()=>applyOwnerMoneySplit(st,turn,{...intent,forward:[{target:'columnist',cents:800}]},1003,{reconcile:true}),/command_id_conflict/);
+ applyOwnerMoneySplit(st,turn,intent,1003,{reconcile:true});assert.equal(st.economy.accounts.heroine,1700);assert.equal(st.economy.accounts.reporter,1300);assert.equal(st.economy.ledger.filter(t=>t.kind==='gift').length,1);
+});
+test('reconciliation does not spend reserved funds or change an unrelated gift',()=>{
+ const {st,turn,context}=fixture(splitText);applyOwnerIntent(st,turn,parseOwnerIntent(decision('money',{target:'heroine',cents:1000,evidence:splitParams.evidence}),context),()=>[],()=>true,1001);
+ const intent=parseOwnerIntent(decision('money_split',splitParams),context);st.economy.reservations.one={actor:'heroine',cents:1800};const before=structuredClone(st.economy);
+ assert.throws(()=>applyOwnerMoneySplit(st,turn,intent,1002,{reconcile:true}),/insufficient_funds/);assert.deepEqual(st.economy,before);
+ assert.throws(()=>applyOwnerMoneySplit(st,turn,{...intent,command:{type:'money',cents:1100}},1002,{reconcile:true}),/missing_funded_gift/);
+});
+test('director applies full split gift before spoken reply and preserves effects through failed save',async()=>{
+ const h=harness(source,null,config);h.run(`receiveDialogue(st.chars.heroine,{id:'turn',text:${JSON.stringify(splitText)}},Date.now());var writer=fs.writeFileSync;fs.writeFileSync=(p,s)=>{if(JSON.parse(s).chars?.heroine?.ownerDialogue?.[0]?.effect)throw Error('disk');return writer(p,s);}`);handlerFor(h,'money_split',splitParams);
+ await h.run('respondOwnerDialogue(Date.now())');assert.equal(h.state().economy.accounts.heroine,1700);assert.equal(h.state().economy.accounts.reporter,1300);assert.equal(h.state().chars.heroine.ownerDialogue[0].status,'waiting');
+ h.run('fs.writeFileSync=writer');await h.run('tick()');await h.run('tick()');assert.equal(h.state().economy.ledger.filter(t=>t.kind==='bonus').length,1);assert.equal(h.state().economy.ledger.filter(t=>t.kind==='gift').length,1);assert.equal(h.state().chars.heroine.ownerDialogue[0].status,'answered');
 });

@@ -1,4 +1,4 @@
-import {createOwnerDialogue} from './owner-dialogue.js';
+import {createOwnerReplyBubbles} from './owner-reply-bubbles.js';
 import {attachHeroinePhone} from './heroine-phone.mjs';
 import {attachTrayService} from './heroine-tray.mjs';
 import {createHostessMenu} from './hostess-menu.js';
@@ -432,7 +432,7 @@ async function loadPerson(id, e) {
   } catch (e2) { P.error = String(e2); P.loading = false; console.warn('person', id, e2); window.__err = String(e2); }
   showWho();
 }
-const ownerDialogueUI=AUTHORITY?null:createOwnerDialogue({url:RELAY==='/'?'':RELAY,token:()=>ownerToken,enabled:()=>S.bubbles!==false});
+const ownerDialogueUI=AUTHORITY?null:(window.__ownerReplyBubbles??=createOwnerReplyBubbles({enabled:()=>S.bubbles!==false}));
 window.addEventListener('editorial-world',e=>ownerDialogueUI?.update(e.detail));
 window.addEventListener('editorial-connection',e=>ownerDialogueUI?.connection(e.detail));
 let latest = null;let reportElapsed=0,reportPrevious='',reportSend=0;

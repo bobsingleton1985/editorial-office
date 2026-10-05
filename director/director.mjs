@@ -1,3 +1,4 @@
+import {processOwnerGiftRepairs} from './owner-gift-repairs.mjs';
 import {ownerIntentActions,ownerIntentContext,parseOwnerIntent,ownerActionContext,ownerActionRefusal,applyOwnerIntent} from './owner-intent.mjs';
 import {applyDialogueCommand,completeOwnerTask,ownerTaskContext,ownerRequestContext,recordOwnerRequestChoice,publicOwnerCommands} from './owner-dialogue-commands.mjs';
 import {ensureSharedDrinks,sharedDrinkFor,sharedDrinkPlaces,sharedDrinkContext,sharedDrinkActions,chooseSharedDrink,observeSharedDrinks,sharedDrinkCommandChanged,sharedDrinkReplyDue,consideredSharedDrink} from './shared-drinks.mjs';
@@ -1360,6 +1361,7 @@ async function tick() {
     if(dialogueSavePending){if(!save(true))return;if(!publishPhoneReplies(true))return;dialogueSavePending=false;await relay('/director/world',st.world);return;}
     if(!publishPhoneReplies())return;
     try { const award=processBonusQueue(st,HERE+'owner-commands/',now,()=>{st.seq++;st.world=composeWorld(now);teletypeDirty=true;return save(true);});if(award)log('owner bonus',award.id,award.status); } catch(e) { log('owner bonus:',e.message); return; }
+    try{const repair=processOwnerGiftRepairs(st,HERE+'owner-gift-repairs/',now,()=>{st.seq++;st.world=composeWorld(now);teletypeDirty=true;return save(true);});if(repair)log('owner gift repair',repair.id,repair.status);}catch(e){log('owner gift repair:',e.message);return;}
     const moneyRevision=st.economy.revision;tickEconomy(st,now);tickPerformances(st,now);tickServices(st,now);if(moneyRevision!==st.economy.revision){st.seq++;teletypeDirty=true;}
     if (st.day !== new Date().toDateString()) { st.day = new Date().toDateString(); st.jevToday = 0; }
     let status;

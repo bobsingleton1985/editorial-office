@@ -29,3 +29,6 @@ node_modules/
 
 # Durably exported owner telephone replies
 director/phone-dialogue-replies.json*
+
+# Trusted private reconciliation jobs and receipts
+/owner-gift-repairs/

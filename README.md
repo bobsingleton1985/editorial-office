@@ -39,9 +39,14 @@ data; keep the deployed code synchronized with the reviewed repository version.
 
 ## Owner dialogue and Telegram
 
-Write ordinary language to a character in the transparent site chat or
+Write ordinary language to a character through
 [@NYeditorialbot](https://t.me/NYeditorialbot?start=editorial). Select a recipient;
-there is no command-type or activity wizard. Enter sends, Shift+Enter adds a line.
+there is no command-type or activity wizard. The main scene has no chat panel;
+the character’s actual Telegram reply and declared reaction appear in a bubble
+over that character for 45–90 seconds, depending on text length.
+A gift can include an onward allocation, such as “I give you $10; pass $3 of it
+to the reporter”: the reporter gets $3 from that gift and the recipient keeps
+$7. Durable receipts prevent duplicate funding and forwarding.
 The model distinguishes conversation, clarification, virtual USD gifts,
 editorial assignments, activity requests and ending a phone call.
 

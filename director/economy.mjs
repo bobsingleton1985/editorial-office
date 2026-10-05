@@ -205,3 +205,44 @@ export function grantOwnerBonus(st,command,now){
  e.ownerBonusReceipts??={};e.ownerBonusReceipts[command.id]=receipt;
  return receipt;
 }
+
+
+// A gift may earmark part of the same owner-funded amount for colleagues.
+// Validate the entire remaining posting set before mutating any balances.
+export function grantOwnerGiftDistribution(st,command,now){
+ const e=st.economy,forward=command?.forward;
+ if(!command||command.target==='all'||!Array.isArray(forward)||!forward.length||forward.length>3)throw Error('invalid_distribution');
+ if(!Number.isSafeInteger(command.cents)||command.cents<=0||!Object.hasOwn(st.chars,command.target))throw Error('invalid_distribution');
+ const seen=new Set();let total=0;
+ for(const f of forward){
+  if(!f||Object.keys(f).some(k=>!['target','cents'].includes(k))||!Object.hasOwn(st.chars,f.target)||f.target===command.target||seen.has(f.target)||!Number.isSafeInteger(f.cents)||f.cents<=0)throw Error('invalid_distribution');
+  seen.add(f.target);total+=f.cents;if(!Number.isSafeInteger(total)||total>command.cents)throw Error('distribution_exceeds_gift');
+ }
+ const rows=[...forward].sort((a,b)=>a.target.localeCompare(b.target)),fingerprint=JSON.stringify([command.target,command.cents,rows]);
+ const old=e?.ownerGiftDistributionReceipts?.[command.id];
+ if(old){if(old.fingerprint!==fingerprint)throw Error('command_id_conflict');return old;}
+ if(!e?.config.enabled)throw Error('economy_disabled');
+ const bonusKey=`owner_bonus:${command.id}:${command.target}`,bonus=e.receipts[bonusKey],bonusReceipt=e.ownerBonusReceipts?.[command.id];
+ const bonusLedger=e.ledger.find(t=>t.id===bonusKey);if(!!bonusLedger!==!!bonus||bonusLedger&&(bonusLedger.from!==null||bonusLedger.to!==command.target||bonusLedger.cents!==command.cents||bonusLedger.kind!=='bonus'))throw Error('command_id_conflict');
+ if(bonusReceipt&&(bonusReceipt.fingerprint!==JSON.stringify([command.target,command.cents])||!bonus))throw Error('command_id_conflict');
+ if(bonus&&(bonus.from!==null||bonus.to!==command.target||bonus.cents!==command.cents||bonus.kind!=='bonus'||!bonusReceipt))throw Error('command_id_conflict');
+ const forwardKeys=new Map(rows.map(f=>[`owner_gift_forward:${command.id}:${f.target}`,f]));
+ const prefix=`owner_gift_forward:${command.id}:`;
+ for(const tx of [...e.ledger.filter(t=>t.id.startsWith(prefix)),...Object.values(e.receipts).filter(t=>t.id.startsWith(prefix))]){
+  const f=forwardKeys.get(tx.id);
+  if(!f||tx.from!==command.target||tx.to!==f.target||tx.cents!==f.cents||tx.kind!=='gift'||!e.receipts[tx.id])throw Error('command_id_conflict');
+ }
+ const missing=[];
+ for(const f of rows){
+  const key=`owner_gift_forward:${command.id}:${f.target}`,tx=e.receipts[key];
+  if(tx){if(!bonus||tx.from!==command.target||tx.to!==f.target||tx.cents!==f.cents||tx.kind!=='gift')throw Error('command_id_conflict');}
+  else missing.push({...f,key});
+ }
+ if(!Number.isSafeInteger(e.accounts[command.target])||!Number.isSafeInteger(e.accounts[command.target]+(bonus?0:command.cents)))throw Error('balance_overflow');
+ if(available(st,command.target)+(bonus?0:command.cents)<missing.reduce((n,f)=>n+f.cents,0))throw Error('insufficient_funds');
+ for(const f of missing)if(!Number.isSafeInteger(e.accounts[f.target])||!Number.isSafeInteger(e.accounts[f.target]+f.cents))throw Error('balance_overflow');
+ grantOwnerBonus(st,{version:1,type:'owner_bonus',id:command.id,target:command.target,cents:command.cents},now);
+ for(const f of missing){const tx=post(st,f.key,command.target,f.target,f.cents,'gift',now,{ownerCommand:command.id,earmarkedFrom:bonusKey});if(!tx)throw Error('distribution_post_failed');}
+ const receipt={id:command.id,type:'owner_gift_distribution',status:'applied',fingerprint,target:command.target,cents:command.cents,retainedCents:command.cents-total,forward:rows,ledgerIds:[bonusKey,...rows.map(f=>`owner_gift_forward:${command.id}:${f.target}`)],at:now};
+ e.ownerGiftDistributionReceipts??={};e.ownerGiftDistributionReceipts[command.id]=receipt;return receipt;
+}
