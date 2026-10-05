@@ -96,7 +96,7 @@ export function appraisalActions(st,id,names={}){
  return result;
 }
 export function chooseAppraisal(st,id,partner,stance,eventId,now,source,confidence=null){
- if(source!=='jev')return false; // the fallback never invents the character's appraisal
+ if(!['jev','qwen'].includes(source))return false; // the fallback never invents the character's appraisal
  const choice=relationOptions(st,id,partner).find(x=>x.stance===stance&&x.evidence.id===eventId);if(!choice)return false;
  const r=relationOf(st,id,partner),before=r.stance,consideredEventIds=pendingEvidence(r).map(e=>e.id);
  r.revision++;if(stance!==before){r.stance=stance;r.updatedAt=now;r.basis=structuredClone(choice.evidence);}
@@ -126,7 +126,7 @@ export function courtshipActions(st,pair,id){
  return courtshipOptions(r,id,partner).filter(o=>!(pair.intentEvents||[]).some(e=>e.actor===id&&!e.confirmedAt&&e.revision===currentIntent(pair,id).revision&&e.courtship?.replyTo===o.replyTo)).map(o=>({id:`courtship_reply@${o.answer}:${encodeURIComponent(o.replyTo)}`,description:o.statement+' Это отдельный ответ на наблюдавшийся флирт, без обещания танца или поцелуя.',...o}));
 }
 export function chooseCourtship(st,pair,id,action,now,source,available){
- if(source!=='jev')return false;
+ if(!['jev','qwen'].includes(source))return false;
  const o=courtshipActions(st,pair,id).find(o=>o.id===action);if(!o)return false;
  if(!chooseIntent(st,pair,id,o.intent,now,source,available))return false;
  const detail={answer:o.answer,replyTo:o.replyTo,statement:o.statement};

@@ -36,7 +36,7 @@ export function reflectionActions(st,job,names={}){
  return [-1,0,1].filter(delta=>(delta<=0||canIncrease)&&d.value+delta>=spec.min&&d.value+delta<=spec.max).map(delta=>({id:`relationship_reflect@${job.partner}:${job.key}:${d.value+delta}`,description:`${spec.name} к ${names[job.partner]||job.partner}: ${delta===0?'сохранить нынешнюю оценку':dimensionLabel(job.key,d.value+delta)}. Осмысли перечисленные реальные события с учётом характера и прошлого опыта. Это собственная оценка; взаимность и чужие мысли неизвестны. Занятие продолжается.`}));
 }
 export function applyReflection(st,job,action,now,source,confidence=null){
- if(source!=='jev')return false;
+ if(!['jev','qwen'].includes(source))return false;
  const r=st.chars[job.actor]?.relationships?.[job.partner];if(!r)return false;ensureDevelopment(r);
  const d=r.dimensions[job.key];if(d.revision!==job.revision||!reflectionActions(st,job).some(a=>a.id===action))return false;
  if(job.events.some(e=>!pending(r,job.key).some(x=>x.id===e.id)))return false;

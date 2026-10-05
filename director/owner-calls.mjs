@@ -1,0 +1,51 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import {randomUUID} from 'node:crypto';
+
+const aliases = new Map([
+  ['heroine','heroine'], ['героиня','heroine'], ['героине','heroine'],
+  ['columnist','columnist'], ['колумнист','columnist'], ['колумнисту','columnist'],
+  ['reporter','reporter'], ['репортер','reporter'], ['репортеру','reporter'],
+  ['newspaper_editor','newspaper_editor'], ['редактор','newspaper_editor'], ['редактору','newspaper_editor'],
+]);
+export function callRecipient(value) {
+  const id = typeof value === 'string' && aliases.get(value.trim().toLowerCase().replaceAll('ё','е'));
+  if (!id) throw Error('unsupported_call_recipient');
+  return id;
+}
+export function parseOwnerCall(value) {
+  if (!value || typeof value.text !== 'string' || !value.text.trim()) throw Error('missing_call_text');
+  const target = Object.hasOwn(value,'target') ? callRecipient(value.target) : null;
+  return {text:value.text.trim().slice(0,500), target};
+}
+export function enqueueOwnerCall(dir, value, commandId=null) {
+  const command = parseOwnerCall(value);
+  if(commandId!==null&&!(typeof commandId==='string'&&/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,95}$/.test(commandId)))throw Error('invalid_call_id');
+  const id = commandId??`${Date.now()}-${randomUUID()}`;
+  fs.mkdirSync(dir,{recursive:true,mode:0o700});
+  const file = path.join(dir,id+'.json'), temp = file+'.'+randomUUID()+'.tmp';
+  const existing=()=>{
+    for(const candidate of [file,path.join(dir,'done',id+'.json')]){
+      try{
+        const stored=parseOwnerCall(JSON.parse(fs.readFileSync(candidate,'utf8')));
+        if(stored.text!==command.text||stored.target!==command.target)throw Error('call_id_conflict');
+        const fd=fs.openSync(candidate,'r');try{fs.fsyncSync(fd);}finally{fs.closeSync(fd);}
+        const parent=fs.openSync(path.dirname(candidate),'r');try{fs.fsyncSync(parent);}finally{fs.closeSync(parent);}
+        return {id,status:'queued',target:command.target,replayed:true};
+      }catch(error){if(error.code!=='ENOENT')throw error;}
+    }
+    return null;
+  };
+  if(commandId!==null){const receipt=existing();if(receipt)return receipt;}
+  try {
+    fs.writeFileSync(temp,JSON.stringify({text:command.text,...(command.target?{target:command.target}:{}),at:Date.now()}),{mode:0o600});
+    const fd=fs.openSync(temp,'r');try{fs.fsyncSync(fd);}finally{fs.closeSync(fd);}
+    try{fs.linkSync(temp,file);}catch(error){
+      if(error.code!=='EEXIST'||commandId===null)throw error;
+      const receipt=existing();if(receipt)return receipt;
+      throw Error('call_queue_changed_retry');
+    }
+    const fdDir=fs.openSync(dir,'r');try{fs.fsyncSync(fdDir);}finally{fs.closeSync(fdDir);}
+  } finally { if(fs.existsSync(temp))fs.unlinkSync(temp); }
+  return {id,status:'queued',target:command.target};
+}

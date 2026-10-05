@@ -20,7 +20,7 @@ export function styleAllowed(style,intent='calm',relation='neutral',pose='standi
  // implies that the partner reciprocates. Expressive MOTUS styles keep their rules.
  if(intent==='flirt')return pose==='standing'&&(style==='neutral'||calm.includes(style));
  if(pose==='teletype-standing')return intent==='calm'&&['gestures-standing__IDLE-082','gestures-standing__IDLE-084'].includes(style);
- if(pose!=='standing')return intent==='calm'&&((pose==='desk-front'&&/^desk-front__SEAT-(146|147)$/.test(style))||(pose==='bench-left'&&/^bench-left__SEAT-(024|025)$/.test(style))||(pose==='bench-right'&&/^bench-right__SEAT-(029|030)$/.test(style))||(pose==='bench-front'&&/^bench-front__SEAT-(018|020|021)$/.test(style)));
+ if(pose!=='standing')return intent==='calm'&&((pose==='desk-front'&&/^desk-front__SEAT-(146|147)$/.test(style))||(pose==='bench-left'&&/^bench-left__SEAT-(024|025)$/.test(style))||(pose==='bench-right'&&/^bench-right__SEAT-(029|030)$/.test(style))||(pose==='bench-front'&&/^bench-front__SEAT-(018|020|021)$/.test(style))); 
  if(intent==='object')intent='tense';
  if(style==='neutral'||calm.includes(style))return true;
  if(friendly.includes(style))return intent==='friendly';

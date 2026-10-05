@@ -102,7 +102,7 @@ function observedMoney(st,from,to,kind,key,now){
   observeFact(st,id,partner,{id:key+':'+id,kind,actor:partner,observedAt:now,source:'agreed_money_ledger',summary:{gift_accepted:'Коллега сделал добровольный подарок, который ты принял.',loan_repaid:'Коллега вернул тебе долг.',loan_forgiven:'Коллега простил твой долг.',loan_overdue:'Наступил срок возврата, долг ещё не возвращён. Причина неизвестна.'}[kind]});
 }
 export function chooseMoney(st,id,action,pair,now,source){
-  if(source!=='jev'||!moneyActions(st,id,pair,now).some(a=>a.id===action))return false;
+  if(!['jev','qwen'].includes(source)||!moneyActions(st,id,pair,now).some(a=>a.id===action))return false;
   const e=st.economy,[verb,arg]=action.split('@'),parts=arg.split(':');
   if(verb==='money_offer'){
     const [kind,to,amount]=parts,o={id:`offer-${++e.next}`,kind,from:id,to,cents:+amount,at:now,expiresAt:now+DAY,status:'pending'};e.offers.push(o);

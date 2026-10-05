@@ -23,7 +23,7 @@ export function serviceActions(st,id,now,input){
 function release(st,s,id,reason,now){const g=s.guests[id];if(!g||!['accepted','pending'].includes(g.status))return false;delete st.economy.reservations[`service:${s.id}:${id}`];g.status=reason==='declined'?'declined':'cancelled';g.reason=reason;g.closedAt=now;st.economy.revision++;note(st,s,id,'service_cancelled','Обслуживание завершено без оплаты: '+reason,now);return true;}
 export function cancelService(st,s,reason,now){if(!s||!active(s))return false;for(const id of Object.keys(s.guests))release(st,s,id,reason,now);s.status='cancelled';s.reason=reason;s.closedAt=now;const command=st.chars.heroine?.entry?.service;if(command?.id===s.id)command.cancelled=true;st.economy.revision++;return true;}
 export function chooseService(st,id,action,now,source,input,dispatch){
- if(source!=='jev'||!serviceActions(st,id,now,input).some(a=>a.id===action))return false;
+ if(!['jev','qwen'].includes(source)||!serviceActions(st,id,now,input).some(a=>a.id===action))return false;
  const [verb,arg]=action.split('@'),[key,value,seat]=arg.split(':'),e=st.economy;
  if(verb==='money_drinks_offer'){
   const s={id:`service-${++e.next}`,performer:'heroine',status:'inviting',at:now,expiresAt:now+180000,centsPerGuest:100,consent:{at:now,source},guests:Object.fromEntries(Object.keys(st.chars).filter(k=>k!=='heroine').map(k=>[k,{status:'pending'}]))};e.services.push(s);e.revision++;
