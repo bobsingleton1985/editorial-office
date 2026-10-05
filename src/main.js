@@ -218,7 +218,7 @@ const hostessMenu=RELAY&&!DEMO&&!AUTHORITY?createHostessMenu(PANEL,RELAY,ownerTo
     row.append(text, output, input, note); d.append(row);
   }
   const note = document.createElement('p'); note.className = 'hint'; note.textContent = 'Громкость сохраняется на этом устройстве.'; d.append(note);
-  const credits=document.createElement('a');credits.href='assets/jazz-v01/CREDITS.txt';credits.target='_blank';credits.rel='noopener';credits.className='hint';credits.textContent='Музыка: Kevin MacLeod · CC BY 4.0';d.append(credits);
+  const credits=document.createElement('a');credits.href='assets/jazz-v01/CREDITS.txt?v=loudness-20261005-v01';credits.target='_blank';credits.rel='noopener';credits.className='hint';credits.textContent='Музыка: Kevin MacLeod · CC BY 4.0';d.append(credits);
 }
 applyWeather();
 const diag = { textContent: '' }; window.__diag = diag;   // technical line (GPU, frame time): console only — window.__diag.textContent

@@ -16,7 +16,7 @@ test('broadcast boundaries, wrapping and late viewers choose the same record',()
 });
 test('catalog contains the agreed 50 distinct licensed records with real durations',()=>{
  assert.equal(MUSIC_TRACKS.length,50);assert.equal(new Set(MUSIC_TRACKS.map(t=>t.id)).size,50);
- assert(MUSIC_TRACKS.every(t=>t.duration>=120&&t.url===`assets/jazz-v01/${t.id}.mp3`&&t.source.startsWith('https://incompetech.com/')));
+ assert(MUSIC_TRACKS.every(t=>t.duration>=120&&t.url===`assets/jazz-v01/${t.id}.mp3?v=loudness-20261005-v01`&&t.source.startsWith('https://incompetech.com/')));
 });
 test('vinyl is subtle and deterministic with distinct irregular surfaces',()=>{
  const a=vinylSamples(44100,8,42),b=vinylSamples(44100,8,43);
