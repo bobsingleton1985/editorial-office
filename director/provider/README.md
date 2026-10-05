@@ -1,0 +1,1 @@
+Source snapshot of the deployed local OpenRouter adapter. Runtime entry point remains CinemaStudio/ai-character-pilot/browser/server.py, importing this adapter from ai-character-pilot/openrouter_client.py. This snapshot has no credentials or runtime state. Dependencies jev_request_context.py and decision_trace.py belong to that local provider service.

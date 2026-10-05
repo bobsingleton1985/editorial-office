@@ -1,0 +1,1 @@
+Exact relay source deployed in owner-dialogue-20261005-v02. It runs in the immutable server release with the inherited simulation modules and ../owner-dialogue-inbox.mjs copied into the release relay directory. This source snapshot is kept for review; this directory is not a standalone server package. No secrets or live messages are included.

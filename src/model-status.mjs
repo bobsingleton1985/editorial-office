@@ -1,7 +1,7 @@
 const NAMES={heroine:'Героиня',columnist:'Колумнист',reporter:'Репортёр',newspaper_editor:'Редактор'};
 const REASONS={openrouter_http_429:'Провайдер ограничил частоту запросов',request_interrupted:'Запрос прерван перезапуском сервиса',jev_context_core_exceeds_limit:'Обязательная часть запроса превышает допустимый размер',jev_context_token_counter_unavailable:'Недоступен измеритель размера запроса',jev_context_provider_limit:'Провайдер отклонил слишком большой запрос',session_unavailable:'Не удалось открыть сеанс модели',action_not_available:'Модель вернула недоступное действие',daily_limit:'Достигнут дневной предел запросов',model_disabled:'Модель отключена',request_failed:'Запрос к модели завершился ошибкой'};
 export function requestStatusText(item,now=Date.now()){
- const name=NAMES[item.actor]||'Персонаж',kind=item.kind==='reflection'?'оценка отношений':'выбор действия';
+ const name=NAMES[item.actor]||'Персонаж',kind=item.kind==='dialogue'?'ответ владельцу':item.kind==='reflection'?'оценка отношений':'выбор действия';
  const reason=REASONS[item.error]||(item.error==='qwen_context_provider_limit'?'Провайдер отклонил слишком большой запрос':/^(?:jev|qwen)_context_/.test(item.error||'')?'Запрос заблокирован проверкой контекста':'Не удалось получить ответ модели');
  if(item.status==='deferred')return `${name} · ${kind}: ожидание зрителя. Запрос к провайдеру не отправлен.`;
  if(item.status==='ok')return `${name} · ${kind}: ответ получен`;
