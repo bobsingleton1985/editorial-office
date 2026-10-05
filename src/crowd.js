@@ -4,13 +4,14 @@
 // gets the same walks: a request that lands in the past (a late viewer loading the second person) replays the crowd from the start
 // of the current episode. The crowd only walks people from where they set off to the approach point; the last metre, turning
 // and sitting stay with editor.js. People standing still (at a spot) are agents too, so the walkers go round them.
+import { createNav } from './nav.js';
 import { init, NavMeshQuery, Crowd } from '@recast-navigation/core';
 import { generateSoloNavMesh } from '@recast-navigation/generators';
 
 export const STEP = 1 / 30;
 const AG = { height: 2.8, maxAcceleration: 2, separationWeight: 0.5, collisionQueryRange: 2.4, pathOptimizationRange: 8, updateFlags: 7 };
 const PASS = { lookAhead: 3.2, range: 7, margin: 0.35, maxShift: 0.9, beyond: 3 };
-const HANDOFF = 0.5, STALL = 12, ON_MESH = 0.35, HX = { x: 1.5, y: 0.5, z: 1.5 };
+const HANDOFF = 0.5, REPLAN = 5, ON_MESH = 0.35, HX = { x: 1.5, y: 0.5, z: 1.5 };
 const hyp = Math.hypot;
 
 // the static furniture from the 4 cm grid (1 = blocked) as boxes, runs merged along rows and then across rows
@@ -68,7 +69,7 @@ export async function createCrowd(G, extra, radius) {
     crowd = new Crowd(mesh, { maxAgents: 8, maxAgentRadius: radius });
     t = tBase; hist = new Map(); dirty = false;
     for (const id of [...people.keys()].sort()) {
-      const p = people.get(id); p.agent = null; p.cur = null; p.pass = null; p.stall = 0; p.boost = 0;
+      const p = people.get(id); p.agent = null; p.cur = null; p.pass = null; p.detour = null; p.stall = 0; p.boost = 0;
       for (const q of p.reqs) { if(q.stop)continue; q.done = false; q.doneT = null; q.doneAt = null; q.stalled = false; }
       const at = staticPos(p, t); if (!at) continue;
       p.agent = crowd.addAgent(V(at), { ...AG, radius, maxSpeed: 2 });
@@ -86,28 +87,67 @@ export async function createCrowd(G, extra, radius) {
     const tn = t + STEP;
     for (const p of order) {
       const s = segAt(p, tn);
-      if(s?.stop){if(p.cur!==s){if(p.agent)crowd.removeAgent(p.agent);p.agent=s.from?crowd.addAgent(V(s.from),{...AG,radius,maxSpeed:0}):null;p.cur=s;p.pass=null;p.stall=0;}continue;}
+      if(s?.stop){if(p.cur!==s){if(p.agent)crowd.removeAgent(p.agent);p.agent=s.from?crowd.addAgent(V(s.from),{...AG,radius,maxSpeed:0}):null;p.cur=s;p.pass=null;p.detour=null;p.stall=0;}continue;}
       if(!p.agent&&s)p.agent=crowd.addAgent(V(s.from),{...AG,radius,maxSpeed:s.speed});
       if(!p.agent)continue;
       if (s && s !== p.cur) {                          // a new walk starts: from where he is, towards the approach point
-        p.cur = s; p.stall = 0; p.pass = null; p.agent.updateFlags = AG.updateFlags; p.agent.maxSpeed = s.speed;
+        p.cur = s; p.stall = 0; p.pass = null; p.detour = null; p.agent.updateFlags = AG.updateFlags; p.agent.maxSpeed = s.speed;
         p.agent.teleport(V(s.from)); p.agent.requestMoveTarget(V(s.to));
         p.boost = s.v0 > 0 ? tn + s.v0 / 8 : 0; p.agent.maxAcceleration = p.boost ? 8 : AG.maxAcceleration;   // coming out of a stand-up already moving
       }
       if (p.boost && tn >= p.boost) { p.boost = 0; p.agent.maxAcceleration = AG.maxAcceleration; }
     }
+    followDetours();
     socialPass();
     for (const p of order) if (p.agent && !(p.cur && !p.cur.done)) { const at = staticPos(p, tn); if (at) p.agent.teleport(V(at)); }
     crowd.update(STEP);
     for (const p of order) { const s = p.cur; if (!p.agent || !s || s.done) continue;
       const pos = p.agent.position(), vel = p.agent.velocity(), sp = hyp(vel.x, vel.z);
-      const fin = (stalled) => { s.done = true; s.doneT = tn; s.doneAt = { x: pos.x, z: pos.z }; s.stalled = stalled; p.agent.resetMoveTarget(); p.pass = null; p.agent.updateFlags = AG.updateFlags; };
+      const fin = (stalled) => { s.done = true; s.doneT = tn; s.doneAt = { x: pos.x, z: pos.z }; s.stalled = stalled; p.agent.resetMoveTarget(); p.pass = null; p.detour = null; p.agent.updateFlags = AG.updateFlags; };
       if (hyp(pos.x - s.to.x, pos.z - s.to.z) < HANDOFF) { fin(false); continue; }
-      if (sp < 0.05) { p.stall += STEP; if (p.stall > STALL) fin(true); } else p.stall = 0;
+      if (sp < 0.05) { p.stall += STEP; if (p.stall + 1e-6 >= REPLAN) { reroute(p, tn); p.stall = 0; } } else p.stall = 0;
     }
     t = tn; record();
   }
   function advance(tq) { if (dirty) rebuild(); let n = 0; while (t < tq - 1e-6 && n++ < 3600) stepOnce(); }
+
+  // Five seconds of blocked walking: reuse the floor planner with the other
+  // bodies as temporary obstacles, then let DetourCrowd execute its waypoints.
+  // No teleport or unguarded native walk; an unavailable detour is retried in 5 s.
+  let detourNav = null;
+  function reroute(p, now) {
+    if (!detourNav) detourNav = createNav(G, radius);
+    const bodies = order.filter(o => o !== p && o.agent).map(o => {
+      const q = o.agent.position();
+      return [q.x - radius, q.z - radius, q.x + radius, q.z + radius];
+    });
+    detourNav.setBoxes([...extra, ...bodies]);
+    const pos = p.agent.position(), path = detourNav.path(pos, p.cur.to, 0);
+    const points = path?.slice(1).map(q => snap(q));
+    const valid = points?.length && points.every(q => q && q.d < 0.2);
+    const partner = p.pass?.other;
+    if (partner?.pass?.other === p) {
+      partner.pass = null; partner.agent.updateFlags = AG.updateFlags;
+      partner.agent.requestMoveTarget(V(partner.cur.to));
+    }
+    p.pass = null; p.agent.updateFlags = AG.updateFlags;
+    p.detour = valid ? points.map(q => ({x: q.x, z: q.z})) : null;
+    p.agent.resetMoveTarget();
+    p.agent.requestMoveTarget(V(p.detour?.[0] || p.cur.to));
+    log.push({t: +(now - tBase).toFixed(2), kind: 'blocked_replan', found: !!valid,
+      from: {x: pos.x, z: pos.z}, to: {...p.cur.to}, waypoints: p.detour?.map(q => ({...q})) || []});
+    if (log.length > 50) log.shift();
+  }
+  function followDetours() {
+    for (const p of order) if (p.agent && p.detour && p.cur && !p.cur.done) {
+      const q = p.agent.position(), next = p.detour[0];
+      if (hyp(q.x - next.x, q.z - next.z) < 0.2) {
+        p.detour.shift();
+        if (!p.detour.length) p.detour = null;
+        p.agent.requestMoveTarget(V(p.detour?.[0] || p.cur.to));
+      }
+    }
+  }
 
   // ---------- keep right (crowd-nav v6 socialPass): people see an oncoming person early and both keep to their right
   const walking = () => order.filter((p) => p.agent && p.cur && !p.cur.done);
@@ -137,7 +177,7 @@ export async function createCrowd(G, extra, radius) {
     return null;
   }
   function socialPass() {
-    const all = walking(), R2 = 2 * radius, need = R2 + PASS.margin;
+    const all = walking().filter(p => !p.detour), R2 = 2 * radius, need = R2 + PASS.margin;
     for (const p of all) if (p.pass?.via) {             // at his side of the meeting point (or nearly): on along the lane, no braking before it
       const q = p.agent.position(), v = p.pass.via, f = p.pass.dir;
       if (hyp(q.x - v.x, q.z - v.z) < 1.2 || (q.x - v.x) * f[0] + (q.z - v.z) * f[1] > -0.3) { p.pass.via = null; p.agent.requestMoveTarget(V(p.pass.wp)); }
