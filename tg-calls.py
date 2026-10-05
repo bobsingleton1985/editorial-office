@@ -14,6 +14,8 @@ import time
 import urllib.parse
 import urllib.request
 
+from tg_bot import BotMenu
+
 HERE = Path(__file__).resolve().parent
 ALIASES = {'всем':'all', 'всем сотрудникам':'all', 'колумнисту':'columnist',
            'репортеру':'reporter', 'редактору':'newspaper_editor', 'героине':'heroine'}
@@ -135,11 +137,11 @@ def queue_bonus(here, target, dollars, command_id):
     return receipt['status']
 
 
-def queue_call(here, text, target, command_id):
-    args = [str(here/'ring.sh'),'--id',command_id]+(['--to',target] if target else [])+[text]
+def queue_call(here, text, target, command_id, command=None):
+    args = [str(here/'ring.sh'),'--id',command_id]+(['--to',target] if target else [])+(['--command',json.dumps(command,ensure_ascii=False)] if command else [])+['--',text]
     result = subprocess.run(args,capture_output=True,text=True,timeout=15)
     if result.returncode:
-        if result.stderr.strip() in ['call_id_conflict','unsupported_call_recipient','invalid_call_id']:
+        if result.stderr.strip() in ['call_id_conflict','unsupported_call_recipient','invalid_call_id','invalid_dialogue_command']:
             raise InvalidCall(result.stderr.strip())
         raise RuntimeError('phone queue unavailable')
     receipt = json.loads(result.stdout)
@@ -246,6 +248,7 @@ class DialogueDelivery:
                     if self.state.get('target') is None: self.state['target']=actor;changed=True
                     if turn.get('status') in ['answered','closed','cancelled']:
                         reply=('☎ Звонок завершён по вашей команде.' if turn.get('status')=='closed' else '☎ Ответ на эту реплику отменён: вы завершили звонок.' if turn.get('status')=='cancelled' else f"☎ {NAMES.get(actor,actor)}\n{turn['reply']}\n\nРеакция: {turn['reaction']}")
+                        if turn.get('effect',{}): reply+='\n\n'+turn['effect'].get('summary','')
                         item.update(status='ready',reply=reply,replyHash=hashlib.sha256(reply.encode()).hexdigest(),actor=actor)
                         changed=True
         if changed: self.save()
@@ -312,18 +315,34 @@ def main():
         atomic_text(HERE/'.tg-offset',str(value))
         offset = value
     dialogue=DialogueDelivery(HERE/'.tg-dialogue-state.json')
+    private=DialogueDelivery(HERE/'.tg-bot-dialogue-state.json')
+    bot=BotMenu(HERE/'.tg-bot-state.json',atomic_text)
+    def authorized(user):
+        return call('getChatMember',chat_id=channel,user_id=user)['result'].get('status')=='creator'
+    def answer_callback(id,text):
+        try:call('answerCallbackQuery',callback_query_id=id,text=text)
+        except Exception:pass # Expired UI acknowledgements cannot replay a command.
+    def bot_world():
+        try: state=json.loads((HERE/'director/director-state.json').read_text())
+        except (OSError,ValueError):return {}
+        return {'phoneTarget':next((id for id,p in state.get('chars',{}).items() if p.get('ownerPhoneSession') or p.get('pendingOwnerCall')),None),
+                'chars':{id:{'actions':p.get('ownerActions',[]),'commands':p.get('ownerCommands',[]),'canWork':p.get('finances',{}).get('canWork',False),'label':p.get('label') or p.get('state',{}).get('label') or p.get('activity','Нет данных')} for id,p in state.get('world',{}).get('chars',{}).items()}}
     def replies():
         try: snapshot=json.loads((HERE/'director/phone-dialogue-replies.json').read_text())
         except (OSError,ValueError): return
         dialogue.collect(snapshot)
         dialogue.flush(lambda text,message:call('sendMessage',chat_id=channel,text=text,reply_parameters={'message_id':message,'allow_sending_without_reply':True})['result'],log)
-    log('bridge ready: existing channel; two-way phone dialogue + explicit bonuses')
+        private.collect(snapshot)
+        if bot.state.get('chat') and authorized(bot.state['owner']):
+            private.flush(lambda text,message:call('sendMessage',chat_id=bot.state['chat'],text=text,reply_parameters={'message_id':message,'allow_sending_without_reply':True},reply_markup=bot.keyboard())['result'],log)
+    log('bridge ready: existing channel; two-way phone dialogue + private owner bot menu')
     while True:
         try:
             replies()
-            updates = call('getUpdates',offset=offset,timeout=5,allowed_updates=['channel_post']).get('result',[])
+            updates = call('getUpdates',offset=offset,timeout=5,allowed_updates=['channel_post','message','callback_query']).get('result',[])
             for update in updates:
                 if update['update_id'] < offset: continue
+                if bot.process(update,authorized=authorized,send=lambda chat,text,keyboard:call('sendMessage',chat_id=chat,text=text,**({'reply_markup':keyboard} if keyboard else {})),answer_callback=answer_callback,enqueue=lambda *args:queue_call(HERE,*args),track=private.track,world=bot_world,save_offset=save_offset):continue
                 process_update(update,channel,since,enqueue_bonus=lambda *a:queue_bonus(HERE,*a),
                                enqueue_call=lambda *a:queue_call(HERE,*a),save_offset=save_offset,report=log,
                                track_call=dialogue.track,conversation_target=dialogue.target,is_own_reply=dialogue.is_own_reply,

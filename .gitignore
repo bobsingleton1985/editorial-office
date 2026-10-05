@@ -6,6 +6,8 @@
 .tg-offset
 .tg-bonus-since
 .tg-dialogue-state.json
+.tg-bot-state.json
+.tg-bot-dialogue-state.json
 .tg-calls.lock
 __pycache__/
 .env

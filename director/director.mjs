@@ -263,12 +263,12 @@ function releasePhone(now){
 const OWNER_PHONE_IDLE_MS=120000;
 function phoneDialogueReady(id,now){const p=st.chars[id],a=executionCapabilities?.actors?.[id];return p?.activity==='phone'&&socialReady(id,now)&&a?.activity==='phone'&&a.phone?.seq===p.seq&&a.phone.receiving===true;}
 function endOwnerPhone(id,now){const p=st.chars[id];if(p.activity==='phone'){if(applyDecision(id,'wait@'+p.place,'owner_hangup',null)===false)return false;}delete p.ownerPhoneSession;return true;}
-function startCall(now, text = null, recipient = null, callId = null) {            // addressed calls wait for their recipient; ordinary calls use proximity
+function startCall(now, text = null, recipient = null, callId = null, command = null) {            // addressed calls wait for their recipient; ordinary calls use proximity
   if (!text) st.nextCall = rnd(CALL_EVERY) * 60000 / FAST;         // text: the owner's message (Archie, ring.sh) — a fact for the one who answers
   releasePhone(now);
   const ongoing=Object.entries(st.chars).find(([id,p])=>p.ownerPhoneSession?.until>now&&p.activity==='phone');
   if(text&&ongoing){const [id,p]=ongoing;
-   if(recipient===null||recipient===id){if(p.pendingOwnerCall)return false;p.pendingOwnerCall={seq:p.seq,text,callId};p.busyUntil=p.activityUntil=p.ownerPhoneSession.until=now+OWNER_PHONE_IDLE_MS;st.world=composeWorld(now);save();return true;}
+   if(recipient===null||recipient===id){if(p.pendingOwnerCall)return false;p.pendingOwnerCall={seq:p.seq,text,callId,...(command?{command}:{})};p.busyUntil=p.activityUntil=p.ownerPhoneSession.until=now+OWNER_PHONE_IDLE_MS;st.world=composeWorld(now);save();return true;}
    if(!nextDialogue(p)&&!p.pendingOwnerCall)endOwnerPhone(id,now);
   }
   if(st.phoneLease||Object.values(st.chars).some(p=>p.activity==='phone')||executionCapabilities&&now-executionCapabilities.at<3500&&Object.values(executionCapabilities.actors).some(a=>a.phone?.occupied))return false;
@@ -278,7 +278,7 @@ function startCall(now, text = null, recipient = null, callId = null) {         
   if(applyDecision(id, st.chars[id].place === 'deskA' ? 'phone@deskA' : 'phone@phoneA', text ? 'owner_call' : 'call', null)===false)return false;
   st.phoneLease={actor:id,seq:st.chars[id].seq};
   log(`phone: desk A rings${text ? ` (the owner: «${text.slice(0, 60)}»)` : ''}, ${PEOPLE[id].name} answers`);
-  if(text){const p=st.chars[id];p.pendingOwnerCall={seq:p.seq,text,callId};p.busyUntil=Math.max(now,p.arriveAt||0)+10000/FAST;st.world=composeWorld(now);save();}
+  if(text){const p=st.chars[id];p.pendingOwnerCall={seq:p.seq,text,callId,...(command?{command}:{})};p.busyUntil=Math.max(now,p.arriveAt||0)+10000/FAST;st.world=composeWorld(now);save();}
   save();return true;
 }
 // the owner's message is a fact of the whole newsroom for half an hour (emergence decisions 28.09 §8): everybody's snapshot has it
@@ -290,7 +290,7 @@ function ownerCalls(now) {
   let call; try { call = parseOwnerCall(JSON.parse(fs.readFileSync(CALLS + f, 'utf8'))); }
   catch { log('phone: rejected invalid call'); }                    // never reroute an invalid addressed call
   if(Object.values(st.chars).some(p=>p.pendingOwnerCall?.queueFile===f))return;
-  if (call && !startCall(now, call.text, call.target, f.replace(/\.json$/, ''))) return;       // wait for the phone and the selected recipient
+  if (call && !startCall(now, call.text, call.target, f.replace(/\.json$/, ''),call.command??null)) return;       // wait for the phone and the selected recipient
   if(call){const p=Object.values(st.chars).find(p=>p.pendingOwnerCall?.callId===f.replace(/\.json$/,''));if(p){p.pendingOwnerCall.queueFile=f;save();return;}}
   try { fs.mkdirSync(CALLS + 'done', { recursive: true }); fs.renameSync(CALLS + f, CALLS + 'done/' + f); } catch (e) { log('calls:', e.message); }
 }
@@ -301,7 +301,9 @@ function receiveOwnerCall(now){
   if(!c.delivered){
    if(p.activity!=='phone'||p.seq!==c.seq){delete p.pendingOwnerCall;save();continue;}
    if(!socialReady(id,now)||a.activity!=='phone'||a.phone?.seq!==c.seq||a.phone.receiving!==true){p.busyUntil=Math.max(p.busyUntil,now+1000);continue;}
-   receiveDialogue(p,{id:'ph_'+(c.callId||id+'_'+c.seq),text:c.text,source:'phone',at:now},now);
+   receiveDialogue(p,{id:'ph_'+(c.callId||id+'_'+c.seq),text:c.text,source:'phone',at:now,command:c.command},now);
+   const turn=p.ownerDialogue.find(t=>t.id==='ph_'+(c.callId||id+'_'+c.seq));
+   applyDialogueCommand(st,id,turn,now,{canWork:supports(id,'work'),physicalOptions:actions(id)});
    p.memory.push({event:'phone_call',from:'владелец газеты',text:c.text,at:hhmm(now)});p.memory=p.memory.slice(-12);
    st.ownerMsg={text:c.text,at:now,time:hhmm(now),by:PEOPLE[id].name};
    p.ownerPhoneSession={until:now+OWNER_PHONE_IDLE_MS,lastMessageAt:now,ending:c.text.trim().toLowerCase()==='/конец'||c.text.trim().toLowerCase()==='/hangup'};p.busyUntil=p.activityUntil=p.ownerPhoneSession.until;c.delivered=true;st.seq++;st.world=composeWorld(now);
@@ -313,8 +315,8 @@ function receiveOwnerCall(now){
    for(const old of p.ownerDialogue)if(old!==turn&&old.source==='phone'&&['waiting','closing'].includes(old.status))Object.assign(old,{status:'cancelled',cancelledAt:now,control:{type:'owner_hangup',status:'applied'}});
    Object.assign(turn,{status:'closed',closedAt:now,control:{type:'owner_hangup',status:'applied'}});st.seq++;st.world=composeWorld(now);
   }
-  if(!save(true))continue;
-  if(!publishPhoneReplies(true))continue;
+  if(!save(true)){dialogueSavePending=true;return received;}
+  if(!publishPhoneReplies(true)){dialogueSavePending=true;return received;}
   if(c.queueFile){try{fs.mkdirSync(CALLS+'done',{recursive:true});if(fs.existsSync(CALLS+c.queueFile))fs.renameSync(CALLS+c.queueFile,CALLS+'done/'+c.queueFile);}catch(e){log('calls:',e.message);continue;}}
   delete p.pendingOwnerCall;save();received=true;
  }
@@ -1089,7 +1091,7 @@ async function pollNudges(now, status) {
 let dialogueSavePending=false,phoneReplySignature=null;
 // Telegram consumes only this projection, exported after canonical durable save.
 function publishPhoneReplies(saved=false){
- const result={chars:Object.fromEntries(Object.entries(st.chars).map(([id,p])=>[id,{ownerDialogue:(p.ownerDialogue||[]).filter(t=>t.source==='phone'&&['answered','closed','cancelled'].includes(t.status)).map(t=>({id:t.id,source:t.source,status:t.status,reply:t.reply,reaction:t.reaction,control:t.control}))}]))};
+ const result={chars:Object.fromEntries(Object.entries(st.chars).map(([id,p])=>[id,{ownerDialogue:(p.ownerDialogue||[]).filter(t=>t.source==='phone'&&['answered','closed','cancelled'].includes(t.status)).map(t=>({id:t.id,source:t.source,status:t.status,reply:t.reply,reaction:t.reaction,control:t.control,effect:t.effect?{type:t.effect.type,status:t.effect.status,summary:t.effect.summary}:null}))}]))};
  const serialized=JSON.stringify(result);if(serialized===phoneReplySignature)return true;if(!saved&&!save(true))return false;
  try{const file=HERE+'director/phone-dialogue-replies.json';fs.writeFileSync(file+'.tmp',serialized,{mode:0o600});const fd=fs.openSync(file+'.tmp','r');try{fs.fsyncSync(fd);}finally{fs.closeSync(fd);}fs.renameSync(file+'.tmp',file);const parent=fs.openSync(dirname(file),'r');try{fs.fsyncSync(parent);}finally{fs.closeSync(parent);}phoneReplySignature=serialized;return true;}catch{log('phone reply export failed; will retry');return false;}
 }
@@ -1108,7 +1110,7 @@ async function pollOwnerDialogue(now){
 }
 async function respondOwnerDialogue(now){
  const id=IDS.find(id=>{const p=st.chars[id],t=nextDialogue(p);return t&&!p.sleep&&!p.sleepPending&&requestAllowed(st,id,'dialogue',now)&&(t.source!=='phone'||phoneDialogueReady(id,now));});
- if(!id){const waiting=IDS.find(id=>{const p=st.chars[id],t=nextDialogue(p);return t?.source==='phone'&&!p.pendingOwnerCall&&!p.sleep&&!p.sleepPending&&p.activity!=='phone'&&requestAllowed(st,id,'dialogue',now);});if(waiting){const t=nextDialogue(st.chars[waiting]);startCall(now,t.text,waiting,t.id.slice(3));}return false;}
+ if(!id){const waiting=IDS.find(id=>{const p=st.chars[id],t=nextDialogue(p);return t?.source==='phone'&&!p.pendingOwnerCall&&!p.sleep&&!p.sleepPending&&p.activity!=='phone'&&requestAllowed(st,id,'dialogue',now);});if(waiting){const t=nextDialogue(st.chars[waiting]);startCall(now,t.text,waiting,t.id.slice(3),t.command??null);}return false;}
  const p=st.chars[id],turn=nextDialogue(p),traceId=newTraceId();
  if(process.env.NO_JEV||st.jevToday>=DAILY){requestFailed(st,id,'dialogue',traceId,new Error(process.env.NO_JEV?'model_disabled':'daily_limit'),now);await publishModelStatus();return false;}
  try{
@@ -1315,6 +1317,7 @@ async function tick() {
     if(dialogueSavePending)return;
     for(const [id,p]of Object.entries(st.chars))if(p.ownerPhoneSession?.until<=now&&!p.pendingOwnerCall)endOwnerPhone(id,now);
     receiveOwnerCall(now);
+    if(dialogueSavePending)return;
     ownerCalls(now);                                                 // the owner's call rings once someone watches
     if(await respondOwnerDialogue(now))return;
     if (stepsDue(now)) { await relay('/director/world', st.world); return; }

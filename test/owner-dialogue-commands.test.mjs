@@ -160,3 +160,16 @@ test('only old completed identical refusals are projected; live contracts and ID
  const audit=takeContextProjection(projected);assert.deepEqual(audit.omittedPerformanceIds,['old']);assert.equal(projected.self.contextProjection,undefined);assert.equal(input.self.finances.performances.length,7);
  const extension={self:{contextProjection:{reason:'unknown',fact:true}}};assert.equal(takeContextProjection(extension),null);assert.equal(extension.self.contextProjection.fact,true);
 });
+
+
+test('phone payment waits for physical receipt and canonical save before replies, archive or model use',async()=>{
+ const h=harness(source,null,config);
+ h.run("applyDecision=(id)=>{st.chars[id].activity='phone';return true;};startCall(Date.now(),'Передаю 2.50 USD','reporter','bot-payment',{type:'money',cents:250})");
+ assert.equal(h.state().economy.accounts.reporter,1000);
+ h.run("executionCapabilities={at:Date.now(),actors:{reporter:{loaded:true,seq:st.chars.reporter.seq,activity:'phone',phone:{seq:st.chars.reporter.seq,receiving:true}}}};var phoneWriter=fs.writeFileSync;fs.writeFileSync=()=>{throw Error('disk')};receiveOwnerCall(Date.now())");
+ assert.equal(h.state().economy.accounts.reporter,1250);assert.equal(h.run('dialogueSavePending'),true);
+ await h.run('tick()');assert.equal(h.requests.filter(r=>r.url.endsWith('/api/behavior-decide')).length,0);
+ h.run('fs.writeFileSync=phoneWriter');await h.run('tick()');assert.equal(h.run('dialogueSavePending'),false);
+ h.run('receiveOwnerCall(Date.now())');assert.equal(h.state().economy.accounts.reporter,1250);
+ assert.equal(h.state().chars.reporter.ownerDialogue[0].effect.status,'applied');
+});

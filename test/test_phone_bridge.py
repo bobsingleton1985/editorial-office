@@ -53,7 +53,7 @@ class PhoneTests(unittest.TestCase):
     def test_actual_launchd_path_and_retry_after_offset_failure_or_archival(self):
         base=Path(__file__).resolve().parents[1]
         with tempfile.TemporaryDirectory(prefix='tg-phone-test-') as tmp:
-            root=Path(tmp);(root/'director').mkdir()
+            root=Path(tmp);(root/'director').mkdir();(root/'relay').mkdir();shutil.copy2(base/'relay/owner-dialogue-contract.mjs',root/'relay/owner-dialogue-contract.mjs')
             for name in ['ring.sh','call.mjs','director/owner-calls.mjs']: shutil.copy2(base/name,root/name)
             offsets=[]
             def failed_offset(value): raise OSError('isolated cursor failure')
