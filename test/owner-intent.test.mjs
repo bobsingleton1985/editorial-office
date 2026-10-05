@@ -126,7 +126,7 @@ test('post-restart unavailable agreement closes canonical receipt and dialogue t
 
 function agreedDispatchFixture(){
  const h=harness(source,null,config);
- h.run("var receipt={id:'crash-turn',type:'request',actor:'reporter',action:'wait@window',status:'requested',description:'Отдых у окна'};st.ownerDialogueEffects={'crash-turn':receipt};st.chars.reporter.ownerDialogue=[{id:'crash-turn',status:'answered',intent:{kind:'action',target:'reporter',disposition:'requested',actorSeq:st.chars.reporter.seq},effect:receipt}];st.chars.reporter.busyUntil=Date.now()-1;settledForSleep=()=>true;actions=()=>[{id:'wait@window',description:'Отдых у окна'}];");
+ h.run("var receipt={id:'crash-turn',type:'request',actor:'reporter',action:'wait@window',status:'requested',description:'Отдых у окна'};st.ownerDialogueEffects={'crash-turn':receipt};st.chars.reporter.ownerDialogue=[{id:'crash-turn',status:'answered',intent:{kind:'action',target:'reporter',disposition:'requested',actorSeq:st.chars.reporter.seq},effect:receipt}];st.chars.reporter.busyUntil=Date.now()-1;var originalSettledForSleep=settledForSleep;settledForSleep=()=>true;actions=()=>[{id:'wait@window',description:'Отдых у окна'}];");
  return h;
 }
 test('crash after internal physical save restores chosen receipt with the command and does not dispatch twice',async()=>{
@@ -143,10 +143,35 @@ test('crash after own phone hangup preserves exact dispatch sequence and retains
  assert.throws(()=>h.run('finishOwnerIntentCalls(Date.now())'),/crash after hangup save/);
  const durable=h.writes.filter(x=>x.path==='/state.json.tmp').at(-1).data,t=durable.chars.reporter.ownerDialogue[0];
  assert.equal(durable.chars.reporter.entry.source,'owner_hangup');assert.equal(t.afterReplyHangup,'done');assert.equal(t.intent.dispatchActorSeq,durable.chars.reporter.seq);assert.equal(durable.phoneLease.actor,'reporter');assert.equal(durable.ownerDialogueEffects['crash-turn'].status,'requested');
- const r=harness(source,durable,config);r.run('st.chars.reporter.busyUntil=Date.now()-1;settledForSleep=()=>true;actions=()=>[{id:"wait@window",description:"Отдых у окна"}]');r.run('finishOwnerIntentCalls(Date.now())');await r.run('dispatchOwnerIntentActions(Date.now())');assert.equal(r.state().ownerDialogueEffects['crash-turn'].status,'chosen');
+ const r=harness(source,durable,config);r.run('st.chars.reporter.busyUntil=Date.now()-1;settledForSleep=()=>true;executionCapabilities={at:Date.now(),actors:{reporter:{phone:{seq:st.chars.reporter.seq,occupied:false}}}};actions=()=>[{id:"wait@window",description:"Отдых у окна"}]');r.run('finishOwnerIntentCalls(Date.now())');await r.run('dispatchOwnerIntentActions(Date.now())');assert.equal(r.state().ownerDialogueEffects['crash-turn'].status,'chosen');
 });
 test('foreign phone sequence is not hung up or rebound to an earlier agreement',async()=>{
  const h=agreedDispatchFixture();h.run("var t=st.chars.reporter.ownerDialogue[0],p=st.chars.reporter;t.replyActorSeq=p.seq;t.afterReplyHangup='pending';p.activity='phone';p.ownerPhoneSession={until:Date.now()+120000};p.seq+=7;var applications=0;applyDecision=()=>{applications++;return true;};finishOwnerIntentCalls(Date.now())");
  assert.equal(h.run('applications'),0);assert.equal(h.state().chars.reporter.activity,'phone');assert.equal(h.state().chars.reporter.ownerDialogue[0].intent.dispatchActorSeq,undefined);
  await h.run('dispatchOwnerIntentActions(Date.now())');assert.equal(h.state().ownerDialogueEffects['crash-turn'].status,'superseded');assert.equal(h.run('applications'),0);
+});
+
+
+test('agreed activity skips only its own hangup dwell after a safe physical exit',async()=>{
+ for(const variant of ['own','noWitness','occupied','stalePhoneSeq','missingPhone','foreignWait','foreignSource','newMessage','sleep']){
+  const h=agreedDispatchFixture();h.run("var t=st.chars.reporter.ownerDialogue[0],p=st.chars.reporter;p.activity='phone';p.ownerPhoneSession={until:Date.now()+120000};t.source='phone';t.replyActorSeq=p.seq;t.afterReplyHangup='pending';finishOwnerIntentCalls(Date.now())");
+  assert(h.state().chars.reporter.busyUntil>h.now()+25000,'ordinary wait dwell is still retained');
+  h.run("settledForSleep=originalSettledForSleep;executionCapabilities={at:Date.now(),actors:{reporter:{loaded:true,seq:p.seq,activity:p.activity,mode:PLACES[p.place].kind==='spot'?'idle':'seated',seat:p.place,x:PLACES[p.place].x,z:PLACES[p.place].z,phone:{seq:p.seq,occupied:false}}}}");
+  assert.equal(h.run("settledForSleep('reporter',Date.now())"),true);
+  if(variant==='noWitness')h.run('executionCapabilities.at=Date.now()-10000');
+  if(variant==='occupied')h.run("executionCapabilities.actors.reporter.phone.occupied=true;executionCapabilities.actors.reporter.phone.phase='return'");
+  if(variant==='stalePhoneSeq')h.run('executionCapabilities.actors.reporter.phone.seq--');
+  if(variant==='missingPhone')h.run('delete executionCapabilities.actors.reporter.phone');
+  if(variant==='foreignWait')h.run('delete st.chars.reporter.ownerDialogue[0].intent.dispatchActorSeq;st.chars.reporter.ownerDialogue[0].intent.actorSeq=st.chars.reporter.seq');
+  if(variant==='foreignSource')h.run("st.chars.reporter.entry.source='qwen'");
+  if(variant==='newMessage')h.run("receiveDialogue(st.chars.reporter,{id:'next',text:'Подожди'},Date.now())");
+  if(variant==='sleep')h.run("st.chars.reporter.sleepPending={id:'sleep-request'}");
+  const seq=h.state().chars.reporter.seq;await h.run('dispatchOwnerIntentActions(Date.now())');
+  assert.equal(h.state().ownerDialogueEffects['crash-turn'].status,variant==='own'?'chosen':'requested');
+  assert.equal(h.state().chars.reporter.seq,seq+(variant==='own'?1:0));
+  if(['occupied','stalePhoneSeq','missingPhone'].includes(variant)){
+   h.advance(65000);h.run('executionCapabilities.at=Date.now()');await h.run('dispatchOwnerIntentActions(Date.now())');
+   assert.equal(h.state().ownerDialogueEffects['crash-turn'].status,'requested','expired decision dwell is not proof of handset release');
+  }
+ }
 });

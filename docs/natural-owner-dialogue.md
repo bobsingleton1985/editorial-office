@@ -20,3 +20,12 @@ model, keys and context limits are unchanged. Runtime activation retained curren
 accounts, ledger, memory and session-pinned rules. Physical acceptance and its
 request receipt persist together; this does not certify full atomicity of the
 existing multi-stage service/performance handlers.
+
+
+Follow-up phone handoff fix: accepted activities skip the ordinary30–60 second
+wait introduced by hangup, only after a fresh matching physical witness and
+phone.occupied=false confirm handset release. Actual bounded rest test measured
+6.559 seconds from spoken reply to command,17.829 seconds to observed seated
+execution including walking/seating. Prior soup test took41.610 seconds to its
+command. Other busy activities, pending dialogue, sleep and physical exits retain
+their guards.122 Node tests pass, including occupied/stale/missing phone witnesses.
