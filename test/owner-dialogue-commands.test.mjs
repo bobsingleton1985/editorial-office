@@ -9,6 +9,8 @@ import {applyDialogueCommand,completeOwnerTask,ownerTaskContext,ownerRequestCont
 import {OwnerDialogueInbox} from '../relay/owner-dialogue-inbox.mjs';
 import {dollarsToCents} from '../relay/owner-dialogue-contract.mjs';
 import {harness} from './director-harness.mjs';
+import {fitRelationshipRequest} from '../director/relationship-context.mjs';
+import {compactDialogueOptions,compactPerformanceMetadata} from '../director/dialogue-options.mjs';
 const config={...structuredClone(UNCONFIGURED_ECONOMY),enabled:true,startingCents:1000,workRewardCents:300};
 const source=new URL('../director/director.mjs',import.meta.url).pathname;
 function fixture(){const st={chars:{reporter:{memory:[]},heroine:{memory:[]}},tasks:[]};ensureEconomy(st,config,1);return st;}
@@ -57,7 +59,7 @@ test('director saves a payment before ack, sends changed wallet and real physica
  h.setAnswer({action:'owner_reply',reason:'Ответ владельцу',reply:'Спасибо.',reaction:'Рад',source:'qwen',model:'qwen/qwen3.7-flash'});
  await h.run('tick()');const req=h.requests.find(r=>r.url.endsWith('/api/behavior-decide'));
  assert.equal(req.body.snapshot.self.finances.balance,1500);assert.equal(req.body.snapshot.self.ownerDialogue.effect.status,'applied');
- assert(req.body.snapshot.self.ownerDialogue.physicalOptions.some(a=>a.id!=='owner_reply'));
+ const offered=req.body.snapshot.self.ownerDialogue.physicalOptions;assert((Array.isArray(offered)?offered.map(a=>a.id):offered.context_table.rows.map(a=>a[0])).some(id=>id!=='owner_reply'));
  assert.deepEqual(req.body.snapshot.available_actions.map(a=>a.id),['owner_reply']);
 });
 test('failed payment save blocks ack, world publication and model calls until persisted',async()=>{
@@ -122,4 +124,26 @@ test('old assignment completion returns to public receipts after many subsequent
  for(let i=0;i<31;i++){const payment=turn(st,'web_pay_'+i,{type:'money',cents:100});applyDialogueCommand(st,'reporter',payment,5+i);}
  st.tasks[0].done_min=5;completeOwnerTask(st,'reporter',st.tasks[0],1000);
  const result=publicOwnerCommands(st,'reporter');assert.equal(result.length,30);assert.equal(result.at(-1).id,t.id);assert.equal(result.at(-1).status,'completed');
+});
+test('budget trims old supporting dialogue without deleting canonical turns or current obligations',()=>{
+ const history=Array.from({length:10},(_,i)=>({id:'turn-'+i,reply:'x'.repeat(500)}));
+ const original={self:{relationships:{},ownerDialogueHistory:history,ownerTasks:[{id:'task'}],ownerRequests:[{id:'request'}]},available_actions:[{id:'continue',description:'Real option'}]};
+ const out=fitRelationshipRequest(original,1600);assert.equal(history.length,10);assert.equal(out.self.ownerDialogueHistory.length,2);
+ assert.deepEqual(out.self.ownerTasks,original.self.ownerTasks);assert.deepEqual(out.self.ownerRequests,original.self.ownerRequests);assert.deepEqual(out.available_actions,original.available_actions);
+ assert.deepEqual(out.self.contextProjection.omittedDialogueIds,history.slice(0,8).map(t=>t.id));
+});
+test('physical options compress losslessly while preserving all IDs and the current owner message',()=>{
+ const d={message:{text:'Что ты можешь?'},physicalOptions:Array.from({length:20},(_,i)=>({id:'option-'+i,description:'Выполнить действие '+i+'. Только после независимого согласия собеседника и подтверждённого физического исполнения в редакции.'}))};
+ const result=compactDialogueOptions(d);assert(result.optionText);assert.deepEqual(result.message,d.message);
+ const rows=result.physicalOptions.context_table.rows;assert.deepEqual(rows.map(a=>a[0]),d.physicalOptions.map(a=>a.id));
+ rows.forEach((a,i)=>assert.equal(a[1].replace(/@(P\d+);/g,(_,key)=>result.optionText[key]),d.physicalOptions[i].description));
+ assert.equal(d.optionText,undefined);assert.deepEqual(compactDialogueOptions({...d,physicalOptions:[{id:'collision',description:'@P1; must remain literal'}]}).physicalOptions,[{id:'collision',description:'@P1; must remain literal'}]);
+});
+
+test('shared performance metadata reconstructs exact contracts and preserves status for history selection',()=>{
+ const sequence=Array.from({length:8},(_,i)=>({action:'dance-'+i,duration:10}));
+ const original={performances:Array.from({length:10},(_,i)=>({id:'contract-'+i,status:i===9?'offered':'paid',cents:300,sequence,consent:{independent:true}}))};
+ const out=compactPerformanceMetadata(original);assert(out.performanceMetadata);
+ const decode=value=>typeof value==='string'&&/^@S\d+;$/.test(value)?out.performanceMetadata[value.slice(1,-1)]:value;
+ const rows=out.performances.map(r=>({...r,sequence:decode(r.sequence),consent:decode(r.consent)}));assert.deepEqual(rows,original.performances);assert.equal(original.performanceMetadata,undefined);
 });

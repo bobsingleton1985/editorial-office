@@ -1,3 +1,4 @@
+import {compactDialogueOptions,compactPerformanceMetadata} from './dialogue-options.mjs';
 // Bound a transport copy only; the canonical relationship history remains intact.
 export function relationProjection(r,decisions=12){
  const out=structuredClone(r);
@@ -20,6 +21,7 @@ export function finalContextGuardReady(status){
 }
 export function fitRelationshipRequest(input,maxBytes=65000,serverStatus=null){
  const out=structuredClone(input),s=out.self;
+ if(s.ownerDialogue)s.ownerDialogue=compactDialogueOptions(s.ownerDialogue);
  // Wallet rows already carry these exact numbers. Retain one factual source
  // and an explicit per-action lookup instead of repeating the prose in criteria.
  for(const a of out.available_actions||[]){
@@ -42,6 +44,11 @@ export function fitRelationshipRequest(input,maxBytes=65000,serverStatus=null){
  const relations=[...Object.values(s.relationships),...(s.currentActivity?.relationship?[s.currentActivity.relationship]:[])];
  while(new TextEncoder().encode(JSON.stringify(out)).length>maxBytes){
   // Prefer old supporting history over current personal memories and episodes.
+  const dialogueHistory=s.ownerDialogue?.history||s.ownerDialogueHistory;
+  if(dialogueHistory?.length>1){
+   s.contextProjection.omittedDialogueIds??=[];s.contextProjection.omittedDialogueIds.push(dialogueHistory[0].id);
+   pop(dialogueHistory,1);continue;
+  }
   if(relations.some(r=>pop(r.dimensionDecisions,1))||pop(s.finances?.transactions,3)||relations.some(r=>pop(r.observations,3))
     ||relations.some(r=>Object.values(r.dimensions||{}).some(d=>pop(d.basis,1)))||relations.some(r=>pop(r.courtship?.history,3))
     ||relations.some(r=>pop(r.dimensionDecisions))||relations.some(r=>pop(r.observations,1))||pop(s.finances?.transactions,1)
@@ -51,5 +58,7 @@ export function fitRelationshipRequest(input,maxBytes=65000,serverStatus=null){
   if(finalContextGuardReady(serverStatus))break;
   throw Error('relationship_request_core_exceeds_budget');
  }
+ // Preserve every remaining contract, including refusals, with shared exact metadata.
+ if(s.finances?.performances)s.finances=compactPerformanceMetadata(s.finances);
  return out;
 }
