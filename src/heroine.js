@@ -12,7 +12,7 @@ export async function prepareHeroine(load,shared,id,assetBase='',overrides={}){
   const named=async(path,name)=>{const c=(await load(path)).animations[0].clone();c.name=name;return c;};
   const animationsPromise=Promise.all([named(H+'clip-MX-WALK.glb','walk'),named(H+'clip-SEAT-001.glb','stand_idle'),...navNames.map(n=>named(n==='sit_idle'&&overrides.sitIdle?overrides.sitIdle:assetBase+'heroine-nav/clip-'+n+'.glb',n))]);
   const foodPromise=Promise.all([named(H+'clip-HER-FORK02-owner-v03.glb','fork'),named(H+'clip-HER-SOUP-owner-v02.glb','soup'),named(H+'clip-HER-STIR-owner-v02.glb','stir'),load(H+'plate-food-owner-v03a.glb'),load(H+'fork-owner-v03.glb'),load(H+'knife-owner-v03.glb'),load(H+'key-props-food.glb')]);
-  const manifestPromise=fetch(H+'manifest.json').then(r=>{if(!r.ok)throw Error('HTTP '+r.status);return r.json();});
+  const manifestPromise=fetch(H+'manifest-dance-only-v01.json').then(r=>{if(!r.ok)throw Error('HTTP '+r.status);return r.json();});
   const bankPromise=load(overrides.repertoireBank||(overrides.repertoireBase||assetBase+'heroine-repertoire/')+'heroine-repertoire-v01.glb');
   const sleepBankPromise=load(overrides.sleepBank||assetBase+'heroine-sleep-chair/heroine-chair-sleep-v01.glb');
   const propsPromise=Promise.all([load(H+'key-props-bottle.glb'),load(H+'key-props-glass.glb'),fetch(H+'pour-grip-v04.json').then(r=>r.json())]);
