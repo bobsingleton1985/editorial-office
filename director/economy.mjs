@@ -26,6 +26,7 @@ export function ensureEconomy(st,config=UNCONFIGURED_ECONOMY,now=Date.now()) {
 function post(st,key,from,to,cents,kind,now,extra={}) {
   const e=st.economy;if(Object.hasOwn(e.receipts,key))return e.receipts[key];
   if(!Number.isSafeInteger(cents)||cents<0||from===to||from&&!Object.hasOwn(e.accounts,from)||to&&!Object.hasOwn(e.accounts,to))return false;
+  if(from&&(!Number.isSafeInteger(e.accounts[from])||!Number.isSafeInteger(e.accounts[from]-cents))||to&&(!Number.isSafeInteger(e.accounts[to])||!Number.isSafeInteger(e.accounts[to]+cents)))return false;
   if(from&&available(st,from)<cents)return false;
   if(from)e.accounts[from]-=cents;if(to)e.accounts[to]+=cents;
   const tx={id:key,from,to,cents,kind,at:now,...extra};e.ledger.push(tx);e.receipts[key]=tx;e.revision++;

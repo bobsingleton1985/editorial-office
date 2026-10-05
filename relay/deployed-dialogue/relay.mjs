@@ -269,7 +269,7 @@ const server = http.createServer(async (req, res) => {
     const ip=ipOf(req)+'|dialogue';if(Date.now()-(lastChange.get(ip)||0)<1000)return json(res,429,{error:'too_often'});
     let b;try{b=await readBody(req,4096);}catch{return json(res,400,{error:'invalid_owner_dialogue'});}
     try{const receipt=ownerDialogueInbox.enqueue(b,Date.now());lastChange.set(ip,Date.now());return json(res,202,receipt);}
-    catch(e){const code=['invalid_owner_dialogue','dialogue_id_conflict','dialogue_queue_full'].includes(e.message)?e.message:'dialogue_storage_unavailable';return json(res,code==='invalid_owner_dialogue'?400:code==='dialogue_id_conflict'?409:503,{error:code});}
+    catch(e){const code=['invalid_owner_dialogue','invalid_dialogue_command','dialogue_id_conflict','dialogue_queue_full'].includes(e.message)?e.message:'dialogue_storage_unavailable';return json(res,['invalid_owner_dialogue','invalid_dialogue_command'].includes(code)?400:code==='dialogue_id_conflict'?409:503,{error:code});}
   }
   if(url.pathname==='/settings/model-retry'){
     if(req.method!=='POST')return json(res,405,{error:'method_not_allowed'});

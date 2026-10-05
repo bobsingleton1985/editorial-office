@@ -1,3 +1,4 @@
+import {applyDialogueCommand,completeOwnerTask,ownerTaskContext,ownerRequestContext,recordOwnerRequestChoice,publicOwnerCommands} from './owner-dialogue-commands.mjs';
 import {receiveDialogue,nextDialogue,dialogueContext,answerDialogue,publicDialogue} from './owner-dialogue.mjs';
 import {TV_CHANNELS,tvActions,receiveTvSwitch} from './tv-control.mjs';
 import {processBonusQueue} from './owner-bonuses.mjs';
@@ -560,6 +561,7 @@ function updatePersonNeeds(id, now, witnessedWorkMs=0) {
     if (t.done_min >= t.need_min) {                                   // external work_finished event for this task
       st.tasks = st.tasks.filter((x) => x !== t); p.memory.push({ event: 'work_finished', task: t.id, title: t.title, at: hhmm(now) }); p.memory = p.memory.slice(-12);
       rewardWork(st,id,t,now);observeWorkCompleted(st,id,t,now);st.seq++;teletypeDirty=true;
+      if(completeOwnerTask(st,id,t,now)){st.world=composeWorld(now);if(!save(true))dialogueSavePending=true;}
       log(`work_finished ${t.id} «${t.title}» (${PEOPLE[id].name})`); p.busyUntil = Math.min(p.busyUntil, now + 15000);   // a natural moment to decide again
     }
 }
@@ -624,7 +626,7 @@ function actions(id) {
     if (!out.some((a) => a.id === verb + '@' + pl)) add(verb + '@' + pl, `${fill(w.jev, pl)} (${EFFECT(id, verb)})${danceActivity(verb)?' Музыка включится автоматически.':''}`);
   }
   if (here !== 'teletype') add('wait@teletype', `Подойти к телетайпу и постоять у него (${EFFECT(id, 'wait')})`);
-  if(socialReady(id,Date.now())&&executionCapabilities.actors[id].readingAvailable===true)add('read_wire@teletypeRead','Подойти к печатной ленте телетайпа и читать её; чтение начинается только после подхода и фактического взгляда на бумагу.');
+  if(socialReady(id,Date.now())&&executionCapabilities?.actors?.[id]?.readingAvailable===true)add('read_wire@teletypeRead','Подойти к печатной ленте телетайпа и читать её; чтение начинается только после подхода и фактического взгляда на бумагу.');
   if (REG.smoke) for (const o of Object.keys(st.chars)) if (o !== id && canInvite(id, o, Date.now()))
     out.push({ id: 'invite@' + o, description: `Позвать ${ACC[o] || o} покурить вместе у окна (он сейчас: ${labelOf(o, st.chars[o].activity, st.chars[o].place)}); он решит сам — может согласиться, отказать или подойти позже` });
   const later = deferredInvite(id, Date.now());
@@ -633,7 +635,7 @@ function actions(id) {
     out.push({ id: 'music_ask@' + o, description: `Попросить ${ACC[o] || o} включить музыку по телевизору (он ответит сам — согласится или откажет; ответ он даёт сразу)` });
   if(!committedPerformance(st,id))out.push(...tvActions(st,id,executionCapabilities,Date.now(),taken));
   out.push(...socialActions(id));
-  const affordable=list=>expandMealActions(list.filter(a=>st.hostessMode!=='drinks'||!a.id.split('@')[0].includes('dance')), socialReady(id,Date.now())?executionCapabilities.actors[id].meals:null).filter(a=>a.id==='continue'||(!price(st,a.id.split('@')[0])||executionCapabilities?.actors?.[id]?.moneyWitness===1)&&canReplacePurchase(st,id,a.id.split('@')[0],Date.now())).map(a=>({...a,description:a.description+(price(st,a.id.split('@')[0])?` Стоимость ${price(st,a.id.split('@')[0])/100} USD; списание при исполнении.`:'' )}));
+  const affordable=list=>expandMealActions(list.filter(a=>st.hostessMode!=='drinks'||!a.id.split('@')[0].includes('dance')), socialReady(id,Date.now())?executionCapabilities?.actors?.[id]?.meals:null).filter(a=>a.id==='continue'||(!price(st,a.id.split('@')[0])||executionCapabilities?.actors?.[id]?.moneyWitness===1)&&canReplacePurchase(st,id,a.id.split('@')[0],Date.now())).map(a=>({...a,description:a.description+(price(st,a.id.split('@')[0])?` Стоимость ${price(st,a.id.split('@')[0])/100} USD; списание при исполнении.`:'' )}));
   out.push(...moneyActions(st,id,pairOf(st,id),Date.now(),Object.fromEntries(Object.entries(PEOPLE).map(([id,p])=>[id,p.name]))));
   out.push(...serviceActions(st,id,Date.now(),serviceInput(Date.now())));
   out.push(...performanceActions(st,id,pairOf(st,id),Date.now(),performanceInput(Date.now())));
@@ -675,10 +677,10 @@ async function snapshot(id, avail) {
       need_limitations: needLimitations(id),
       needs_scale: 'Шкалы 0–100, чем выше, тем сильнее: fatigue — усталость' + liveNeeds(id).map((k) => `, ${k} — ${NEED_TXT[k]}`).join('') + '.', mode: p.activity, place: PLACES[p.place].name,
       since_minutes: Math.round((now - p.since) / 60000), own_desk: P.home ? PLACES[P.home].name : null,
-      task: task ? { id: task.id, kind: 'отредактировать сообщение с ленты для утреннего номера', title: task.title,
-        arrived: task.arrived, progress_minutes: Math.round(task.done_min), needs_minutes: task.need_min,
+      task: task ? { id: task.id, kind: task.ownerDialogueId?'редакционное поручение владельца':'отредактировать сообщение с ленты для утреннего номера', title: task.title,
+        arrived: task.arrived, progress_minutes: +task.done_min.toFixed(2), needs_minutes: task.need_min,...(task.ownerDialogueId?{ownerAssignment:true,brief:task.brief,deadlineAt:task.deadlineAt,rewardCents:task.ownerRewardCents}:{}),
         note: 'Работа продвигается только за письменным столом (work_variant); закончится внешним событием work_finished.' } : null,
-      finances:{...moneyContext(st,id),...performanceContext(st,id),...serviceContext(st,id),canWork:supports(id,'work'),livelihood:livelihoodContext(st,id,avail,now)}, pending_tasks: waiting().map((x) => ({ id: x.id, title: x.title, arrived: x.arrived })), memory: structuredClone(p.memory), relationships:publicRelations(st,id), courtship:Object.fromEntries(Object.entries(p.relationships).map(([other,r])=>[other,courtshipStatus(r,id,other)])), currentActivity: publicConversation(st,id), recentEpisodes: structuredClone(p.memory.filter(x=>x.event==='conversation_finished'||x.event==='conversation_cancelled').slice(-3)) },
+      finances:{...moneyContext(st,id),...performanceContext(st,id),...serviceContext(st,id),canWork:supports(id,'work'),livelihood:livelihoodContext(st,id,avail,now)}, pending_tasks: waiting().map((x) => ({ id: x.id, title: x.title, arrived: x.arrived })), memory: structuredClone(p.memory), relationships:publicRelations(st,id), courtship:Object.fromEntries(Object.entries(p.relationships).map(([other,r])=>[other,courtshipStatus(r,id,other)])), ownerTasks:ownerTaskContext(st,id,now),ownerRequests:ownerRequestContext(st,id),currentActivity: publicConversation(st,id), recentEpisodes: structuredClone(p.memory.filter(x=>x.event==='conversation_finished'||x.event==='conversation_cancelled').slice(-3)) },
     situation: { television:st.tvMusic&&now>=st.tvMusic.from&&now<st.tvMusic.until?{channel:st.tvMusic.ch,label:TV_CHANNELS[st.tvMusic.ch],until:st.tvMusic.until}:{mode:'scheduled'},pendingTvSwitch:st.pendingTvSwitch?{actor:st.pendingTvSwitch.actor,channel:st.pendingTvSwitch.channel,switched:false}:null,local_time: hhmm(now), room: 'вечерняя редакция нью-йоркской газеты, 1956 год: три письменных стола (A, B, C), скамья у круглого стола, окна на город, телетайп, бар, телевизор',
       music: musicOn(now) ? 'по телевизору играет музыка' : musicPending(now) ? 'кто-то идёт включать музыку, она вот-вот заиграет' : 'музыка не играет',
       others: others(id), ...(inviteNote[id] ? { invitation: inviteNote[id] } : {}), ...(deferredInvite(id, now) ? { deferred_invitation: `${PEOPLE[st.deferredInvites[id].from].name} ещё курит у окна. Ты ответил «не сейчас»; можно присоединиться или выбрать другое занятие.` } : {}), teletype: waiting().length ? `на ленте ждут правки сообщений: ${waiting().length}` : 'новых сообщений на ленте нет', ...ownerNote(now) },
@@ -756,7 +758,11 @@ async function askJev(id, avail, reflection = null, diagnosticId=newTraceId(), o
       else { try { await session('resume'); } catch (e) { if (!/session_not_paused/.test(e.message)) throw e; } }
       const snap=await snapshot(id,structuredClone(avail));
       if(reflection){snap.self.reflection=structuredClone(reflection);snap.limits.push('This request is dedicated reflection, not a choice of physical activity. Assess only the listed dimension using the listed actual events, prior appraisals and your character. Keeping the value is allowed. A friendly conversation can matter without proving romance; a refusal is not misconduct. Do not infer unknown thoughts or a topic.');}
-      if(ownerDialogue)snap.self.ownerDialogue=structuredClone(ownerDialogue);
+      if(ownerDialogue){
+        const physicalOptions=actions(id);
+        snap.self.ownerDialogue={...structuredClone(ownerDialogue),physicalOptions:structuredClone(physicalOptions),physicalOptionsAt:Date.now()};
+        snap.self.finances.livelihood=livelihoodContext(st,id,physicalOptions,Date.now());
+      }
       else if(st.chars[id].ownerDialogue?.length)snap.self.ownerDialogueHistory=publicDialogue(st.chars[id]).slice(-12);
       const original=structuredClone(snap);
       const context=compactSnapshot(original);
@@ -901,7 +907,7 @@ function mandatorySleep(now){
 }
 function entryOf(id, now) {                                          // his line in the world: who he is (for the page) + what he does now
   const P = PEOPLE[id], p = st.chars[id];
-  return { name: P.name, glb: P.glb, chairBack: P.chairBack, home: P.home, ...(P.walkPolicy ? { walkPolicy: P.walkPolicy } : {}), ...(P.mouth ? { mouth: P.mouth } : {}), ...(P.phoneMouth ? { phoneMouth: P.phoneMouth } : {}), seq: p.seq, social: publicConversation(st,id) ? {...publicConversation(st,id,true), style:p.socialStyle||'neutral', styleRevision:p.socialStyleRevision||0} : null, sleep:p.sleep||null,sleepPending:p.sleepPending||null,finances:{...moneyContext(st,id),...performanceContext(st,id),...serviceContext(st,id),canWork:supports(id,'work'),livelihood:livelihoodContext(st,id,[],now)},ownerDialogue:publicDialogue(p),relationships:publicRelations(st,id),reflection:st.reflection?.last?.actor===id?st.reflection.last:null,memory:p.memory.filter(x=>x.event==='conversation_finished'||x.event==='conversation_cancelled'||x.event==='sleep_started'||x.event==='sleep_finished').slice(-6), ...(p.entry || { from: target(p.place), cmd: null, at: now, label: labelOf(id, p.activity, p.place), activity: p.activity, source: 'start' }), state: stateNow(id, now) };
+  return { name: P.name, glb: P.glb, chairBack: P.chairBack, home: P.home, ...(P.walkPolicy ? { walkPolicy: P.walkPolicy } : {}), ...(P.mouth ? { mouth: P.mouth } : {}), ...(P.phoneMouth ? { phoneMouth: P.phoneMouth } : {}), seq: p.seq, social: publicConversation(st,id) ? {...publicConversation(st,id,true), style:p.socialStyle||'neutral', styleRevision:p.socialStyleRevision||0} : null, sleep:p.sleep||null,sleepPending:p.sleepPending||null,finances:{...moneyContext(st,id),...performanceContext(st,id),...serviceContext(st,id),canWork:supports(id,'work'),livelihood:livelihoodContext(st,id,[],now)},ownerDialogue:publicDialogue(p),ownerActions:actions(id),ownerTasks:ownerTaskContext(st,id,now),ownerCommands:publicOwnerCommands(st,id),relationships:publicRelations(st,id),reflection:st.reflection?.last?.actor===id?st.reflection.last:null,memory:p.memory.filter(x=>x.event==='conversation_finished'||x.event==='conversation_cancelled'||x.event==='sleep_started'||x.event==='sleep_finished').slice(-6), ...(p.entry || { from: target(p.place), cmd: null, at: now, label: labelOf(id, p.activity, p.place), activity: p.activity, source: 'start' }), state: stateNow(id, now) };
 }
 function composeWorld(now) {
   const chars = {}, chairs = { ...st.chairs };
@@ -913,7 +919,7 @@ function composeWorld(now) {
 function decisionContext(id){const p=st.chars[id],pair=pairOf(st,id),partner=pair?.members.find(x=>x!==id),r=partner&&p.relationships?.[partner];return {hostessMode:st.hostessMode||'dance',economyRevision:st.economy.revision,actorSeq:p.seq,conversationId:pair?.id||null,partner:partner||null,intentRevision:currentIntent(pair,id).revision,relationRevision:r?.revision||0,lastSignal:r?.observations.at(-1)?.id||null,relations:Object.entries(p.relationships||{}).map(([other,r])=>[other,r.revision,r.observations.at(-1)?.id||null])};}
 function applyDecision(id, action, source, confidence, expected=null, performanceDispatch=false,systemSleepDispatch=false,serviceDispatch=false) {
   if(expected){const current=decisionContext(id);if(!action.startsWith('money_')||action.startsWith('money_performance_reply@'))expected={...expected,economyRevision:current.economyRevision};if(JSON.stringify(expected)!==JSON.stringify(current))return false;}
-  const selectedAction=action,resolved=resolveMealAction(action,socialReady(id,Date.now())?executionCapabilities.actors[id].meals:null);if(!resolved)return false;action=resolved.action;
+  const selectedAction=action,resolved=resolveMealAction(action,socialReady(id,Date.now())?executionCapabilities?.actors?.[id]?.meals:null);if(!resolved)return false;action=resolved.action;
   const now=Date.now(),p=st.chars[id],[verb,selection]=action.split('@'),variant=verb==='heroine_tv_channel'?'tvKnob':selection,from=p.place;
   if(action==='continue'&&performanceReplyDue(st,id,now)&&p.busyUntil>now)return true; // Considering a quote must not replay an in-flight command.
   if(action==='continue'&&committedPerformance(st,id)){p.busyUntil=Math.max(p.busyUntil,now+15000);return true;}
@@ -1052,8 +1058,10 @@ async function pollOwnerDialogue(now){
  const r=await relay('/director/dialogue');let changed=false;
  for(const n of r.items||[]){
   const p=st.chars[n.person];if(!p||!PEOPLE[n.person])continue;
-  changed=receiveDialogue(p,{...n,id:'web_'+n.id},now)||changed;
-  if(changed){st.seq++;st.world=composeWorld(now);}if(!save(true))return;
+  const received=receiveDialogue(p,{...n,id:'web_'+n.id},now),t=p.ownerDialogue.find(t=>t.id==='web_'+n.id);
+  const effect=applyDialogueCommand(st,n.person,t,now,{canWork:supports(n.person,'work'),physicalOptions:actions(n.person)});
+  changed=received||!!effect||changed;
+  if(changed){st.seq++;teletypeDirty=true;st.world=composeWorld(now);}if(!save(true)){dialogueSavePending=true;return;}
   await relay('/director/dialogue/ack',{id:n.id});
  }
  if(changed)await relay('/director/world',st.world);
@@ -1252,13 +1260,16 @@ async function tick() {
     catch (e) { resetConsumption(st);if (!warned.relay) { log('relay unreachable:', e.message); warned.relay = true; } for (const p of Object.values(st.chars)) p.lastNeeds = now; st.lastWire = now; pauseParticipation(st,now);return; }
     await cityClock(now);
     if (status.viewers) tickNeeds(now); else { for (const p of Object.values(st.chars)) p.lastNeeds = now; st.lastWire = now; }   // the newsroom's time runs only while someone watches
+    if(dialogueSavePending)return;
     try { await pollNudges(now, status); } catch (e) { log('nudges:', e.message); }
     if (!st.world?.chars || status.seq !== st.world.seq || teletypeDirty) { teletypeDirty = false; st.world = composeWorld(now); save(); await relay('/director/world', st.world); }   // relay restarted, a story came in, someone took one
     if (status.viewers !== lastViewers) { log('viewers', status.viewers); lastViewers = status.viewers; }
     if (!status.viewers) {await collectParticipation(status);return;}
     await collectParticipation(status);
+    if(dialogueSavePending)return;
     if(mandatorySleep(Date.now())){st.seq++;st.world=composeWorld(Date.now());save();await relay('/director/world',st.world);}
     try{await pollOwnerDialogue(now);}catch(e){log('owner dialogue inbox unavailable');}
+    if(dialogueSavePending)return;
     receiveOwnerCall(now);
     ownerCalls(now);                                                 // the owner's call rings once someone watches
     if(await respondOwnerDialogue(now))return;
@@ -1285,6 +1296,7 @@ async function tick() {
     if (!d || !avail.some((a) => a.id === d.action)) { source = 'rule'; d = fallback(id, avail); }
     const beforeApply=decisionContext(id),beforeSeq=st.seq,beforeActorSeq=st.chars[id].seq;
     const applied=applyDecision(id, d.action, source, d.confidence ?? null, expectedDecision);
+    if(['jev','qwen'].includes(source)&&applied!==false&&st.seq!==beforeSeq&&recordOwnerRequestChoice(st,id,d.action,Date.now())){st.world=composeWorld(Date.now());if(!save(true)){dialogueSavePending=true;return;}}
     const effectiveExpected=d.action.startsWith('money_')&&!d.action.startsWith('money_performance_reply@')?expectedDecision:{...expectedDecision,economyRevision:beforeApply.economyRevision};
     const stale=applied===false&&JSON.stringify(effectiveExpected)!==JSON.stringify(beforeApply);
     trace(diagnosticId,'application',{actorId:id,action:d.action,source,confidence:d.confidence??null,

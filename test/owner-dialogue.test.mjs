@@ -25,7 +25,7 @@ test('second turn carries actual preceding reply; recipients and failures remain
 test('all phone recipients wait for matching physical handset receipt, and archive retries do not duplicate replies',()=>{
  const h=harness(source);h.queueCall('phone-test.json',{target:'reporter',text:'Позвоните мне после работы.'});h.run("applyDecision=(id)=>{const p=st.chars[id];p.activity='phone';p.seq++;return true;};ownerCalls(Date.now())");
  assert.equal(h.state().chars.reporter.ownerDialogue,undefined);assert.equal(h.archived.length,0);
- h.run("executionCapabilities={at:Date.now(),actors:{reporter:{loaded:true,seq:st.chars.reporter.seq,activity:'phone',phone:{seq:st.chars.reporter.seq,receiving:true}}}};socialReady=()=>true");h.failArchive(true);h.run('receiveOwnerCall(Date.now())');assert.equal(h.state().chars.reporter.ownerDialogue.length,1);
+ h.run("executionCapabilities={at:Date.now(),actors:{reporter:{loaded:true,seq:st.chars.reporter.seq,activity:'phone',phone:{seq:st.chars.reporter.seq,receiving:true}}}};socialReady=id=>id==='reporter'");h.failArchive(true);h.run('receiveOwnerCall(Date.now())');assert.equal(h.state().chars.reporter.ownerDialogue.length,1);
  h.failArchive(false);h.run('receiveOwnerCall(Date.now())');assert.equal(h.state().chars.reporter.ownerDialogue.length,1);assert.equal(h.archived.length,1);
 });
 test('durable inbox validates addresses, restart delivery and id conflicts',()=>{
@@ -43,6 +43,6 @@ test('failed answer persistence blocks publication and model repetition until sa
 });
 test('identical external IDs in phone and site cannot collide',async()=>{
  const h=harness(source);h.setHandler(url=>url.endsWith('/director/dialogue')?{items:[{id:'shared_id',person:'reporter',text:'Сайт',source:'site'}]}:undefined);await h.run('pollOwnerDialogue(Date.now())');
- h.queueCall('shared_id.json',{target:'reporter',text:'Звонок'});h.run("applyDecision=(id)=>{const p=st.chars[id];p.activity='phone';p.seq++;return true;};ownerCalls(Date.now());executionCapabilities={actors:{reporter:{activity:'phone',phone:{seq:st.chars.reporter.seq,receiving:true}}}};socialReady=()=>true;receiveOwnerCall(Date.now())");
+ h.queueCall('shared_id.json',{target:'reporter',text:'Звонок'});h.run("applyDecision=(id)=>{const p=st.chars[id];p.activity='phone';p.seq++;return true;};ownerCalls(Date.now());executionCapabilities={actors:{reporter:{activity:'phone',phone:{seq:st.chars.reporter.seq,receiving:true}}}};socialReady=id=>id==='reporter';receiveOwnerCall(Date.now())");
  assert.deepEqual(h.state().chars.reporter.ownerDialogue.map(t=>t.id),['web_shared_id','ph_shared_id']);assert.equal(h.archived.length,1);
 });
