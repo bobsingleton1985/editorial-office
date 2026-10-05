@@ -37,8 +37,8 @@ function fixture(code,name,factory){
     emit(name,data){this.events[name]?.({data:JSON.stringify(data)});}
     close(){this.closed=true;}
   }
-  const window={__simulationMode:'viewer',addEventListener:(name,fn)=>{windowEvents[name]=fn;}};
-  const context=vm.createContext({document,window,EventSource,Date,JSON,
+  const window={__simulationMode:'viewer',addEventListener:(name,fn)=>{windowEvents[name]=fn;},dispatchEvent:event=>{windowEvents[event.type]?.(event);}};
+  const context=vm.createContext({document,window,EventSource,CustomEvent,Date,JSON,
     fetch:async(url,options)=>{posts.push({url,options,body:JSON.parse(options.body)});return {ok:true};},
     setInterval:(fn,ms)=>{intervals.push({fn,ms});return intervals.length;},setTimeout:fn=>fn(),
     [factory]:()=>({connection(){},update(){}})});

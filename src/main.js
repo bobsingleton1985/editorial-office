@@ -207,7 +207,7 @@ const hostessMenu=RELAY&&!DEMO&&!AUTHORITY?createHostessMenu(PANEL,RELAY,ownerTo
 { const d = PANEL.section('Звук', 'sound'), l = document.createElement('label'), cb = document.createElement('input'), sp = document.createElement('span');
   l.className = 'row sound-switch'; cb.type = 'checkbox'; cb.id = 'sound-phone'; cb.checked = sound.on; sp.textContent = 'Включить звук';
   cb.addEventListener('change', () => sound.set(cb.checked)); l.append(sp, cb); d.append(l); window.__sound = sound;
-  for (const [channel, label, hint] of [['background', 'Фон', 'Город за окнами'], ['voices', 'Голоса', 'Разговоры и реакции персонажей'], ['effects', 'Другие звуки', 'Шаги, печать, посуда и телефон']]) {
+  for (const [channel, label, hint] of [['background', 'Фон', 'Город за окнами'], ['music', 'Музыка', 'Джаз из соседней комнаты'], ['voices', 'Голоса', 'Разговоры и реакции персонажей'], ['effects', 'Другие звуки', 'Шаги, печать, посуда и телефон']]) {
     const row = document.createElement('label'); row.className = 'row volume-row';
     const text = document.createElement('span'); text.textContent = label;
     const output = document.createElement('output');
@@ -218,6 +218,7 @@ const hostessMenu=RELAY&&!DEMO&&!AUTHORITY?createHostessMenu(PANEL,RELAY,ownerTo
     row.append(text, output, input, note); d.append(row);
   }
   const note = document.createElement('p'); note.className = 'hint'; note.textContent = 'Громкость сохраняется на этом устройстве.'; d.append(note);
+  const credits=document.createElement('a');credits.href='assets/jazz-v01/CREDITS.txt';credits.target='_blank';credits.rel='noopener';credits.className='hint';credits.textContent='Музыка: Kevin MacLeod · CC BY 4.0';d.append(credits);
 }
 applyWeather();
 const diag = { textContent: '' }; window.__diag = diag;   // technical line (GPU, frame time): console only — window.__diag.textContent
@@ -318,7 +319,7 @@ function setup(g) {
       sched = createTvSchedule(tv, loadVideoTexture, { base: 'assets/tv/', cityHour: () => cityTime().h, night: 'jazz', now: () => (live ? live.now() : Date.now()) });
       bulletinTV = createBulletin({ fallback: () => newsTex?.image });   // NEWS BULLETIN: rendered clip + the story's headline
       window.__bulletin = (en = 'TEST BULLETIN') => { bulletinTV.start(en, 0); sched.bulletin(bulletinTV.texture, BULLETIN_SEC); };   // for checks
-      window.__tv = () => ({ bulletin: bulletinTV.active, ch: sched.current, t: tv.uniforms.map.value?.userData?.video?.currentTime ?? null, snow: tv.uniforms.snow.value });
+      window.__tv = () => ({ bulletin: bulletinTV.active, ch: sched.current, now: live ? live.now() : Date.now(), t: tv.uniforms.map.value?.userData?.video?.currentTime ?? null, snow: tv.uniforms.snow.value });
     }
   }
   new THREE.TextureLoader().load('assets/tv_news.jpg', (t) => { t.flipY = false; t.colorSpace = THREE.SRGBColorSpace; newsTex = t; });
