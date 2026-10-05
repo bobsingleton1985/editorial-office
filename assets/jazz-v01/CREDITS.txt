@@ -1,7 +1,7 @@
 Music: Kevin MacLeod (incompetech.com)
 Creative Commons Attribution 4.0 International
 https://creativecommons.org/licenses/by/4.0/
-Files transcoded from originals to mono 64 kbps MP3; playback adds neighboring-room EQ/reflections and vinyl surface noise.
+Files transcoded from originals to mono 64 kbps MP3; per-track loudness matched with static gain preserving dynamics; playback adds neighboring-room EQ/reflections and vinyl surface noise.
 
 Night on the Docks - Sax — Kevin MacLeod
 https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1100137&Search=Search

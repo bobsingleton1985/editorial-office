@@ -1,0 +1,1678 @@
+{
+  "profile": {
+    "mono": true,
+    "highpassHz": 65,
+    "lowpassHz": 3400,
+    "filterQ": 0.7071067811865476,
+    "reflectionMs": 35,
+    "reflectionGain": 0.055
+  },
+  "method": "One constant gain for each complete track, encoded directly from the original; no compressor or limiter. LUFS/true peaks measured from complete decoded files with FFmpeg loudnorm analysis. Common viewer volume and added vinyl noise excluded. Quiet common target allows every record to retain natural transients.",
+  "summary": {
+    "tracks": 50,
+    "targetRoomLUFS": -29.6,
+    "beforeRoomLUFSMin": -34.32,
+    "beforeRoomLUFSMax": -15.73,
+    "afterRoomLUFSMin": -29.6,
+    "afterRoomLUFSMax": -29.58,
+    "afterRoomSpreadLU": 0.020000000000003126,
+    "encodedDryTruePeakMaxDBTP": -3.59,
+    "maxLRAChangeLU": 0.10000000000000053,
+    "bytes": 87236110,
+    "constantGainOnly": true,
+    "compressionOrLimiter": false,
+    "encodedFromOriginals": true
+  },
+  "tracks": [
+    {
+      "id": "USUAN1100137",
+      "title": "Night on the Docks - Sax",
+      "sha256": "6a0e778f214827935a990f2e1a565f008a6dff44840e42e7bccd94b7f1b7fea6",
+      "originalSHA256": "732871fa31755c4a3ae260cccbdd4044b81ad49cabf8fbb1ee0f5927d36d7d79",
+      "gainDB": -2.0900000000000025,
+      "targetRoomLUFS": -29.6,
+      "before": {
+        "id": "USUAN1100137",
+        "title": "Night on the Docks - Sax",
+        "dry": {
+          "integratedLUFS": -27.08,
+          "truePeakDBTP": -6.75,
+          "loudnessRangeLU": 10.7
+        },
+        "room": {
+          "integratedLUFS": -27.06,
+          "truePeakDBTP": -7.1,
+          "loudnessRangeLU": 11.1
+        }
+      },
+      "afterDry": {
+        "integratedLUFS": -29.62,
+        "truePeakDBTP": -9.29,
+        "loudnessRangeLU": 10.7
+      },
+      "afterRoom": {
+        "integratedLUFS": -29.6,
+        "truePeakDBTP": -9.69,
+        "loudnessRangeLU": 11.2
+      },
+      "dynamicCompression": false
+    },
+    {
+      "id": "USUAN1100185",
+      "title": "Just As Soon",
+      "sha256": "1f100e3d424df2ccd5f59753ba2b1cbadbffd3c6b9750f95ee8ee2cf01704ea5",
+      "originalSHA256": "12018b3314e61df5df9f078f9b5415f55b7d553520641eaaa202ee6ae98ba5f6",
+      "gainDB": -3.0300000000000002,
+      "targetRoomLUFS": -29.6,
+      "before": {
+        "id": "USUAN1100185",
+        "title": "Just As Soon",
+        "dry": {
+          "integratedLUFS": -25.74,
+          "truePeakDBTP": -2.68,
+          "loudnessRangeLU": 7.8
+        },
+        "room": {
+          "integratedLUFS": -26.12,
+          "truePeakDBTP": -3.51,
+          "loudnessRangeLU": 8.3
+        }
+      },
+      "afterDry": {
+        "integratedLUFS": -29.21,
+        "truePeakDBTP": -6.21,
+        "loudnessRangeLU": 7.8
+      },
+      "afterRoom": {
+        "integratedLUFS": -29.6,
+        "truePeakDBTP": -7.14,
+        "loudnessRangeLU": 8.3
+      },
+      "dynamicCompression": false
+    },
+    {
+      "id": "USUAN1100863",
+      "title": "Cool Vibes",
+      "sha256": "368102453c26f3896d0c235c53d138c5ef44677a022864b5d9bc4b3eab0e08d3",
+      "originalSHA256": "86e5afb1f71da4c45927bb693cc32e2f72954137cf010599a912fa89cfd4db2e",
+      "gainDB": 5.169999999999999,
+      "targetRoomLUFS": -29.6,
+      "before": {
+        "id": "USUAN1100863",
+        "title": "Cool Vibes",
+        "dry": {
+          "integratedLUFS": -32.76,
+          "truePeakDBTP": -9.81,
+          "loudnessRangeLU": 4.5
+        },
+        "room": {
+          "integratedLUFS": -34.32,
+          "truePeakDBTP": -10.68,
+          "loudnessRangeLU": 4.0
+        }
+      },
+      "afterDry": {
+        "integratedLUFS": -28.04,
+        "truePeakDBTP": -5.14,
+        "loudnessRangeLU": 4.5
+      },
+      "afterRoom": {
+        "integratedLUFS": -29.6,
+        "truePeakDBTP": -5.91,
+        "loudnessRangeLU": 4.0
+      },
+      "dynamicCompression": false
+    },
+    {
+      "id": "USUAN1900056",
+      "title": "Night in Venice",
+      "sha256": "976dd4076d7117979db913b4cf882460d2d5ca46924c076e211222448e2627fb",
+      "originalSHA256": "c61435f6f86853b5aefcf4479f3a1266f8887da97d8022c8f1137798076129e4",
+      "gainDB": -11.310000000000002,
+      "targetRoomLUFS": -29.6,
+      "before": {
+        "id": "USUAN1900056",
+        "title": "Night in Venice",
+        "dry": {
+          "integratedLUFS": -17.14,
+          "truePeakDBTP": -1.63,
+          "loudnessRangeLU": 3.7
+        },
+        "room": {
+          "integratedLUFS": -17.84,
+          "truePeakDBTP": -0.85,
+          "loudnessRangeLU": 3.2
+        }
+      },
+      "afterDry": {
+        "integratedLUFS": -28.9,
+        "truePeakDBTP": -13.29,
+        "loudnessRangeLU": 3.7
+      },
+      "afterRoom": {
+        "integratedLUFS": -29.6,
+        "truePeakDBTP": -12.62,
+        "loudnessRangeLU": 3.1
+      },
+      "dynamicCompression": false
+    },
+    {
+      "id": "USUAN1900030",
+      "title": "Study And Relax",
+      "sha256": "898efb24bcb8e2e2fb2dd4831dc177705f73a38d5853a6854858c101baf78f6c",
+      "originalSHA256": "9cba2a3c2d1c9d364220db1691f618a0f25b8d9cf6f2a857fe389ef614fd18a4",
+      "gainDB": -5.900000000000001,
+      "targetRoomLUFS": -29.6,
+      "before": {
+        "id": "USUAN1900030",
+        "title": "Study And Relax",
+        "dry": {
+          "integratedLUFS": -22.78,
+          "truePeakDBTP": -6.24,
+          "loudnessRangeLU": 3.3
+        },
+        "room": {
+          "integratedLUFS": -23.25,
+          "truePeakDBTP": -5.85,
+          "loudnessRangeLU": 3.5
+        }
+      },
+      "afterDry": {
+        "integratedLUFS": -29.12,
+        "truePeakDBTP": -12.54,
+        "loudnessRangeLU": 3.2
+      },
+      "afterRoom": {
+        "integratedLUFS": -29.59,
+        "truePeakDBTP": -12.17,
+        "loudnessRangeLU": 3.4
+      },
+      "dynamicCompression": false
+    },
+    {
+      "id": "USUAN1900007",
+      "title": "Past Sadness",
+      "sha256": "c834fd3e0c041b1074f346afe041dd359b26f808c661e4d130b89ded649ac18d",
+      "originalSHA256": "ffcb757445fd50b96a8f0dfe34a49cdd03ed6702eb2a83a930e6a6040aa3c2fd",
+      "gainDB": 3.969999999999996,
+      "targetRoomLUFS": -29.6,
+      "before": {
+        "id": "USUAN1900007",
+        "title": "Past Sadness",
+        "dry": {
+          "integratedLUFS": -32.49,
+          "truePeakDBTP": -11.94,
+          "loudnessRangeLU": 1.9
+        },
+        "room": {
+          "integratedLUFS": -33.12,
+          "truePeakDBTP": -12.92,
+          "loudnessRangeLU": 2.0
+        }
+      },
+      "afterDry": {
+        "integratedLUFS": -28.96,
+        "truePeakDBTP": -8.27,
+        "loudnessRangeLU": 1.9
+      },
+      "afterRoom": {
+        "integratedLUFS": -29.59,
+        "truePeakDBTP": -8.83,
+        "loudnessRangeLU": 2.1
+      },
+      "dynamicCompression": false
+    },
+    {
+      "id": "USUAN1700073",
+      "title": "Crinoline Dreams",
+      "sha256": "44040655ef732937625e3ec372849932137951edac98257c0a738427c5b6d535",
+      "originalSHA256": "471b2f6128040bcd373802a4ad8a1bf7324bfa0fec9e71b0c8f381dc0331246d",
+      "gainDB": -6.270000000000002,
+      "targetRoomLUFS": -29.6,
+      "before": {
+        "id": "USUAN1700073",
+        "title": "Crinoline Dreams",
+        "dry": {
+          "integratedLUFS": -22.58,
+          "truePeakDBTP": -4.71,
+          "loudnessRangeLU": 2.0
+        },
+        "room": {
+          "integratedLUFS": -22.88,
+          "truePeakDBTP": -5.74,
+          "loudnessRangeLU": 1.9
+        }
+      },
+      "afterDry": {
+        "integratedLUFS": -29.29,
+        "truePeakDBTP": -11.39,
+        "loudnessRangeLU": 2.0
+      },
+      "afterRoom": {
+        "integratedLUFS": -29.6,
+        "truePeakDBTP": -12.28,
+        "loudnessRangeLU": 1.9
+      },
+      "dynamicCompression": false
+    },
+    {
+      "id": "USUAN1600054",
+      "title": "Lobby Time",
+      "sha256": "99a6887061a66e9892c2078d90459ee81c7c98915485765927a646f592ffa217",
+      "originalSHA256": "bc47dc1f1a0b1fe4ff631cee89ca3987b8f7b52f533d06233665d51300331beb",
+      "gainDB": -8.030000000000001,
+      "targetRoomLUFS": -29.6,
+      "before": {
+        "id": "USUAN1600054",
+        "title": "Lobby Time",
+        "dry": {
+          "integratedLUFS": -20.29,
+          "truePeakDBTP": -0.72,
+          "loudnessRangeLU": 4.3
+        },
+        "room": {
+          "integratedLUFS": -21.12,
+          "truePeakDBTP": -1.07,
+          "loudnessRangeLU": 4.4
+        }
+      },
+      "afterDry": {
+        "integratedLUFS": -28.76,
+        "truePeakDBTP": -9.27,
+        "loudnessRangeLU": 4.3
+      },
+      "afterRoom": {
+        "integratedLUFS": -29.59,
+        "truePeakDBTP": -9.52,
+        "loudnessRangeLU": 4.3
+      },
+      "dynamicCompression": false
+    },
+    {
+      "id": "USUAN2300005",
+      "title": "Vibing Over Venus",
+      "sha256": "9c7804677c08d23a8f1fa46977b7e74d53ba4f14e633d8cb6fd95628d7a41ca4",
+      "originalSHA256": "48a4ceca61ec6e93a3634ddb4db31a45e9c2c36fd22716bde4badf6821593c6a",
+      "gainDB": -4.270000000000002,
+      "targetRoomLUFS": -29.6,
+      "before": {
+        "id": "USUAN2300005",
+        "title": "Vibing Over Venus",
+        "dry": {
+          "integratedLUFS": -24.3,
+          "truePeakDBTP": -4.36,
+          "loudnessRangeLU": 3.0
+        },
+        "room": {
+          "integratedLUFS": -24.88,
+          "truePeakDBTP": -4.74,
+          "loudnessRangeLU": 3.4
+        }
+      },
+      "afterDry": {
+        "integratedLUFS": -29.02,
+        "truePeakDBTP": -9.24,
+        "loudnessRangeLU": 3.1
+      },
+      "afterRoom": {
+        "integratedLUFS": -29.6,
+        "truePeakDBTP": -9.36,
+        "loudnessRangeLU": 3.4
+      },
+      "dynamicCompression": false
+    },
+    {
+      "id": "USUAN1700068",
+      "title": "Backbay Lounge",
+      "sha256": "8245723d933690b3da12845ba8f4a7ab90b05c5e3e5075ed5d89ca6fd8da25ea",
+      "originalSHA256": "9567e71a213b0026341b2c0ecd226950e7653abd235cf520fb9aee4247d74d96",
+      "gainDB": -0.7500000000000029,
+      "targetRoomLUFS": -29.6,
+      "before": {
+        "id": "USUAN1700068",
+        "title": "Backbay Lounge",
+        "dry": {
+          "integratedLUFS": -27.2,
+          "truePeakDBTP": -9.3,
+          "loudnessRangeLU": 3.2
+        },
+        "room": {
+          "integratedLUFS": -28.4,
+          "truePeakDBTP": -10.14,
+          "loudnessRangeLU": 3.1
+        }
+      },
+      "afterDry": {
+        "integratedLUFS": -28.39,
+        "truePeakDBTP": -10.15,
+        "loudnessRangeLU": 3.3
+      },
+      "afterRoom": {
+        "integratedLUFS": -29.6,
+        "truePeakDBTP": -11.16,
+        "loudnessRangeLU": 3.2
+      },
+      "dynamicCompression": false
+    },
+    {
+      "id": "USUAN2000019",
+      "title": "On Hold for You",
+      "sha256": "c85a11fea4eafc789ce7b9940c24d7ad67890e006f04f09dc4e50d729741d699",
+      "originalSHA256": "859958e163a7c433c742d04f73c4e7a6f39b1f3be59afb23c1afbfcba4c02ea6",
+      "gainDB": -12.400000000000002,
+      "targetRoomLUFS": -29.6,
+      "before": {
+        "id": "USUAN2000019",
+        "title": "On Hold for You",
+        "dry": {
+          "integratedLUFS": -16.52,
+          "truePeakDBTP": -0.65,
+          "loudnessRangeLU": 4.4
+        },
+        "room": {
+          "integratedLUFS": -16.75,
+          "truePeakDBTP": 0.03,
+          "loudnessRangeLU": 4.5
+        }
+      },
+      "afterDry": {
+        "integratedLUFS": -29.36,
+        "truePeakDBTP": -13.31,
+        "loudnessRangeLU": 4.5
+      },
+      "afterRoom": {
+        "integratedLUFS": -29.59,
+        "truePeakDBTP": -12.11,
+        "loudnessRangeLU": 4.5
+      },
+      "dynamicCompression": false
+    },
+    {
+      "id": "USUAN1700077",
+      "title": "Smooth Lovin",
+      "sha256": "5bd0d6ef58b96df8967c69060100623a89b182132ec7d9a72601095d3a88aeab",
+      "originalSHA256": "97f914222378859a81de72f4c117cd456604d3b106e2041d6bf01cacaaf8801a",
+      "gainDB": 0.4799999999999976,
+      "targetRoomLUFS": -29.6,
+      "before": {
+        "id": "USUAN1700077",
+        "title": "Smooth Lovin",
+        "dry": {
+          "integratedLUFS": -28.38,
+          "truePeakDBTP": -7.69,
+          "loudnessRangeLU": 2.3
+        },
+        "room": {
+          "integratedLUFS": -29.63,
+          "truePeakDBTP": -8.95,
+          "loudnessRangeLU": 2.2
+        }
+      },
+      "afterDry": {
+        "integratedLUFS": -28.34,
+        "truePeakDBTP": -7.69,
+        "loudnessRangeLU": 2.4
+      },
+      "afterRoom": {
+        "integratedLUFS": -29.59,
+        "truePeakDBTP": -8.9,
+        "loudnessRangeLU": 2.1
+      },
+      "dynamicCompression": false
+    },
+    {
+      "id": "USUAN1700076",
+      "title": "Hard Boiled",
+      "sha256": "8b17e7116f2b14dd90e0a8af9fe2156797ddac69a4a5e46c42ab2632c1a32ad3",
+      "originalSHA256": "447df744a4cf9c3b18974c7d96750523a843db3970eb6fa69147d21c64366d79",
+      "gainDB": -4.46,
+      "targetRoomLUFS": -29.6,
+      "before": {
+        "id": "USUAN1700076",
+        "title": "Hard Boiled",
+        "dry": {
+          "integratedLUFS": -23.92,
+          "truePeakDBTP": -4.59,
+          "loudnessRangeLU": 5.4
+        },
+        "room": {
+          "integratedLUFS": -24.69,
+          "truePeakDBTP": -5.63,
+          "loudnessRangeLU": 5.8
+        }
+      },
+      "afterDry": {
+        "integratedLUFS": -28.83,
+        "truePeakDBTP": -9.52,
+        "loudnessRangeLU": 5.4
+      },
+      "afterRoom": {
+        "integratedLUFS": -29.6,
+        "truePeakDBTP": -10.55,
+        "loudnessRangeLU": 5.7
+      },
+      "dynamicCompression": false
+    },
+    {
+      "id": "USUAN1700075",
+      "title": "Deuces",
+      "sha256": "5237c0f30332d7490abd37e6dfb24c96443f8bd12567aef9c2760099416838cb",
+      "originalSHA256": "a475a7612bc9fd9ee5af13b61bf74c10fdaae31c7d4aef8cc6e052073b3f486d",
+      "gainDB": -5.290000000000002,
+      "targetRoomLUFS": -29.6,
+      "before": {
+        "id": "USUAN1700075",
+        "title": "Deuces",
+        "dry": {
+          "integratedLUFS": -22.78,
+          "truePeakDBTP": -5.2,
+          "loudnessRangeLU": 3.2
+        },
+        "room": {
+          "integratedLUFS": -23.86,
+          "truePeakDBTP": -6.58,
+          "loudnessRangeLU": 3.3
+        }
+      },
+      "afterDry": {
+        "integratedLUFS": -28.52,
+        "truePeakDBTP": -10.94,
+        "loudnessRangeLU": 3.2
+      },
+      "afterRoom": {
+        "integratedLUFS": -29.6,
+        "truePeakDBTP": -12.29,
+        "loudnessRangeLU": 3.3
+      },
+      "dynamicCompression": false
+    },
+    {
+      "id": "USUAN1700074",
+      "title": "Jazz Brunch",
+      "sha256": "dc34139b8dc425b21be4800bf881b97b50aec13bd3154531497744f82a4f714d",
+      "originalSHA256": "9e980a5a5ff7663d7f5ac22209190f34f1df465c5a6b588dd2c0bcbfc217e380",
+      "gainDB": -5.0900000000000025,
+      "targetRoomLUFS": -29.6,
+      "before": {
+        "id": "USUAN1700074",
+        "title": "Jazz Brunch",
+        "dry": {
+          "integratedLUFS": -22.98,
+          "truePeakDBTP": -2.29,
+          "loudnessRangeLU": 3.5
+        },
+        "room": {
+          "integratedLUFS": -24.06,
+          "truePeakDBTP": -3.23,
+          "loudnessRangeLU": 3.8
+        }
+      },
+      "afterDry": {
+        "integratedLUFS": -28.5,
+        "truePeakDBTP": -7.51,
+        "loudnessRangeLU": 3.6
+      },
+      "afterRoom": {
+        "integratedLUFS": -29.59,
+        "truePeakDBTP": -8.64,
+        "loudnessRangeLU": 3.9
+      },
+      "dynamicCompression": false
+    },
+    {
+      "id": "USUAN1700072",
+      "title": "Nouvelle Noel",
+      "sha256": "79e206d12efbaa733d28927adef69dd2dd091d9a6f2c48909d4d0a3b01920d65",
+      "originalSHA256": "f65bcaaffa386f4b719bc3cfc8c89e5ac19804f2fdeb94940559790c4645bff7",
+      "gainDB": -11.650000000000002,
+      "targetRoomLUFS": -29.6,
+      "before": {
+        "id": "USUAN1700072",
+        "title": "Nouvelle Noel",
+        "dry": {
+          "integratedLUFS": -17.02,
+          "truePeakDBTP": -0.5,
+          "loudnessRangeLU": 3.7
+        },
+        "room": {
+          "integratedLUFS": -17.5,
+          "truePeakDBTP": 0.01,
+          "loudnessRangeLU": 4.0
+        }
+      },
+      "afterDry": {
+        "integratedLUFS": -29.11,
+        "truePeakDBTP": -12.52,
+        "loudnessRangeLU": 3.7
+      },
+      "afterRoom": {
+        "integratedLUFS": -29.6,
+        "truePeakDBTP": -12.01,
+        "loudnessRangeLU": 4.0
+      },
+      "dynamicCompression": false
+    },
+    {
+      "id": "USUAN1700071",
+      "title": "Samba Isobel",
+      "sha256": "44be315a856e134a6737553ddf8ed066f2cd65379d1b0dd891b3c27fb24e667c",
+      "originalSHA256": "563bd5a5686560f56f012d302a672796110cab392a0e3ecbbfdd8f96c6489527",
+      "gainDB": -7.750000000000003,
+      "targetRoomLUFS": -29.6,
+      "before": {
+        "id": "USUAN1700071",
+        "title": "Samba Isobel",
+        "dry": {
+          "integratedLUFS": -20.52,
+          "truePeakDBTP": -1.88,
+          "loudnessRangeLU": 3.0
+        },
+        "room": {
+          "integratedLUFS": -21.4,
+          "truePeakDBTP": -2.52,
+          "loudnessRangeLU": 3.3
+        }
+      },
+      "afterDry": {
+        "integratedLUFS": -28.71,
+        "truePeakDBTP": -10.25,
+        "loudnessRangeLU": 3.0
+      },
+      "afterRoom": {
+        "integratedLUFS": -29.59,
+        "truePeakDBTP": -10.68,
+        "loudnessRangeLU": 3.3
+      },
+      "dynamicCompression": false
+    },
+    {
+      "id": "USUAN1700070",
+      "title": "Apero Hour",
+      "sha256": "7980d4e0dafce52f8d4a6f0cf0698e46a5c57e4ac27f8b979683af798b11bc83",
+      "originalSHA256": "248e2bbd81c7f0bc69e4bd1ad95513e640e3eb474872acfd63b8805ed73ea9ea",
+      "gainDB": -6.270000000000002,
+      "targetRoomLUFS": -29.6,
+      "before": {
+        "id": "USUAN1700070",
+        "title": "Apero Hour",
+        "dry": {
+          "integratedLUFS": -22.1,
+          "truePeakDBTP": -4.04,
+          "loudnessRangeLU": 3.3
+        },
+        "room": {
+          "integratedLUFS": -22.88,
+          "truePeakDBTP": -3.88,
+          "loudnessRangeLU": 3.7
+        }
+      },
+      "afterDry": {
+        "integratedLUFS": -28.82,
+        "truePeakDBTP": -10.74,
+        "loudnessRangeLU": 3.3
+      },
+      "afterRoom": {
+        "integratedLUFS": -29.59,
+        "truePeakDBTP": -10.6,
+        "loudnessRangeLU": 3.6
+      },
+      "dynamicCompression": false
+    },
+    {
+      "id": "USUAN1700069",
+      "title": "Bossa Antigua",
+      "sha256": "8d6149f998963a3c2ff9a3aa2610bd257fac432910def42c8749471163965ff0",
+      "originalSHA256": "322103dd6ac5fae4872122f91d32cccd4d964b86d300585a5a0cdfaf7048af5d",
+      "gainDB": -2.860000000000002,
+      "targetRoomLUFS": -29.6,
+      "before": {
+        "id": "USUAN1700069",
+        "title": "Bossa Antigua",
+        "dry": {
+          "integratedLUFS": -25.57,
+          "truePeakDBTP": -4.22,
+          "loudnessRangeLU": 4.7
+        },
+        "room": {
+          "integratedLUFS": -26.29,
+          "truePeakDBTP": -5.21,
+          "loudnessRangeLU": 4.7
+        }
+      },
+      "afterDry": {
+        "integratedLUFS": -28.88,
+        "truePeakDBTP": -7.52,
+        "loudnessRangeLU": 4.7
+      },
+      "afterRoom": {
+        "integratedLUFS": -29.6,
+        "truePeakDBTP": -8.56,
+        "loudnessRangeLU": 4.7
+      },
+      "dynamicCompression": false
+    },
+    {
+      "id": "USUAN1700062",
+      "title": "Zazie",
+      "sha256": "787a29d1d978e4a7166b8ef2dd8824814825843d3db70be6135c0e8b3734a2c8",
+      "originalSHA256": "82782a7152573f3f644a42a5f83d270c19543eeb5d322bfdea9966883ce132c3",
+      "gainDB": -9.810000000000002,
+      "targetRoomLUFS": -29.6,
+      "before": {
+        "id": "USUAN1700062",
+        "title": "Zazie",
+        "dry": {
+          "integratedLUFS": -18.83,
+          "truePeakDBTP": -5.66,
+          "loudnessRangeLU": 3.5
+        },
+        "room": {
+          "integratedLUFS": -19.34,
+          "truePeakDBTP": -4.1,
+          "loudnessRangeLU": 3.6
+        }
+      },
+      "afterDry": {
+        "integratedLUFS": -29.07,
+        "truePeakDBTP": -15.08,
+        "loudnessRangeLU": 3.5
+      },
+      "afterRoom": {
+        "integratedLUFS": -29.58,
+        "truePeakDBTP": -14.5,
+        "loudnessRangeLU": 3.5
+      },
+      "dynamicCompression": false
+    },
+    {
+      "id": "USUAN1700014",
+      "title": "Poppers and Prosecco",
+      "sha256": "86a35bf21a8d9a2524038da542f775e518b12db16a9f6498bf6b3f8fd79e6537",
+      "originalSHA256": "7d02fbcb815a8696fe3e55a4bf74aa6a82fdb3a1ef4ad85d64cbb1f1893dc6d1",
+      "gainDB": -7.910000000000003,
+      "targetRoomLUFS": -29.6,
+      "before": {
+        "id": "USUAN1700014",
+        "title": "Poppers and Prosecco",
+        "dry": {
+          "integratedLUFS": -20.99,
+          "truePeakDBTP": -2.15,
+          "loudnessRangeLU": 4.8
+        },
+        "room": {
+          "integratedLUFS": -21.24,
+          "truePeakDBTP": -2.51,
+          "loudnessRangeLU": 5.1
+        }
+      },
+      "afterDry": {
+        "integratedLUFS": -29.35,
+        "truePeakDBTP": -10.41,
+        "loudnessRangeLU": 4.8
+      },
+      "afterRoom": {
+        "integratedLUFS": -29.6,
+        "truePeakDBTP": -10.95,
+        "loudnessRangeLU": 5.2
+      },
+      "dynamicCompression": false
+    },
+    {
+      "id": "USUAN1600033",
+      "title": "Deadly Roulette",
+      "sha256": "200d89d4fdeeec29ce63cd18a1eabbe291c0f16dc25b9d1c09232d1d84553187",
+      "originalSHA256": "ef6aae97cd50a21b36e2a3694619ae2263c5630e40c68d3a43490425ccd2bf11",
+      "gainDB": -3.990000000000001,
+      "targetRoomLUFS": -29.6,
+      "before": {
+        "id": "USUAN1600033",
+        "title": "Deadly Roulette",
+        "dry": {
+          "integratedLUFS": -24.0,
+          "truePeakDBTP": -6.3,
+          "loudnessRangeLU": 5.2
+        },
+        "room": {
+          "integratedLUFS": -25.16,
+          "truePeakDBTP": -7.15,
+          "loudnessRangeLU": 5.2
+        }
+      },
+      "afterDry": {
+        "integratedLUFS": -28.46,
+        "truePeakDBTP": -10.67,
+        "loudnessRangeLU": 5.1
+      },
+      "afterRoom": {
+        "integratedLUFS": -29.59,
+        "truePeakDBTP": -11.54,
+        "loudnessRangeLU": 5.1
+      },
+      "dynamicCompression": false
+    },
+    {
+      "id": "USUAN1500058",
+      "title": "Spy Glass",
+      "sha256": "c49f9738fa600ade02b914f3b274d0f66a507eeeda96229b6ae2a8641872c5e1",
+      "originalSHA256": "e790c5ceb0b64eed48d83ee3aa458daebc246d751bf7cf12c87231faadb5f6f1",
+      "gainDB": -7.46,
+      "targetRoomLUFS": -29.6,
+      "before": {
+        "id": "USUAN1500058",
+        "title": "Spy Glass",
+        "dry": {
+          "integratedLUFS": -20.53,
+          "truePeakDBTP": -2.92,
+          "loudnessRangeLU": 9.2
+        },
+        "room": {
+          "integratedLUFS": -21.69,
+          "truePeakDBTP": -3.56,
+          "loudnessRangeLU": 9.2
+        }
+      },
+      "afterDry": {
+        "integratedLUFS": -28.41,
+        "truePeakDBTP": -10.74,
+        "loudnessRangeLU": 9.2
+      },
+      "afterRoom": {
+        "integratedLUFS": -29.59,
+        "truePeakDBTP": -11.49,
+        "loudnessRangeLU": 9.2
+      },
+      "dynamicCompression": false
+    },
+    {
+      "id": "USUAN1500042",
+      "title": "In Your Arms",
+      "sha256": "0d2d466bfa8e6623c13eeb6c19be4a660f76f36c5716aee4dc2d6142c5e70bed",
+      "originalSHA256": "3b2c159f21abb801ef564c66739bdfc3f750ae49885253bc20204dd0feb7bea7",
+      "gainDB": -12.290000000000003,
+      "targetRoomLUFS": -29.6,
+      "before": {
+        "id": "USUAN1500042",
+        "title": "In Your Arms",
+        "dry": {
+          "integratedLUFS": -16.7,
+          "truePeakDBTP": -0.24,
+          "loudnessRangeLU": 6.4
+        },
+        "room": {
+          "integratedLUFS": -16.86,
+          "truePeakDBTP": -0.31,
+          "loudnessRangeLU": 6.5
+        }
+      },
+      "afterDry": {
+        "integratedLUFS": -29.43,
+        "truePeakDBTP": -12.89,
+        "loudnessRangeLU": 6.4
+      },
+      "afterRoom": {
+        "integratedLUFS": -29.59,
+        "truePeakDBTP": -13.09,
+        "loudnessRangeLU": 6.4
+      },
+      "dynamicCompression": false
+    },
+    {
+      "id": "USUAN1500022",
+      "title": "Hep Cats",
+      "sha256": "f6243dd1529d04dd23b03c38b760235ba89d023ba453ca89a9b430fb51fe6ee2",
+      "originalSHA256": "090cbdd911a87a6e1f87859082e07a7569993b94ebcdb41e3b17dcf42cbf3476",
+      "gainDB": -8.600000000000001,
+      "targetRoomLUFS": -29.6,
+      "before": {
+        "id": "USUAN1500022",
+        "title": "Hep Cats",
+        "dry": {
+          "integratedLUFS": -19.61,
+          "truePeakDBTP": -0.16,
+          "loudnessRangeLU": 2.4
+        },
+        "room": {
+          "integratedLUFS": -20.55,
+          "truePeakDBTP": -0.75,
+          "loudnessRangeLU": 2.3
+        }
+      },
+      "afterDry": {
+        "integratedLUFS": -28.66,
+        "truePeakDBTP": -9.22,
+        "loudnessRangeLU": 2.4
+      },
+      "afterRoom": {
+        "integratedLUFS": -29.6,
+        "truePeakDBTP": -9.8,
+        "loudnessRangeLU": 2.3
+      },
+      "dynamicCompression": false
+    },
+    {
+      "id": "USUAN1500017",
+      "title": "Ultralounge",
+      "sha256": "3d1ba51fa3542387419b3ac873ae604ad583ed1c8d03b51c5c404de1cc7819b5",
+      "originalSHA256": "e03261bf6692ed0e4f8ae782c2ac1036ac9f634b5670e9f7430634346c395f6c",
+      "gainDB": -7.28,
+      "targetRoomLUFS": -29.6,
+      "before": {
+        "id": "USUAN1500017",
+        "title": "Ultralounge",
+        "dry": {
+          "integratedLUFS": -19.97,
+          "truePeakDBTP": -0.67,
+          "loudnessRangeLU": 3.6
+        },
+        "room": {
+          "integratedLUFS": -21.87,
+          "truePeakDBTP": -2.17,
+          "loudnessRangeLU": 3.4
+        }
+      },
+      "afterDry": {
+        "integratedLUFS": -27.7,
+        "truePeakDBTP": -8.33,
+        "loudnessRangeLU": 3.5
+      },
+      "afterRoom": {
+        "integratedLUFS": -29.59,
+        "truePeakDBTP": -9.88,
+        "loudnessRangeLU": 3.4
+      },
+      "dynamicCompression": false
+    },
+    {
+      "id": "USUAN1400030",
+      "title": "On the Ground",
+      "sha256": "301c7ad207979159cdac7c3f7ea29c59a8d57d6446bf812c62bfc296d6f4a0ee",
+      "originalSHA256": "df899848714328fd6264153457488308f8d5160d76cc2e16f6a79510e33e86cb",
+      "gainDB": -9.020000000000003,
+      "targetRoomLUFS": -29.6,
+      "before": {
+        "id": "USUAN1400030",
+        "title": "On the Ground",
+        "dry": {
+          "integratedLUFS": -17.6,
+          "truePeakDBTP": -5.89,
+          "loudnessRangeLU": 3.1
+        },
+        "room": {
+          "integratedLUFS": -20.13,
+          "truePeakDBTP": -7.55,
+          "loudnessRangeLU": 3.0
+        }
+      },
+      "afterDry": {
+        "integratedLUFS": -27.07,
+        "truePeakDBTP": -15.34,
+        "loudnessRangeLU": 3.1
+      },
+      "afterRoom": {
+        "integratedLUFS": -29.6,
+        "truePeakDBTP": -16.98,
+        "loudnessRangeLU": 3.0
+      },
+      "dynamicCompression": false
+    },
+    {
+      "id": "USUAN1300035",
+      "title": "George Street Shuffle",
+      "sha256": "4eb7470f1f23169ca501f912704453478d9737beb0e646f2adc580fb5b1ce2e8",
+      "originalSHA256": "15ee9995e01ffe91678db6ba072ec13cf0bf258f17c01677c5367009932b9c07",
+      "gainDB": -8.14,
+      "targetRoomLUFS": -29.6,
+      "before": {
+        "id": "USUAN1300035",
+        "title": "George Street Shuffle",
+        "dry": {
+          "integratedLUFS": -20.27,
+          "truePeakDBTP": -1.67,
+          "loudnessRangeLU": 2.2
+        },
+        "room": {
+          "integratedLUFS": -21.01,
+          "truePeakDBTP": -2.92,
+          "loudnessRangeLU": 2.4
+        }
+      },
+      "afterDry": {
+        "integratedLUFS": -28.85,
+        "truePeakDBTP": -10.28,
+        "loudnessRangeLU": 2.2
+      },
+      "afterRoom": {
+        "integratedLUFS": -29.6,
+        "truePeakDBTP": -11.53,
+        "loudnessRangeLU": 2.5
+      },
+      "dynamicCompression": false
+    },
+    {
+      "id": "USUAN1300011",
+      "title": "Local Forecast - Slower",
+      "sha256": "1c675a2ecc2336b835574f2e5bcb22b7855e13b8d354644fd695d59803908c29",
+      "originalSHA256": "8214ce19de17d6edfe4b83a156feb321d814278deb582fdd5209dcb47f56d440",
+      "gainDB": -13.420000000000002,
+      "targetRoomLUFS": -29.6,
+      "before": {
+        "id": "USUAN1300011",
+        "title": "Local Forecast - Slower",
+        "dry": {
+          "integratedLUFS": -14.39,
+          "truePeakDBTP": 0.05,
+          "loudnessRangeLU": 2.6
+        },
+        "room": {
+          "integratedLUFS": -15.73,
+          "truePeakDBTP": 0.07,
+          "loudnessRangeLU": 2.7
+        }
+      },
+      "afterDry": {
+        "integratedLUFS": -28.25,
+        "truePeakDBTP": -13.16,
+        "loudnessRangeLU": 2.5
+      },
+      "afterRoom": {
+        "integratedLUFS": -29.6,
+        "truePeakDBTP": -12.32,
+        "loudnessRangeLU": 2.6
+      },
+      "dynamicCompression": false
+    },
+    {
+      "id": "USUAN1200104",
+      "title": "Sidewalk Shade - slower",
+      "sha256": "8eebf631877dcae2062cb480415a293d7c56cf9fee6191d3f3c7054f062e7a62",
+      "originalSHA256": "5873be42a761c430aef876afdf9cb4500517ec938c10963fbb03155ad5617b1d",
+      "gainDB": -8.820000000000004,
+      "targetRoomLUFS": -29.6,
+      "before": {
+        "id": "USUAN1200104",
+        "title": "Sidewalk Shade - slower",
+        "dry": {
+          "integratedLUFS": -19.26,
+          "truePeakDBTP": -1.42,
+          "loudnessRangeLU": 4.0
+        },
+        "room": {
+          "integratedLUFS": -20.33,
+          "truePeakDBTP": -2.28,
+          "loudnessRangeLU": 4.4
+        }
+      },
+      "afterDry": {
+        "integratedLUFS": -28.52,
+        "truePeakDBTP": -10.36,
+        "loudnessRangeLU": 4.0
+      },
+      "afterRoom": {
+        "integratedLUFS": -29.6,
+        "truePeakDBTP": -11.47,
+        "loudnessRangeLU": 4.4
+      },
+      "dynamicCompression": false
+    },
+    {
+      "id": "USUAN1200089",
+      "title": "Mining by Moonlight",
+      "sha256": "e2a18f03a5b48d037a1e50a86ab1d7f21e73b69f43c95e9752b2eebc3711e545",
+      "originalSHA256": "683e5638ab2b3017a89d9c9a2ab7a3b516956f9dc5651740fed3508eddd35997",
+      "gainDB": -7.790000000000002,
+      "targetRoomLUFS": -29.6,
+      "before": {
+        "id": "USUAN1200089",
+        "title": "Mining by Moonlight",
+        "dry": {
+          "integratedLUFS": -19.85,
+          "truePeakDBTP": -1.56,
+          "loudnessRangeLU": 4.2
+        },
+        "room": {
+          "integratedLUFS": -21.36,
+          "truePeakDBTP": -3.81,
+          "loudnessRangeLU": 3.5
+        }
+      },
+      "afterDry": {
+        "integratedLUFS": -28.08,
+        "truePeakDBTP": -9.78,
+        "loudnessRangeLU": 4.2
+      },
+      "afterRoom": {
+        "integratedLUFS": -29.59,
+        "truePeakDBTP": -12.07,
+        "loudnessRangeLU": 3.5
+      },
+      "dynamicCompression": false
+    },
+    {
+      "id": "USUAN1200071",
+      "title": "Bass Walker",
+      "sha256": "91e9d828f4a4c994754d2ebb7764d2050045f3d7181e3ac5a0660e0ff8fe49c7",
+      "originalSHA256": "094332b56f4bdd5446b17cbc87a40610518c3aec787c7e289ac6ef4e3eb3e817",
+      "gainDB": -11.930000000000003,
+      "targetRoomLUFS": -29.6,
+      "before": {
+        "id": "USUAN1200071",
+        "title": "Bass Walker",
+        "dry": {
+          "integratedLUFS": -16.18,
+          "truePeakDBTP": -0.96,
+          "loudnessRangeLU": 3.7
+        },
+        "room": {
+          "integratedLUFS": -17.22,
+          "truePeakDBTP": -0.2,
+          "loudnessRangeLU": 4.0
+        }
+      },
+      "afterDry": {
+        "integratedLUFS": -28.56,
+        "truePeakDBTP": -13.33,
+        "loudnessRangeLU": 3.7
+      },
+      "afterRoom": {
+        "integratedLUFS": -29.6,
+        "truePeakDBTP": -12.6,
+        "loudnessRangeLU": 4.0
+      },
+      "dynamicCompression": false
+    },
+    {
+      "id": "USUAN1200054",
+      "title": "Groove Grove",
+      "sha256": "1df32ae83d64c2759806cae4e89f3568192fa346e922fb401daad25bef4cf197",
+      "originalSHA256": "e47b9c1615ad8e759c19109f487f7c484dd0785d3a66499ecd240bc492ee33b5",
+      "gainDB": -6.410000000000003,
+      "targetRoomLUFS": -29.6,
+      "before": {
+        "id": "USUAN1200054",
+        "title": "Groove Grove",
+        "dry": {
+          "integratedLUFS": -16.13,
+          "truePeakDBTP": -0.06,
+          "loudnessRangeLU": 9.7
+        },
+        "room": {
+          "integratedLUFS": -22.74,
+          "truePeakDBTP": -3.4,
+          "loudnessRangeLU": 6.5
+        }
+      },
+      "afterDry": {
+        "integratedLUFS": -22.91,
+        "truePeakDBTP": -7.33,
+        "loudnessRangeLU": 9.9
+      },
+      "afterRoom": {
+        "integratedLUFS": -29.58,
+        "truePeakDBTP": -10.24,
+        "loudnessRangeLU": 6.5
+      },
+      "dynamicCompression": false
+    },
+    {
+      "id": "USUAN1100806",
+      "title": "Airport Lounge",
+      "sha256": "e5a7abe8163a58a468eb2cb1327e5e9255d1d582121084830d4b410979d02cb6",
+      "originalSHA256": "e20d316b541c72690a3b0311c9f3d40fd00717359ab7567d7df82a9316c1dec4",
+      "gainDB": -9.3,
+      "targetRoomLUFS": -29.6,
+      "before": {
+        "id": "USUAN1100806",
+        "title": "Airport Lounge",
+        "dry": {
+          "integratedLUFS": -19.06,
+          "truePeakDBTP": -1.0,
+          "loudnessRangeLU": 2.2
+        },
+        "room": {
+          "integratedLUFS": -19.85,
+          "truePeakDBTP": -3.14,
+          "loudnessRangeLU": 2.4
+        }
+      },
+      "afterDry": {
+        "integratedLUFS": -28.83,
+        "truePeakDBTP": -11.09,
+        "loudnessRangeLU": 2.3
+      },
+      "afterRoom": {
+        "integratedLUFS": -29.6,
+        "truePeakDBTP": -12.88,
+        "loudnessRangeLU": 2.5
+      },
+      "dynamicCompression": false
+    },
+    {
+      "id": "USUAN1100795",
+      "title": "Covert Affair",
+      "sha256": "8301202eb3439cf39751016ca7e23ede3be0c97475f0cde724b3cba07841a5a2",
+      "originalSHA256": "279be47ea7880460be1393d66a83bcc7bee18e10d73537420098e4e1b1c0646f",
+      "gainDB": -9.410000000000004,
+      "targetRoomLUFS": -29.6,
+      "before": {
+        "id": "USUAN1100795",
+        "title": "Covert Affair",
+        "dry": {
+          "integratedLUFS": -18.82,
+          "truePeakDBTP": -1.11,
+          "loudnessRangeLU": 3.8
+        },
+        "room": {
+          "integratedLUFS": -19.74,
+          "truePeakDBTP": -2.61,
+          "loudnessRangeLU": 3.7
+        }
+      },
+      "afterDry": {
+        "integratedLUFS": -28.67,
+        "truePeakDBTP": -11.01,
+        "loudnessRangeLU": 3.8
+      },
+      "afterRoom": {
+        "integratedLUFS": -29.59,
+        "truePeakDBTP": -12.48,
+        "loudnessRangeLU": 3.7
+      },
+      "dynamicCompression": false
+    },
+    {
+      "id": "USUAN1100601",
+      "title": "Kool Kats",
+      "sha256": "dc2e947c4c4acec847352e6e854bac43d085401a3a84a2df584adf0d6b204f52",
+      "originalSHA256": "019ba5f2ebb617b35a1302b4907ca0b25ba5eda5a150b2f9ee33dc48b032cfcf",
+      "gainDB": -7.950000000000002,
+      "targetRoomLUFS": -29.6,
+      "before": {
+        "id": "USUAN1100601",
+        "title": "Kool Kats",
+        "dry": {
+          "integratedLUFS": -20.48,
+          "truePeakDBTP": 0.41,
+          "loudnessRangeLU": 3.8
+        },
+        "room": {
+          "integratedLUFS": -21.2,
+          "truePeakDBTP": 0.01,
+          "loudnessRangeLU": 4.3
+        }
+      },
+      "afterDry": {
+        "integratedLUFS": -28.87,
+        "truePeakDBTP": -8.22,
+        "loudnessRangeLU": 3.8
+      },
+      "afterRoom": {
+        "integratedLUFS": -29.59,
+        "truePeakDBTP": -8.17,
+        "loudnessRangeLU": 4.3
+      },
+      "dynamicCompression": false
+    },
+    {
+      "id": "USUAN1100479",
+      "title": "Backed Vibes (clean)",
+      "sha256": "71265bfe491e021d97c1ac07a552eb75f0218850cbc6395c4e3601cab2cee4d2",
+      "originalSHA256": "e8dbe9ebab11de3e492fc6a95a4d9523d9a52845f289c4205569268224d521e9",
+      "gainDB": -10.350000000000001,
+      "targetRoomLUFS": -29.6,
+      "before": {
+        "id": "USUAN1100479",
+        "title": "Backed Vibes (clean)",
+        "dry": {
+          "integratedLUFS": -17.1,
+          "truePeakDBTP": -0.99,
+          "loudnessRangeLU": 2.4
+        },
+        "room": {
+          "integratedLUFS": -18.8,
+          "truePeakDBTP": -2.82,
+          "loudnessRangeLU": 2.2
+        }
+      },
+      "afterDry": {
+        "integratedLUFS": -27.89,
+        "truePeakDBTP": -11.75,
+        "loudnessRangeLU": 2.4
+      },
+      "afterRoom": {
+        "integratedLUFS": -29.59,
+        "truePeakDBTP": -13.61,
+        "loudnessRangeLU": 2.2
+      },
+      "dynamicCompression": false
+    },
+    {
+      "id": "USUAN1100462",
+      "title": "Bass Vibes",
+      "sha256": "5f5ce66271097a473d8ee0d102664d552603b9bfc7555af15d53baf36c1cc2e2",
+      "originalSHA256": "a45752f1af9d223b3aefd7cef02173a23e04099cb2d47b2931b2606426f02724",
+      "gainDB": -8.530000000000001,
+      "targetRoomLUFS": -29.6,
+      "before": {
+        "id": "USUAN1100462",
+        "title": "Bass Vibes",
+        "dry": {
+          "integratedLUFS": -20.08,
+          "truePeakDBTP": -3.24,
+          "loudnessRangeLU": 2.9
+        },
+        "room": {
+          "integratedLUFS": -20.62,
+          "truePeakDBTP": -3.99,
+          "loudnessRangeLU": 3.0
+        }
+      },
+      "afterDry": {
+        "integratedLUFS": -29.05,
+        "truePeakDBTP": -12.23,
+        "loudnessRangeLU": 2.9
+      },
+      "afterRoom": {
+        "integratedLUFS": -29.59,
+        "truePeakDBTP": -12.97,
+        "loudnessRangeLU": 3.0
+      },
+      "dynamicCompression": false
+    },
+    {
+      "id": "USUAN1100339",
+      "title": "Acid Trumpet",
+      "sha256": "181f4e6e0d473226f789564032d5de671c82d891f182de0debf05d1cc13f1651",
+      "originalSHA256": "5e0843d42e22b175b7975c5567c91a21d2ebec5cdbc9749bce5e5179c1eb6cf0",
+      "gainDB": -7.7200000000000015,
+      "targetRoomLUFS": -29.6,
+      "before": {
+        "id": "USUAN1100339",
+        "title": "Acid Trumpet",
+        "dry": {
+          "integratedLUFS": -20.78,
+          "truePeakDBTP": -3.53,
+          "loudnessRangeLU": 1.3
+        },
+        "room": {
+          "integratedLUFS": -21.43,
+          "truePeakDBTP": -4.74,
+          "loudnessRangeLU": 1.4
+        }
+      },
+      "afterDry": {
+        "integratedLUFS": -28.94,
+        "truePeakDBTP": -11.57,
+        "loudnessRangeLU": 1.3
+      },
+      "afterRoom": {
+        "integratedLUFS": -29.6,
+        "truePeakDBTP": -12.6,
+        "loudnessRangeLU": 1.4
+      },
+      "dynamicCompression": false
+    },
+    {
+      "id": "USUAN1100323",
+      "title": "As I Figure",
+      "sha256": "14e412e1cc199d3cc8e2d28ecada8bef81eea03c67ad0fe1b76a59480d0e4a67",
+      "originalSHA256": "2040216904d9d9818162174960af54b20c8f469b8f6fe31fe2f9f7748d6b5e48",
+      "gainDB": -6.71,
+      "targetRoomLUFS": -29.6,
+      "before": {
+        "id": "USUAN1100323",
+        "title": "As I Figure",
+        "dry": {
+          "integratedLUFS": -22.02,
+          "truePeakDBTP": -1.31,
+          "loudnessRangeLU": 4.6
+        },
+        "room": {
+          "integratedLUFS": -22.44,
+          "truePeakDBTP": -0.78,
+          "loudnessRangeLU": 5.0
+        }
+      },
+      "afterDry": {
+        "integratedLUFS": -29.17,
+        "truePeakDBTP": -8.53,
+        "loudnessRangeLU": 4.6
+      },
+      "afterRoom": {
+        "integratedLUFS": -29.59,
+        "truePeakDBTP": -8.0,
+        "loudnessRangeLU": 4.9
+      },
+      "dynamicCompression": false
+    },
+    {
+      "id": "USUAN1100317",
+      "title": "Awesome Call",
+      "sha256": "725858c595cf42811c4505a494b1114624baead221e7a7cd3317eabeb8bab60b",
+      "originalSHA256": "a08b613cdbddd887ac9fc03311f8c08b587da9d1b8b44b06ca92b235560aab1d",
+      "gainDB": -9.270000000000003,
+      "targetRoomLUFS": -29.6,
+      "before": {
+        "id": "USUAN1100317",
+        "title": "Awesome Call",
+        "dry": {
+          "integratedLUFS": -18.66,
+          "truePeakDBTP": 0.21,
+          "loudnessRangeLU": 4.0
+        },
+        "room": {
+          "integratedLUFS": -19.88,
+          "truePeakDBTP": -1.04,
+          "loudnessRangeLU": 3.6
+        }
+      },
+      "afterDry": {
+        "integratedLUFS": -28.38,
+        "truePeakDBTP": -9.29,
+        "loudnessRangeLU": 4.1
+      },
+      "afterRoom": {
+        "integratedLUFS": -29.6,
+        "truePeakDBTP": -10.6,
+        "loudnessRangeLU": 3.6
+      },
+      "dynamicCompression": false
+    },
+    {
+      "id": "USUAN1100258",
+      "title": "Dispersion Relation",
+      "sha256": "a136f08a09283ad43a79867897ba1fe7ff98ddde832d79c5a7d0d1219c4d6016",
+      "originalSHA256": "3bf9fbfcaca065afe76b942811c7b22c3a70b92ddbefc02611184d7908a0f6f7",
+      "gainDB": -5.96,
+      "targetRoomLUFS": -29.6,
+      "before": {
+        "id": "USUAN1100258",
+        "title": "Dispersion Relation",
+        "dry": {
+          "integratedLUFS": -22.72,
+          "truePeakDBTP": -1.55,
+          "loudnessRangeLU": 4.9
+        },
+        "room": {
+          "integratedLUFS": -23.19,
+          "truePeakDBTP": -2.32,
+          "loudnessRangeLU": 5.2
+        }
+      },
+      "afterDry": {
+        "integratedLUFS": -29.12,
+        "truePeakDBTP": -7.63,
+        "loudnessRangeLU": 4.9
+      },
+      "afterRoom": {
+        "integratedLUFS": -29.59,
+        "truePeakDBTP": -8.71,
+        "loudnessRangeLU": 5.2
+      },
+      "dynamicCompression": false
+    },
+    {
+      "id": "USUAN1100199",
+      "title": "I Knew a Guy",
+      "sha256": "80aa76e2e6f65dee5fc9590b7c8f1e87b47ead3ae2b1f30232fe4f5d0f294eb8",
+      "originalSHA256": "10e3480eefcbefe839f69dfff27d99991e16c23981072fca769f38eb21aab50c",
+      "gainDB": -0.6800000000000026,
+      "targetRoomLUFS": -29.6,
+      "before": {
+        "id": "USUAN1100199",
+        "title": "I Knew a Guy",
+        "dry": {
+          "integratedLUFS": -26.85,
+          "truePeakDBTP": -2.45,
+          "loudnessRangeLU": 6.6
+        },
+        "room": {
+          "integratedLUFS": -28.47,
+          "truePeakDBTP": -4.76,
+          "loudnessRangeLU": 5.2
+        }
+      },
+      "afterDry": {
+        "integratedLUFS": -27.99,
+        "truePeakDBTP": -3.59,
+        "loudnessRangeLU": 6.5
+      },
+      "afterRoom": {
+        "integratedLUFS": -29.6,
+        "truePeakDBTP": -5.87,
+        "loudnessRangeLU": 5.2
+      },
+      "dynamicCompression": false
+    },
+    {
+      "id": "USUAN1100194",
+      "title": "Intractable",
+      "sha256": "780a91286d44e811ee6a9b3478ec7de94171a4bf9c99171a1a17f1f02f43e2b3",
+      "originalSHA256": "f3d08b77ff99a36b84db8ace142bddb01bdc8636238d268070161fe6028a9908",
+      "gainDB": -8.100000000000001,
+      "targetRoomLUFS": -29.6,
+      "before": {
+        "id": "USUAN1100194",
+        "title": "Intractable",
+        "dry": {
+          "integratedLUFS": -20.76,
+          "truePeakDBTP": 0.52,
+          "loudnessRangeLU": 7.9
+        },
+        "room": {
+          "integratedLUFS": -21.05,
+          "truePeakDBTP": 0.02,
+          "loudnessRangeLU": 8.1
+        }
+      },
+      "afterDry": {
+        "integratedLUFS": -29.3,
+        "truePeakDBTP": -7.99,
+        "loudnessRangeLU": 7.8
+      },
+      "afterRoom": {
+        "integratedLUFS": -29.59,
+        "truePeakDBTP": -8.06,
+        "loudnessRangeLU": 8.0
+      },
+      "dynamicCompression": false
+    },
+    {
+      "id": "USUAN1100174",
+      "title": "Long Stroll",
+      "sha256": "420d96716285cf5fa74ea5dd6f5c907dedef3a986e0dc92166b4554031a7e60b",
+      "originalSHA256": "7a49e5469d77cde11619e543eb776ec7057e4143d62fd707620171df90bda7b7",
+      "gainDB": -4.330000000000001,
+      "targetRoomLUFS": -29.6,
+      "before": {
+        "id": "USUAN1100174",
+        "title": "Long Stroll",
+        "dry": {
+          "integratedLUFS": -24.47,
+          "truePeakDBTP": -3.93,
+          "loudnessRangeLU": 5.6
+        },
+        "room": {
+          "integratedLUFS": -24.82,
+          "truePeakDBTP": -4.45,
+          "loudnessRangeLU": 6.0
+        }
+      },
+      "afterDry": {
+        "integratedLUFS": -29.24,
+        "truePeakDBTP": -8.55,
+        "loudnessRangeLU": 5.6
+      },
+      "afterRoom": {
+        "integratedLUFS": -29.58,
+        "truePeakDBTP": -9.08,
+        "loudnessRangeLU": 6.0
+      },
+      "dynamicCompression": false
+    },
+    {
+      "id": "USUAN1100131",
+      "title": "No Good Layabout",
+      "sha256": "daf5d5301c0eb0c048bd2df2933cc89cd622d7f5a69c70f0daf724016c58ea01",
+      "originalSHA256": "f47c4df2284eb67d99aba5b6fc1c5cb83dcbd0cc7558b223fec6b821bb806a81",
+      "gainDB": -5.110000000000002,
+      "targetRoomLUFS": -29.6,
+      "before": {
+        "id": "USUAN1100131",
+        "title": "No Good Layabout",
+        "dry": {
+          "integratedLUFS": -23.04,
+          "truePeakDBTP": -1.33,
+          "loudnessRangeLU": 4.8
+        },
+        "room": {
+          "integratedLUFS": -24.04,
+          "truePeakDBTP": -0.77,
+          "loudnessRangeLU": 4.7
+        }
+      },
+      "afterDry": {
+        "integratedLUFS": -28.6,
+        "truePeakDBTP": -6.87,
+        "loudnessRangeLU": 4.8
+      },
+      "afterRoom": {
+        "integratedLUFS": -29.6,
+        "truePeakDBTP": -6.35,
+        "loudnessRangeLU": 4.7
+      },
+      "dynamicCompression": false
+    },
+    {
+      "id": "USUAN1100123",
+      "title": "Opportunity Walks",
+      "sha256": "bf3adea67059bd6b9d723e488b3df41e8091f92599447c7993f0449887aa717a",
+      "originalSHA256": "fb33c4af3f5d8858127af944e24b362bf04c5daceb0fc9c49c67eb515189c270",
+      "gainDB": -8.110000000000003,
+      "targetRoomLUFS": -29.6,
+      "before": {
+        "id": "USUAN1100123",
+        "title": "Opportunity Walks",
+        "dry": {
+          "integratedLUFS": -20.35,
+          "truePeakDBTP": -2.33,
+          "loudnessRangeLU": 4.6
+        },
+        "room": {
+          "integratedLUFS": -21.04,
+          "truePeakDBTP": -2.81,
+          "loudnessRangeLU": 4.8
+        }
+      },
+      "afterDry": {
+        "integratedLUFS": -28.9,
+        "truePeakDBTP": -10.88,
+        "loudnessRangeLU": 4.6
+      },
+      "afterRoom": {
+        "integratedLUFS": -29.6,
+        "truePeakDBTP": -11.35,
+        "loudnessRangeLU": 4.7
+      },
+      "dynamicCompression": false
+    },
+    {
+      "id": "USUAN1100083",
+      "title": "Semi-Funk",
+      "sha256": "abe4a1baf47038f288d765ce871363389bd7ee9e2bc9c2579741c4fa73d83dcf",
+      "originalSHA256": "96fa341ab594fd02bfaa7547aa5037dfe02c7db83c70c2b03a2c067a0c857219",
+      "gainDB": -9.310000000000002,
+      "targetRoomLUFS": -29.6,
+      "before": {
+        "id": "USUAN1100083",
+        "title": "Semi-Funk",
+        "dry": {
+          "integratedLUFS": -18.48,
+          "truePeakDBTP": 0.19,
+          "loudnessRangeLU": 3.6
+        },
+        "room": {
+          "integratedLUFS": -19.84,
+          "truePeakDBTP": 0.05,
+          "loudnessRangeLU": 3.5
+        }
+      },
+      "afterDry": {
+        "integratedLUFS": -28.23,
+        "truePeakDBTP": -9.27,
+        "loudnessRangeLU": 3.6
+      },
+      "afterRoom": {
+        "integratedLUFS": -29.59,
+        "truePeakDBTP": -8.81,
+        "loudnessRangeLU": 3.5
+      },
+      "dynamicCompression": false
+    },
+    {
+      "id": "USUAN1100080",
+      "title": "Shades of Spring",
+      "sha256": "2d7fc4de2f65d035116e7fad323f1e1a7c9025fbe716ffaf28629e235e729604",
+      "originalSHA256": "ba1e29f4d90f298bbd00f15c6f2b0fb2f2952598629f6ac2517e4bf26de1f455",
+      "gainDB": -5.1000000000000005,
+      "targetRoomLUFS": -29.6,
+      "before": {
+        "id": "USUAN1100080",
+        "title": "Shades of Spring",
+        "dry": {
+          "integratedLUFS": -23.29,
+          "truePeakDBTP": -3.96,
+          "loudnessRangeLU": 5.0
+        },
+        "room": {
+          "integratedLUFS": -24.05,
+          "truePeakDBTP": -4.48,
+          "loudnessRangeLU": 5.1
+        }
+      },
+      "afterDry": {
+        "integratedLUFS": -28.83,
+        "truePeakDBTP": -9.57,
+        "loudnessRangeLU": 5.0
+      },
+      "afterRoom": {
+        "integratedLUFS": -29.6,
+        "truePeakDBTP": -10.21,
+        "loudnessRangeLU": 5.2
+      },
+      "dynamicCompression": false
+    },
+    {
+      "id": "USUAN1100020",
+      "title": "Walking Along",
+      "sha256": "f1490da59f9112131e86d968dea6b7359c8acfc75f165135f84ee9a911011b76",
+      "originalSHA256": "514aa7f49fe774bd64bdbd1fac2cfae945dd4de6c970e15deec2ae7e12ff4097",
+      "gainDB": -1.9600000000000002,
+      "targetRoomLUFS": -29.6,
+      "before": {
+        "id": "USUAN1100020",
+        "title": "Walking Along",
+        "dry": {
+          "integratedLUFS": -26.35,
+          "truePeakDBTP": -1.98,
+          "loudnessRangeLU": 6.0
+        },
+        "room": {
+          "integratedLUFS": -27.19,
+          "truePeakDBTP": -3.48,
+          "loudnessRangeLU": 5.9
+        }
+      },
+      "afterDry": {
+        "integratedLUFS": -28.75,
+        "truePeakDBTP": -4.28,
+        "loudnessRangeLU": 6.0
+      },
+      "afterRoom": {
+        "integratedLUFS": -29.6,
+        "truePeakDBTP": -5.87,
+        "loudnessRangeLU": 5.9
+      },
+      "dynamicCompression": false
+    }
+  ]
+}
