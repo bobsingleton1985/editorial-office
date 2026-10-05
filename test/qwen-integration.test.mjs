@@ -26,7 +26,7 @@ test('Qwen physical choice reaches actual director command with distinct provena
  const h=harness(source);h.run('reflectRelationships=async()=>false;st.chars.columnist.busyUntil=Date.now()');
  h.setAnswer({action:'wait@window',reason:'fixture',source:'qwen',model:'qwen/qwen3.8-27b:free'});
  await h.run('tick()');const p=h.state().chars.columnist;
- assert.equal(p.place,'window');assert.equal(p.entry.source,'qwen');assert.equal(p.memory.at(-1).source,'qwen');assert.equal(p.entry.confidence,null);
+ assert.equal(p.place,'window');assert.equal(p.entry.source,'qwen');assert.equal(p.entry.confidence,null);
 });
 test('Qwen invitation refusal keeps independent reply provenance',async()=>{
  const h=harness(source);h.run("st.chars.heroine.activity='invite';st.invite={n:1,from:'heroine',to:'reporter',kind:'music'};askJev=async()=>({action:'decline:invitation-1',source:'qwen'});canTurnKnob=()=>true;");

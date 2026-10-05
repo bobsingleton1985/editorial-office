@@ -1,3 +1,4 @@
+import {addMemory} from './daily-memory.mjs';
 // Feelings are private appraisals. Public courtship records contain confirmed signals only.
 export const DIMENSIONS={
  professional:{name:'Уважение как к профессионалу',min:-2,max:2,labels:['не доверяет мастерству','сомневается','ещё не сформировано','уважает','высоко ценит']},
@@ -48,7 +49,7 @@ export function applyReflection(st,job,action,now,source,confidence=null){
  r.dimensionDecisions.push(record);r.dimensionDecisions=r.dimensionDecisions.slice(-40);r.revision++;
  // Only sympathy supplies the legacy animation stance. Other feelings stay independent.
  r.stance=r.dimensions.sympathy.value>0?'warm':r.dimensions.sympathy.value<0?'guarded':'neutral';
- st.chars[job.actor].memory.push(structuredClone(record));st.chars[job.actor].memory=st.chars[job.actor].memory.slice(-12);
+ addMemory(st.chars[job.actor],structuredClone(record));
  return true;
 }
 export function nextReflection(st,now,eligible=()=>true){

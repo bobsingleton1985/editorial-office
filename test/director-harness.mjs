@@ -1,3 +1,4 @@
+import * as dailyMemory from '../director/daily-memory.mjs';
 import * as sharedDrinks from '../director/shared-drinks.mjs';
 import * as dialogueCommands from '../director/owner-dialogue-commands.mjs';
 import * as television from '../director/tv-control.mjs';
@@ -37,9 +38,9 @@ const repertoire=fs.readFileSync(new URL('../director/social-repertoire.json',im
 export function harness(source, initialState=null, config= economy.UNCONFIGURED_ECONOMY, speed=1,clockStart=Date.now()) {
   const original=fs.readFileSync(source,'utf8');const src=source;
   let clock = clockStart, answer = { action: 'lunch@benchS', confidence: 0.8 };
-  const logs = [], requests = [], writes = [], calls=new Map(), archived=[],timers=[];let handler=null,archiveFailure=false;
+  const logs = [], requests = [], writes = [], calls=new Map(), archived=[],memoryArchived=[],timers=[];let handler=null,archiveFailure=false;
   class TestDate extends Date { constructor(...args) { super(...(args.length ? args : [clock])); } static now() { return clock; } }
-  const context = vm.createContext({ DESKS, DINING_CHAIR, BENCH, SPOTS, CHAIR_REST, CHAIR_TUCKED,
+  const context = vm.createContext({ ...dailyMemory,MemoryArchive:class{append(actor,row){memoryArchived.push({actor,row:structuredClone(row)});}}, DESKS, DINING_CHAIR, BENCH, SPOTS, CHAIR_REST, CHAIR_TUCKED,
     ...sharedDrinks,...dialogueCommands,...television,...ownerDialogue,dirname,TextEncoder,TV_PROGRAM,onAir,processBonusQueue,parseOwnerCall,compactSnapshot,...requestsHealth,...service,...chronicle,ChronicleStore,...flirt,...transport,...diagnostic,...projection,...development,...livelihood,...consumption,...performance,HER_SOCIAL_CATALOG,...meals,...economy,...work,...social,...relationship,...policy,...places,...heroine,...sleep, Date: TestDate, URL, Math: Object.assign(Object.create(Math), { random: () => 0 }),
     setTimeout:(fn,delay)=>{timers.push({fn,delay});return timers.length;},
     process: { env: { HOME: '/isolated', FAST:String(speed), REGISTRY_FILE: '/registry.json', STATE_FILE: '/state.json', DIRECTOR_TOKEN: 'test-only', RELAY_URL: 'http://test-relay', JEV_URL: 'http://test-jev' } },

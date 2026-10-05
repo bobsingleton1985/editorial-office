@@ -54,9 +54,9 @@ export function compactSnapshot(input) {
     if (object(s.currentActivity) && object(s.currentActivity.relationship)) s.currentActivity.relationship = relation(s.currentActivity.relationship);
     if (object(s.finances)) s.finances = histories(s.finances, ['transactions']);
     if (object(s.reflection) && Array.isArray(s.reflection.events)) s.reflection.events = chronological(s.reflection.events);
-    out.self = ordered(s, ['id', 'role', 'character', 'personality', 'needs_scale', 'own_desk', 'memory', 'recentEpisodes', 'relationships', 'courtship'],
+    out.self = ordered(s, ['id', 'role', 'character', 'personality', 'needs_scale', 'own_desk', 'consolidatedMemory', 'memory', 'recentEpisodes', 'relationships', 'courtship'],
       ['needs', 'need_limitations', 'mode', 'place', 'since_minutes', 'task', 'pending_tasks', 'finances', 'flirt', 'currentActivity', 'reflection']);
   }
   if (object(out.situation)) out.situation = ordered(out.situation, ['room'], ['music', 'others', 'teletype', 'owner', 'invitation', 'deferred_invitation', 'local_time']);
-  return ordered(out, ['scope', 'characterRules', 'limits', 'self'], ['sleep', 'situation', 'sessionId', 'requestId', 'revision', 'available_actions']);
+  return ordered(out, ['scope', 'characterRules', 'limits', 'memoryMaintenance', 'self'], ['sleep', 'situation', 'sessionId', 'requestId', 'revision', 'available_actions']);
 }

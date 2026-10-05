@@ -1,3 +1,4 @@
+import {addMemory} from './daily-memory.mjs';
 import {satisfyMutualFlirt} from './flirt-need.mjs';
 import {initializeRelationships,publicRelations,currentIntent,confirmIntentSignals,observeConversationExperience} from './relationship-core.mjs';
 // Canonical joint participation. Only fresh, revision-matching executor intervals satisfy social.
@@ -27,7 +28,7 @@ export function finishConversation(st, id, reason, source, now) {
       ...(p.flirtEpisodes?.[member]?{flirt:{...p.flirtEpisodes[member],after:actor.needs.flirt}}:{}),
       reason:own?reason:reason==='self_leave'?'partner_departure':reason,source,initiator:id};
     observeConversationExperience(st,member,event);
-    actor.memory.push(event);actor.memory=actor.memory.slice(-12);
+    addMemory(actor,event);
     actor.busyUntil=Math.min(actor.busyUntil,now);
     if(!own){actor.activity='wait';actor.activityUntil=now;actor.since=now;actor.entry={...actor.entry,activity:'wait',label:'собеседник завершил участие',source};}
   }

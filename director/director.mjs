@@ -1,3 +1,4 @@
+import {addMemory,bindMemory,MemoryArchive,memoryArchiveReady,memoryDue,memoryBatch,beginMemoryAttempt,applyMemorySelection,memoryContext,memoryStatus} from './daily-memory.mjs';
 import {applyDialogueCommand,completeOwnerTask,ownerTaskContext,ownerRequestContext,recordOwnerRequestChoice,publicOwnerCommands} from './owner-dialogue-commands.mjs';
 import {ensureSharedDrinks,sharedDrinkFor,sharedDrinkPlaces,sharedDrinkContext,sharedDrinkActions,chooseSharedDrink,observeSharedDrinks,sharedDrinkCommandChanged,sharedDrinkReplyDue,consideredSharedDrink} from './shared-drinks.mjs';
 import {receiveDialogue,nextDialogue,dialogueContext,answerDialogue,publicDialogue} from './owner-dialogue.mjs';
@@ -245,6 +246,8 @@ for (const id of IDS) if (!st.chars[id]) {                           // a new pe
   log(`state: ${PEOPLE[id].name} comes in, ${PLACES[free].name}`);
 }
 for (const [id, p] of Object.entries(st.chars)) { p.activityUntil ??= p.busyUntil; p.needs ??= {}; initializeSleep(p); requireSleep(p,now0); p.lastNeeds=now0; for (const [k, v0] of Object.entries(PEOPLE[id]?.start || {})) p.needs[k] ??= v0; }
+const memoryArchive=new MemoryArchive(STATE+'.memory-archive');
+for(const [id,p]of Object.entries(st.chars))bindMemory(p,id,memoryArchive,now0);
 initializeSocial(st);
 const economyConfig=JSON.parse(fs.readFileSync(process.env.ECONOMY_CONFIG_FILE||new URL('./economy-config.json',import.meta.url),'utf8'));
 ensureEconomy(st,economyConfig,now0);ensurePerformances(st);ensureServices(st);ensureSharedDrinks(st);
@@ -302,7 +305,7 @@ function receiveOwnerCall(now){
    if(p.activity!=='phone'||p.seq!==c.seq){delete p.pendingOwnerCall;save();continue;}
    if(!socialReady(id,now)||a.activity!=='phone'||a.phone?.seq!==c.seq||a.phone.receiving!==true){p.busyUntil=Math.max(p.busyUntil,now+1000);continue;}
    receiveDialogue(p,{id:'ph_'+(c.callId||id+'_'+c.seq),text:c.text,source:'phone',at:now},now);
-   p.memory.push({event:'phone_call',from:'владелец газеты',text:c.text,at:hhmm(now)});p.memory=p.memory.slice(-12);
+   addMemory(p,{event:'phone_call',from:'владелец газеты',text:c.text,at:hhmm(now)});
    st.ownerMsg={text:c.text,at:now,time:hhmm(now),by:PEOPLE[id].name};
    p.ownerPhoneSession={until:now+OWNER_PHONE_IDLE_MS,lastMessageAt:now,ending:c.text.trim().toLowerCase()==='/конец'||c.text.trim().toLowerCase()==='/hangup'};p.busyUntil=p.activityUntil=p.ownerPhoneSession.until;c.delivered=true;st.seq++;st.world=composeWorld(now);
   }
@@ -366,7 +369,7 @@ function closeInvite(v, reason, now) {
   if (st.invite !== v) return;
   st.invite = null; delete inviteNote[v.to]; delete inviteNote[v.from];
   const pa = st.chars[v.from], pb = st.chars[v.to];
-  for (const [p, partner] of [[pa, v.to], [pb, v.from]]) { p.memory.push({ event: 'invitation_unanswered', partner: PEOPLE[partner].name, reason, source:'executor', at: hhmm(now) }); p.memory = p.memory.slice(-12); }
+  for (const [p, partner] of [[pa, v.to], [pb, v.from]]) { addMemory(p,{ event: 'invitation_unanswered', partner: PEOPLE[partner].name, reason, source:'executor', at: hhmm(now) });  }
   restoreInviter(pa, now);
   st.seq++; st.world = composeWorld(now); save();
   log(`invite: ${PEOPLE[v.from].name} → ${PEOPLE[v.to].name} closed without an answer (${reason})`);
@@ -418,8 +421,8 @@ async function answerMusicInvite(now) {
   const ans = d.action.split(':')[0], t = Date.now();
   talkOn(pb, { at: t, to: a, icon: 'social', mark: ans === 'accept' ? 'yes' : 'no' });
   const said = { accept: 'согласился', decline: 'отказался' }[ans];
-  pa.memory.push({ event: 'music_request', to: PEOPLE[b].name, answer: said, at: hhmm(t), source }); pa.memory = pa.memory.slice(-12);
-  pb.memory.push({ event: 'music_requested', by: PEOPLE[a].name, answer: said, at: hhmm(t), source }); pb.memory = pb.memory.slice(-12);
+  addMemory(pa,{ event: 'music_request', to: PEOPLE[b].name, answer: said, at: hhmm(t), source });
+  addMemory(pb,{ event: 'music_requested', by: PEOPLE[a].name, answer: said, at: hhmm(t), source });
   st.invite = null;
   restoreInviter(pa, t);
   let execution = 'not_requested';
@@ -429,7 +432,7 @@ async function answerMusicInvite(now) {
     const applied = possible && applyDecision(b, 'tvmusic@tvKnob', 'invitation', null, expected) !== false;
     execution = applied ? 'command_created' : 'precondition_changed';
     if (!applied) for (const [p,partner] of [[pa,b],[pb,a]]) {
-      p.memory.push({event:'music_request_cancelled',partner,reason:'precondition_changed',source:'executor',at:t});p.memory=p.memory.slice(-12);
+      addMemory(p,{event:'music_request_cancelled',partner,reason:'precondition_changed',source:'executor',at:t});
     }
     if (applied && pa.activity === 'wait' && st.tvMusic) pa.busyUntil = Math.min(pa.busyUntil, Math.max(t + 2000, st.tvMusic.from + 2000));
   }
@@ -466,8 +469,8 @@ async function answerInvite(now) {
   if (ans !== 'accept') pb.busyUntil = Math.max(pb.busyUntil, t + 20000);   // he said no: he goes on with what he was doing for a while
   st.inviteCool[a + '>' + b] = t + INV.cool[ans] * 60000;
   const hm = hhmm(t);
-  pa.memory.push({ event: 'invitation', to: PEOPLE[b].name, what: 'покурить у окна', answer: { accept: 'согласился', decline: 'отказался', defer: 'сказал «не сейчас»' }[ans], at: hm, source }); pa.memory = pa.memory.slice(-12);
-  pb.memory.push({ event: 'invited', by: PEOPLE[a].name, what: 'покурить у окна', answer: { accept: 'согласился', decline: 'отказался', defer: 'сказал «не сейчас»' }[ans], at: hm, source }); pb.memory = pb.memory.slice(-12);
+  addMemory(pa,{ event: 'invitation', to: PEOPLE[b].name, what: 'покурить у окна', answer: { accept: 'согласился', decline: 'отказался', defer: 'сказал «не сейчас»' }[ans], at: hm, source });
+  addMemory(pb,{ event: 'invited', by: PEOPLE[a].name, what: 'покурить у окна', answer: { accept: 'согласился', decline: 'отказался', defer: 'сказал «не сейчас»' }[ans], at: hm, source });
   st.invite = null; st.seq += 1; st.world = composeWorld(t); save();
   trace(diagnosticId,'application',{actorId:b,action:d.action,source,status:'invitation_response_recorded',revisionAfter:st.seq,steps:st.steps,physicalExecution:'not_confirmed_by_response'});
   log(`invite: ${PEOPLE[b].name} ${ans} (${source}${d.confidence != null ? ' ' + Math.round(d.confidence * 100) + '%' : ''}) → ${PEOPLE[a].name} to ${sp[a]}${ans === 'accept' ? ', ' + PEOPLE[b].name + ' to ' + sp[b] : ''}`);
@@ -523,7 +526,7 @@ async function deliverChronicle(){
   fs.writeFileSync(CHRONICLE_CURSOR+'.tmp',JSON.stringify({cursor:batch.cursor}));fs.renameSync(CHRONICLE_CURSOR+'.tmp',CHRONICLE_CURSOR);chronicleCursor=batch.cursor;
  }catch(e){chronicleError(e);}finally{chronicleSending=false;}
 }
-const save = (durable=false) => { captureChronicle();try {
+const save = (durable=false) => { for(const p of Object.values(st.chars))memoryArchiveReady(p);captureChronicle();try {
   fs.writeFileSync(STATE + '.tmp', JSON.stringify(st, null, 1));
   if(durable){const fd=fs.openSync(STATE+'.tmp','r');try{fs.fsyncSync(fd);}finally{fs.closeSync(fd);}}
   fs.renameSync(STATE + '.tmp', STATE);
@@ -576,7 +579,7 @@ function updatePersonNeeds(id, now, witnessedWorkMs=0) {
     if (!t) return;
     t.done_min += (st.economy.config.enabled?witnessedWorkMs/60000:acting)*FAST;
     if (t.done_min >= t.need_min) {                                   // external work_finished event for this task
-      st.tasks = st.tasks.filter((x) => x !== t); p.memory.push({ event: 'work_finished', task: t.id, title: t.title, at: hhmm(now) }); p.memory = p.memory.slice(-12);
+      st.tasks = st.tasks.filter((x) => x !== t); addMemory(p,{ event: 'work_finished', task: t.id, title: t.title, at: hhmm(now) });
       rewardWork(st,id,t,now);observeWorkCompleted(st,id,t,now);st.seq++;teletypeDirty=true;
       if(completeOwnerTask(st,id,t,now)){st.world=composeWorld(now);if(!save(true))dialogueSavePending=true;}
       log(`work_finished ${t.id} «${t.title}» (${PEOPLE[id].name})`); p.busyUntil = Math.min(p.busyUntil, now + 15000);   // a natural moment to decide again
@@ -708,7 +711,7 @@ async function snapshot(id, avail) {
       task: task ? { id: task.id, kind: task.ownerDialogueId?'редакционное поручение владельца':'отредактировать сообщение с ленты для утреннего номера', title: task.title,
         arrived: task.arrived, progress_minutes: +task.done_min.toFixed(2), needs_minutes: task.need_min,...(task.ownerDialogueId?{ownerAssignment:true,brief:task.brief,deadlineAt:task.deadlineAt,rewardCents:task.ownerRewardCents}:{}),
         note: 'Работа продвигается только за письменным столом (work_variant); закончится внешним событием work_finished.' } : null,
-      finances:{...moneyContext(st,id),...performanceContext(st,id),...serviceContext(st,id),...sharedDrinkContext(st,id),canWork:supports(id,'work'),livelihood:livelihoodContext(st,id,avail,now)}, pending_tasks: waiting().map((x) => ({ id: x.id, title: x.title, arrived: x.arrived })), memory: structuredClone(p.memory), relationships:publicRelations(st,id), courtship:Object.fromEntries(Object.entries(p.relationships).map(([other,r])=>[other,courtshipStatus(r,id,other)])), ownerTasks:ownerTaskContext(st,id,now),ownerRequests:ownerRequestContext(st,id),currentActivity: publicConversation(st,id), recentEpisodes: structuredClone(p.memory.filter(x=>x.event==='conversation_finished'||x.event==='conversation_cancelled').slice(-3)) },
+      finances:{...moneyContext(st,id),...performanceContext(st,id),...serviceContext(st,id),...sharedDrinkContext(st,id),canWork:supports(id,'work'),livelihood:livelihoodContext(st,id,avail,now)}, pending_tasks: waiting().map((x) => ({ id: x.id, title: x.title, arrived: x.arrived })), ...memoryContext(p), relationships:publicRelations(st,id), courtship:Object.fromEntries(Object.entries(p.relationships).map(([other,r])=>[other,courtshipStatus(r,id,other)])), ownerTasks:ownerTaskContext(st,id,now),ownerRequests:ownerRequestContext(st,id),currentActivity: publicConversation(st,id), recentEpisodes: structuredClone(p.memory.filter(x=>x.event==='conversation_finished'||x.event==='conversation_cancelled').slice(-3)) },
     situation: { television:st.tvMusic&&now>=st.tvMusic.from&&now<st.tvMusic.until?{channel:st.tvMusic.ch,label:TV_CHANNELS[st.tvMusic.ch],until:st.tvMusic.until}:{mode:'scheduled'},pendingTvSwitch:st.pendingTvSwitch?{actor:st.pendingTvSwitch.actor,channel:st.pendingTvSwitch.channel,switched:false}:null,local_time: hhmm(now), room: 'вечерняя редакция нью-йоркской газеты, 1956 год: три письменных стола (A, B, C), скамья у круглого стола, окна на город, телетайп, бар, телевизор',
       music: musicOn(now) ? 'по телевизору играет музыка' : musicPending(now) ? 'кто-то идёт включать музыку, она вот-вот заиграет' : 'музыка не играет',
       others: others(id), ...(inviteNote[id] ? { invitation: inviteNote[id] } : {}), ...(deferredInvite(id, now) ? { deferred_invitation: `${PEOPLE[st.deferredInvites[id].from].name} ещё курит у окна. Ты ответил «не сейчас»; можно присоединиться или выбрать другое занятие.` } : {}), teletype: waiting().length ? `на ленте ждут правки сообщений: ${waiting().length}` : 'новых сообщений на ленте нет', ...ownerNote(now) },
@@ -782,6 +785,7 @@ async function askJev(id, avail, reflection = null, diagnosticId=newTraceId(), o
   for (let attempt = 0; attempt < 2; attempt++) {
     let requestId=null;
     try {
+      if(!memoryArchiveReady(st.chars[id]))throw Error('memory_archive_unavailable');
       if (!sid) { const s = await session('start'); sid = s.session_id; await pinCharacterRules(s); if (s.state === 'paused') await session('resume'); }
       else { try { await session('resume'); } catch (e) { if (!/session_not_paused/.test(e.message)) throw e; } }
       const snap=await snapshot(id,structuredClone(avail));
@@ -835,6 +839,54 @@ async function askJev(id, avail, reflection = null, diagnosticId=newTraceId(), o
   }
   const e=new Error('session_unavailable');requestFailed(st,id,kind,diagnosticId,e,Date.now());await publishModelStatus();throw e;
 }
+async function consolidateDailyMemory(now){
+  if(process.env.NO_JEV||st.jevToday>=DAILY)return false;
+  const id=IDS.find(id=>memoryDue(st.chars[id],now)&&memoryArchiveReady(st.chars[id])&&requestAllowed(st,id,'memory',now));
+  if(!id)return false;
+  const p=st.chars[id],kind='memory',diagnosticId=newTraceId();let attempted=false,providerSent=false,attemptPrior=null;
+  try{
+    {const watch=await relay('/director/status');if(!Number.isInteger(watch.viewers)||watch.viewers<=0)return false;}
+    requestStarted(st,id,kind,diagnosticId,Date.now());await publishModelStatus();
+    if(!sid){const s=await session('start');sid=s.session_id;await pinCharacterRules(s);if(s.state==='paused')await session('resume');}
+    else{try{await session('resume');}catch(e){if(!/session_not_paused/.test(e.message))throw e;}}
+    const batch=memoryBatch(p),snap=compactSnapshot(await snapshot(id,actions(id)));
+    // Historical state is supplied only in the fixed source batch. Current
+    // balances, tasks, boundaries, rules and offered capabilities remain intact.
+    delete snap.self.memory;delete snap.self.consolidatedMemory;delete snap.self.recentEpisodes;
+    snap.memoryMaintenance=batch;
+    const context=compactSnapshot(snap);let projected;
+    try{projected=fitRelationshipRequest(context);}
+    catch(e){
+      if(e.message!=='relationship_request_core_exceeds_budget')throw e;
+      let status=null;try{const r=await fetch(JEV+'/api/status');if(r.ok)status=await r.json();}catch{}
+      projected=fitRelationshipRequest(context,65000,status);
+    }
+    const wire=behaviorWireSnapshot(projected);
+    {const watch=await relay('/director/status');if(!Number.isInteger(watch.viewers)||watch.viewers<=0)throw Error('no_viewers');}
+    const prior=structuredClone(p.dailyMemory);attemptPrior=prior;beginMemoryAttempt(p,Date.now());st.jevToday++;
+    if(!save(true)){p.dailyMemory=prior;st.jevToday--;throw Error('memory_checkpoint_failed');}
+    attempted=true;
+    {const watch=await relay('/director/status');if(!Number.isInteger(watch.viewers)||watch.viewers<=0)throw Error('no_viewers');}
+    trace(diagnosticId,'director_memory_request',{actorId:id,requestId:snap.requestId,snapshot:snap,wireSnapshot:wire.snapshot});
+    providerSent=true;
+    const result=await jevPost('/api/memory-consolidate',{session_id:sid,snapshot:wire.snapshot,diagnostic_id:diagnosticId});
+    if(result.revision!==snap.revision)throw Error('memory_revision_mismatch');
+    const before=structuredClone(p.dailyMemory);
+    applyMemorySelection(p,batch,result,Date.now());
+    if(!save(true)){p.dailyMemory=before;throw Error('memory_checkpoint_failed');}
+    requestSucceeded(st,id,kind,diagnosticId,Date.now());
+    trace(diagnosticId,'memory_applied',{actorId:id,requestId:snap.requestId,selected_ids:result.selected_ids,throughSequence:batch.throughSequence,physicalExecution:'memory_has_no_physical_command'});
+  }catch(e){
+    if(e.message==='no_viewers'){
+      if(attempted&&!providerSent){p.dailyMemory.lastAttemptAt=attemptPrior.lastAttemptAt;p.dailyMemory.status='deferred';st.jevToday--;}
+      requestDeferred(st,id,kind,diagnosticId,Date.now());
+    }
+    else{requestFailed(st,id,kind,diagnosticId,e,Date.now());if(attempted)p.dailyMemory.status='error';
+      if(/session_(not_owned|expired|stopped|changed|client_mismatch)/.test(e.message))sid=null;}
+    trace(diagnosticId,'memory_request_error',{actorId:id,error:/^[a-z0-9_]+$/.test(e.message)?e.message:'request_failed',previousSummaryPreserved:true});
+  }finally{if(sid)await session('pause').catch(()=>{});await publishModelStatus();}
+  return true;
+}
 function urgentOnly(id, avail) {
   // Needs inform Jev; only execution constraints may remove an available action.
   // Filtering at 80 hid courtship and orders behind coffee, nicotine or hunger.
@@ -884,7 +936,7 @@ function cancelSleepCommitments(id,now){
   st.invite=null;
   for(const member of [v.from,v.to]){
    const q=st.chars[member];delete inviteNote[member];delete q.beforeSocialInvite;
-   q.memory.push({event:'invitation_cancelled',partner:member===v.from?v.to:v.from,reason:'fatigue_sleep',source:'fatigue_rule',at:now});q.memory=q.memory.slice(-12);
+   addMemory(q,{event:'invitation_cancelled',partner:member===v.from?v.to:v.from,reason:'fatigue_sleep',source:'fatigue_rule',at:now});
    if(member!==id&&q.activity==='invite'&&!q.sleep&&!q.sleepPending)applyDecision(member,'wait@'+q.place,'fatigue_interrupt',null,null,false,true);
   }
   changed=true;
@@ -936,7 +988,7 @@ function mandatorySleep(now){
 }
 function entryOf(id, now) {                                          // his line in the world: who he is (for the page) + what he does now
   const P = PEOPLE[id], p = st.chars[id];
-  return { name: P.name, glb: P.glb, chairBack: P.chairBack, home: P.home, ...(P.walkPolicy ? { walkPolicy: P.walkPolicy } : {}), ...(P.mouth ? { mouth: P.mouth } : {}), ...(P.phoneMouth ? { phoneMouth: P.phoneMouth } : {}), seq: p.seq, social: publicConversation(st,id) ? {...publicConversation(st,id,true), style:p.socialStyle||'neutral', styleRevision:p.socialStyleRevision||0} : null, sleep:p.sleep||null,sleepPending:p.sleepPending||null,finances:{...moneyContext(st,id),...performanceContext(st,id),...serviceContext(st,id),...sharedDrinkContext(st,id),canWork:supports(id,'work'),livelihood:livelihoodContext(st,id,[],now)},ownerDialogue:publicDialogue(p),ownerActions:actions(id),ownerTasks:ownerTaskContext(st,id,now),ownerCommands:publicOwnerCommands(st,id),relationships:publicRelations(st,id),reflection:st.reflection?.last?.actor===id?st.reflection.last:null,memory:p.memory.filter(x=>x.event==='conversation_finished'||x.event==='conversation_cancelled'||x.event==='sleep_started'||x.event==='sleep_finished').slice(-6), ...(p.entry || { from: target(p.place), cmd: null, at: now, label: labelOf(id, p.activity, p.place), activity: p.activity, source: 'start' }), state: stateNow(id, now) };
+  return { name: P.name, glb: P.glb, chairBack: P.chairBack, home: P.home, ...(P.walkPolicy ? { walkPolicy: P.walkPolicy } : {}), ...(P.mouth ? { mouth: P.mouth } : {}), ...(P.phoneMouth ? { phoneMouth: P.phoneMouth } : {}), seq: p.seq, social: publicConversation(st,id) ? {...publicConversation(st,id,true), style:p.socialStyle||'neutral', styleRevision:p.socialStyleRevision||0} : null, sleep:p.sleep||null,sleepPending:p.sleepPending||null,finances:{...moneyContext(st,id),...performanceContext(st,id),...serviceContext(st,id),...sharedDrinkContext(st,id),canWork:supports(id,'work'),livelihood:livelihoodContext(st,id,[],now)},ownerDialogue:publicDialogue(p),ownerActions:actions(id),ownerTasks:ownerTaskContext(st,id,now),ownerCommands:publicOwnerCommands(st,id),relationships:publicRelations(st,id),reflection:st.reflection?.last?.actor===id?st.reflection.last:null,memoryMaintenance:memoryStatus(p),consolidatedMemory:structuredClone(p.dailyMemory.summary),memory:p.memory.filter(x=>x.event==='conversation_finished'||x.event==='conversation_cancelled'||x.event==='sleep_started'||x.event==='sleep_finished').slice(-6), ...(p.entry || { from: target(p.place), cmd: null, at: now, label: labelOf(id, p.activity, p.place), activity: p.activity, source: 'start' }), state: stateNow(id, now) };
 }
 function composeWorld(now) {
   const chars = {}, chairs = { ...st.chairs };
@@ -1031,8 +1083,8 @@ function applyDecision(id, action, source, confidence, expected=null, performanc
   const move = place !== from, travel = travelSeconds(from, place), dwell = (usesConsumption(id,activity)?CONSUMPTION[activity].duration:['smoke','smoke_coffee'].includes(activity)?60:activity==='lunch'&&resolved.meal&&executionCapabilities?.actors?.[id]?.mealDurations?.[resolved.meal]||rnd(dwellOf(activity))) * (REG[activity]?.once || ['wait','conversation','rest_desk','rest_lounge'].includes(activity) ? 1 : Math.min(4, 1 + p.repeats)) / FAST;   // Rest, waiting and conversation keep their decision interval on repeated continuation; needs keep evolving.
   // Ordinary rest is a reversible choice, not a long commitment; ask again as for wait.
   const decisionDwell = ['rest_desk','rest_lounge'].includes(activity)&&!committedPerformance(st,id)?rnd(DWELL.wait)/FAST:dwell;
-  p.memory.push({ action:selectedAction, at: hhmm(now), fatigue_before: before, source });
-  p.memory = p.memory.slice(-12);
+  addMemory(p,{ action:selectedAction, at: hhmm(now), fatigue_before: before, source });
+
   p.chairsAtStart = {}; for (const pl of [from, place]) if (['desk','chair'].includes(PLACES[pl].kind)) {const k=PLACES[pl].desk||PLACES[pl].chair;p.chairsAtStart[k]=st.chairs[k]??CHAIR_REST;};
   if (move) { if (['desk','chair'].includes(PLACES[from].kind)) st.chairs[PLACES[from].desk||PLACES[from].chair] = CHAIR_TUCKED; if (['desk','chair'].includes(PLACES[place].kind)) st.chairs[PLACES[place].desk||PLACES[place].chair] = 0; }
   if (verb !== 'continue') p.since = now;
@@ -1117,7 +1169,7 @@ async function respondOwnerDialogue(now){
   const ok=answerDialogue(p,turn.id,d,Date.now());
   if(!ok)throw Error('invalid_dialogue_reply');
   if(turn.source==='phone'&&p.ownerPhoneSession)p.busyUntil=p.activityUntil=p.ownerPhoneSession.until=Date.now()+OWNER_PHONE_IDLE_MS;
-  p.memory.push({event:'owner_dialogue_reply',owner:'владелец газеты',text:turn.text,reply:turn.reply,reaction:turn.reaction,at:hhmm(Date.now())});p.memory=p.memory.slice(-12);
+  addMemory(p,{event:'owner_dialogue_reply',owner:'владелец газеты',text:turn.text,reply:turn.reply,reaction:turn.reaction,at:hhmm(Date.now())});
   trace(traceId,'application',{actorId:id,requestId:d.requestId,action:'owner_reply',source:d.source,status:'applied',dialogueId:turn.id,physicalExecution:'dialogue_has_no_physical_command'});
   st.seq++;st.world=composeWorld(Date.now());if(!save(true)){dialogueSavePending=true;log('owner dialogue reply awaiting durable save');return true;}if(!publishPhoneReplies(true)){dialogueSavePending=true;return true;}await relay('/director/world',st.world);return true;
  }catch(e){if(e.message==='no_viewers')return false;requestFailed(st,id,'dialogue',traceId,e,Date.now());await publishModelStatus();return false;}
@@ -1169,7 +1221,7 @@ async function answerSocialInvite(now) {
   if(process.env.NO_JEV||st.jevToday>=DAILY){requestFailed(st,b,'physical',diagnosticId,new Error(process.env.NO_JEV?'model_disabled':'daily_limit'),Date.now());await publishModelStatus();delete inviteNote[b];return;}else try{d=await askJev(b,avail,null,diagnosticId);st.jevToday++;source=d.source||'jev';}catch{delete inviteNote[b];trace(diagnosticId,'application',{actorId:b,source:'none',status:'request_failed',physicalExecution:'existing_command_preserved'});return;}
   delete inviteNote[b];if(st.invite!==v||pa.sleepPending||pb.sleepPending||pa.sleep||pb.sleep){trace(diagnosticId,'application',{actorId:b,action:d?.action??null,source,status:'stale_rejected',revisionAfter:st.seq,physicalExecution:'not_confirmed_by_response'});return;}if(!d||!avail.some(x=>x.id===d.action)){source='rule';d={action:((pb.needs.social??0)>=45?'accept:':'decline:')+key};}
   const answer=d.action.split(':')[0];let t=Date.now();
-  for(const id of [a,b]){const p=st.chars[id];p.memory.push({event:id===a?'social_invitation':'social_invited',partner:id===a?b:a,answer,source,at:t});p.memory=p.memory.slice(-12);}
+  for(const id of [a,b]){const p=st.chars[id];addMemory(p,{event:id===a?'social_invitation':'social_invited',partner:id===a?b:a,answer,source,at:t});}
   talkOn(pb,{at:t,to:a,icon:'social',mark:{accept:'yes',decline:'no',defer:'later'}[answer]});
   st.invite=null;
   if(answer==='accept') {try{const r=await relay('/director/execution?since='+executionSeq);executionCapabilities=r.capabilities||null;}catch{executionCapabilities=null;}}
@@ -1181,7 +1233,7 @@ async function answerSocialInvite(now) {
   }else {
     if(answer==='defer')st.social.deferred[key]={from:a,to:b,notBefore:t+16000,expires:t+600000};
     restoreInviter(pa,t);
-    if(answer==='accept'){pa.memory.push({event:'conversation_cancelled',partner:b,source:'executor',reason:'place_or_executor_unavailable',participatingSeconds:0,at:t});}
+    if(answer==='accept'){addMemory(pa,{event:'conversation_cancelled',partner:b,source:'executor',reason:'place_or_executor_unavailable',participatingSeconds:0,at:t});}
   }
   trace(diagnosticId,'application',{actorId:b,action:d.action,source,status:answer==='accept'?(pairOf(st,b)?'conversation_commands_created':'place_or_executor_rejected'):'invitation_response_recorded',revisionAfter:st.seq+1,physicalExecution:'not_confirmed_by_response'});
   if(answer==='accept'&&pairOf(st,b))for(const id of [a,b])traceCommands.set(id,{traceId:diagnosticId,seq:st.chars[id].seq,signature:null});
@@ -1224,7 +1276,7 @@ function gateStuck(p, a, now) {
 function abortExecution(id, p, why, now, a=executionCapabilities?.actors?.[id]) {
   if (!abortReceipt(p,a,now) || GATE_EXEMPT.has(p.activity) || committedPerformance(st,id)) return false;
   updatePersonNeeds(id, now);
-  p.memory.push({ event: 'execution_failed', activity: p.activity, why, at: hhmm(now) }); p.memory = p.memory.slice(-12);
+  addMemory(p,{ event: 'execution_failed', activity: p.activity, why, at: hhmm(now) });
   cancelPurchases(st,id,now);
   log(`${PEOPLE[id].name}: «${p.activity}» was not started by the page (${why}); dropped, he decides again`);
   p.activity = 'wait'; p.since = p.arriveAt = p.activityUntil = p.busyUntil = now; delete p.executionGate; p.seq++;
@@ -1323,9 +1375,10 @@ async function tick() {
     // one decision per tick, the people in turn; they may walk at the same time — the page walks them together (crowd, keep right; owner 30.09)
     const ids = Object.keys(st.chars).filter((k) => PEOPLE[k] && !(st.invite && (k === st.invite.from || k === st.invite.to)) && !st.steps.some((x) => x.id === k));
     let id = null, nextTurn = turn; for (let k = 0; k < ids.length; k++) { const c = ids[(turn + k) % ids.length]; if (requestAllowed(st,c,'physical',now)&&!st.chars[c].sleep&&!st.chars[c].sleepPending&&!Object.values(st.sleepDeskLeases).some(l=>l.owner===c)&&!(st.diningChairLease?.owner===c&&st.diningChairLease.phase==='departing')&&(now >= st.chars[c].busyUntil||performanceReplyDue(st,c,now)||sharedDrinkReplyDue(st,c,now))) { id = c; nextTurn = (turn + k + 1) % ids.length; break; } }
+    if((!id||!st.memoryYieldPhysical)&&await consolidateDailyMemory(now)){st.memoryYieldPhysical=true;save();await relay('/director/world',st.world);return;}
     if((!id||!st.reflection?.yieldPhysical)&&await reflectRelationships(now)){st.reflection.yieldPhysical=true;save();await relay('/director/world',st.world);return;}
     if (!id) return;
-    turn=nextTurn;
+    turn=nextTurn;st.memoryYieldPhysical=false;
     if(st.reflection)st.reflection.yieldPhysical=false;
     const allAvailable=actions(id),avail = urgentOnly(id, allAvailable),diagnosticId=newTraceId();
     trace(diagnosticId,'choice_started',{actorId:id,revision:st.seq,actorSeq:st.chars[id].seq,

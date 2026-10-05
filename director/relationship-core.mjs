@@ -1,3 +1,4 @@
+import {addMemory} from './daily-memory.mjs';
 import {relationProjection} from './relationship-context.mjs';
 import {ensureDevelopment,recordObservation,flirtPermitted,courtshipOptions,confirmCourtship} from './relationship-development.mjs';
 import {chooseConversationVariant} from './conversation-variants.mjs';
@@ -104,7 +105,7 @@ export function chooseAppraisal(st,id,partner,stance,eventId,now,source,confiden
   basis:structuredClone(choice.evidence),assessment:choice.meaning,assessmentSource:'selected_appraisal_option',consideredEventIds};
  for(const e of r.observations)if(consideredEventIds.includes(e.id))e.appraisedAt=now;
  r.lastAppraisal=structuredClone(event);r.decisions.push(event);r.decisions=r.decisions.slice(-6);
- st.chars[id].memory.push(structuredClone(event));st.chars[id].memory=st.chars[id].memory.slice(-12);
+ addMemory(st.chars[id],structuredClone(event));
  const pair=Object.values(st.social?.pairs||{}).find(p=>p.members.includes(id)&&p.members.includes(partner));
  if(pair){pair.expressionRelations={...(pair.expressionRelations||{}),[id]:stance};pair.visualIntentEvents??=[];const intent=currentIntent(pair,id);pair.visualIntentEvents.push({actor:id,intent:intent.intent,relation:stance,revision:intent.revision,at:now,basis:structuredClone(intent.basis)});}
  return true;

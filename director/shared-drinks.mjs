@@ -1,3 +1,4 @@
+import {addMemory} from './daily-memory.mjs';
 import {available,price} from './economy.mjs';
 
 const live = v => ['pending','deferred','gathering','drinking'].includes(v.status);
@@ -12,8 +13,8 @@ function note(st,v,event,summary,now,extra={}) {
   for(const id of members(v)) {
     const p=st.chars[id],key=`${v.id}:${event}:${id}`;
     if(p.memory.some(e=>e.id===key))continue;
-    p.memory.push({id:key,event,partner:id===v.from?v.to:v.from,drink:v.kind,payment:v.payment,summary,at:now,source:'shared_drinks',...extra});
-    p.memory=p.memory.slice(-12);
+    addMemory(p,{id:key,event,partner:id===v.from?v.to:v.from,drink:v.kind,payment:v.payment,summary,at:now,source:'shared_drinks',...extra});
+
   }
 }
 export function sharedDrinkContext(st,id) {

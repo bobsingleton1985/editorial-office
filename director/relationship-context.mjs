@@ -78,7 +78,7 @@ export function fitRelationshipRequest(input,maxBytes=65000,serverStatus=null){
   if(relations.some(r=>pop(r.dimensionDecisions,1))||pop(s.finances?.transactions,3)||relations.some(r=>pop(r.observations,3))
     ||relations.some(r=>Object.values(r.dimensions||{}).some(d=>pop(d.basis,1)))||relations.some(r=>pop(r.courtship?.history,3))
     ||relations.some(r=>pop(r.dimensionDecisions))||relations.some(r=>pop(r.observations,1))||pop(s.finances?.transactions,1)
-    ||pop(s.memory,1)||pop(s.recentEpisodes,1))continue;
+    ||pop(s.consolidatedMemory,1)||pop(s.memory,1)||pop(s.recentEpisodes,1))continue;
   const performances=s.finances?.performances;
   const duplicate=Array.isArray(performances)?performances.findIndex(r=>declinedHistory.has(r.id)):-1;
   if(duplicate>=0){

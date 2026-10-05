@@ -1,13 +1,13 @@
 const NAMES={heroine:'Героиня',columnist:'Колумнист',reporter:'Репортёр',newspaper_editor:'Редактор'};
 const REASONS={openrouter_http_429:'Провайдер ограничил частоту запросов',request_interrupted:'Запрос прерван перезапуском сервиса',jev_context_core_exceeds_limit:'Обязательная часть запроса превышает допустимый размер',jev_context_token_counter_unavailable:'Недоступен измеритель размера запроса',jev_context_provider_limit:'Провайдер отклонил слишком большой запрос',session_unavailable:'Не удалось открыть сеанс модели',action_not_available:'Модель вернула недоступное действие',daily_limit:'Достигнут дневной предел запросов',model_disabled:'Модель отключена',request_failed:'Запрос к модели завершился ошибкой'};
 export function requestStatusText(item,now=Date.now()){
- const name=NAMES[item.actor]||'Персонаж',kind=item.kind==='dialogue'?'ответ владельцу':item.kind==='reflection'?'оценка отношений':'выбор действия';
+ const name=NAMES[item.actor]||'Персонаж',kind=item.kind==='memory'?'обновление памяти':item.kind==='dialogue'?'ответ владельцу':item.kind==='reflection'?'оценка отношений':'выбор действия';
  const reason=REASONS[item.error]||(item.error==='qwen_context_provider_limit'?'Провайдер отклонил слишком большой запрос':/^(?:jev|qwen)_context_/.test(item.error||'')?'Запрос заблокирован проверкой контекста':'Не удалось получить ответ модели');
  if(item.status==='deferred')return `${name} · ${kind}: ожидание зрителя. Запрос к провайдеру не отправлен.`;
  if(item.status==='ok')return `${name} · ${kind}: ответ получен`;
  if(item.status==='pending'||item.status==='retry_requested')return `${name} · ${kind}: ${item.error?reason+'. Повторный запрос':'ожидание ответа'}`;
  const time=new Date(item.failedAt).toLocaleTimeString('ru-RU');
- return `${name} · ${kind} · ${time}: ${reason}. ${item.blocked?'Автоповтор остановлен.':`Повтор через ${Math.max(0,Math.ceil((item.retryAt-now)/1000))} с.`} Новое решение не принято.`;
+ return `${name} · ${kind} · ${time}: ${reason}. ${item.blocked?'Автоповтор остановлен.':`Повтор через ${Math.max(0,Math.ceil((item.retryAt-now)/1000))} с.`} ${item.kind==='memory'?'Предыдущая память сохранена.':'Новое решение не принято.'}`;
 }
 export function createModelStatus(url){
  const style=document.createElement('style');style.textContent=`

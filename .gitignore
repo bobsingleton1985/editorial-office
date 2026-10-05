@@ -27,3 +27,6 @@ node_modules/
 
 # Durably exported owner telephone replies
 director/phone-dialogue-replies.json*
+
+# Immutable personal memory archive; never commit runtime events.
+director/*.memory-archive/
