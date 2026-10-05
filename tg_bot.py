@@ -71,7 +71,7 @@ class BotMenu:
         else:
             if len(text)>500:raise ValueError('Реплика должна быть не длиннее 500 символов.')
             s.update(mode='talk',draft={})
-            call(text);note=menu('Реплика поставлена в очередь звонка. Ожидаем, пока персонаж возьмёт трубку.')
+            call(text);note=menu('Реплика добавлена в текущий разговор. Завершать звонок между фразами не нужно.' if world.get('phoneTarget')==s['target'] else 'Реплика поставлена в очередь звонка. Ожидаем, пока персонаж возьмёт трубку.')
         event.update(text=note[:4000],next=s,keyboard=self.keyboard(s));return event
 
     def process(self,update,*,authorized,send,answer_callback,enqueue,track,world,save_offset):

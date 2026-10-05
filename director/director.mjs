@@ -7,7 +7,7 @@ import {TV_CHANNELS,tvActions,receiveTvSwitch} from './tv-control.mjs';
 import {processBonusQueue} from './owner-bonuses.mjs';
 import {parseOwnerCall} from './owner-calls.mjs';
 import {PROGRAM as TV_PROGRAM,onAir} from '../src/tv-schedule.js';
-import {recoverInterruptedRequests,requestAllowed,requestStarted,requestDeferred,requestFailed,requestSucceeded,retryModelRequest,cancelOwnerDialogueRequest} from './model-requests.mjs';
+import {recoverInterruptedRequests,requestAllowed,requestStarted,requestDeferred,requestFailed,requestSucceeded,retryModelRequest,cancelOwnerDialogueRequest,advanceFailedOwnerDialogue} from './model-requests.mjs';
 import {ChronicleStore} from './chronicle-store.mjs';
 import {extractChronicle,DanceObserver} from './chronicle-core.mjs';
 import {projectWorld} from './world-transport.mjs';
@@ -268,7 +268,7 @@ function endOwnerPhone(id,now,onAccepted=null){const p=st.chars[id];if(p.activit
 function startCall(now, text = null, recipient = null, callId = null, command = null, instructionEligible = true) {            // addressed calls wait for their recipient; ordinary calls use proximity
   if (!text) st.nextCall = rnd(CALL_EVERY) * 60000 / FAST;         // text: the owner's message (Archie, ring.sh) — a fact for the one who answers
   releasePhone(now);
-  const ongoing=Object.entries(st.chars).find(([id,p])=>p.ownerPhoneSession?.until>now&&p.activity==='phone');
+  const ongoing=Object.entries(st.chars).find(([id,p])=>p.ownerPhoneSession&&p.activity==='phone');
   if(text&&ongoing){const [id,p]=ongoing;
    if(recipient===null||recipient===id){if(p.pendingOwnerCall)return false;p.pendingOwnerCall={seq:p.seq,text,callId,...(command?{command}:{}),...(instructionEligible===false?{instructionEligible:false}:{})};p.busyUntil=p.activityUntil=p.ownerPhoneSession.until=now+OWNER_PHONE_IDLE_MS;st.world=composeWorld(now);save();return true;}
    if(!nextDialogue(p)&&!p.pendingOwnerCall)endOwnerPhone(id,now);
@@ -303,7 +303,8 @@ function receiveOwnerCall(now){
   if(!c.delivered){
    if(p.activity!=='phone'||p.seq!==c.seq){delete p.pendingOwnerCall;save();continue;}
    if(!socialReady(id,now)||a.activity!=='phone'||a.phone?.seq!==c.seq||a.phone.receiving!==true){p.busyUntil=Math.max(p.busyUntil,now+1000);continue;}
-   receiveDialogue(p,{id:'ph_'+(c.callId||id+'_'+c.seq),text:c.text,source:'phone',at:now,command:c.command,instructionEligible:c.instructionEligible!==false},now);
+   const isNewTurn=receiveDialogue(p,{id:'ph_'+(c.callId||id+'_'+c.seq),text:c.text,source:'phone',at:now,command:c.command,instructionEligible:c.instructionEligible!==false},now);
+   if(isNewTurn)advanceFailedOwnerDialogue(st,id,'ph_'+(c.callId||id+'_'+c.seq),now);
    const turn=p.ownerDialogue.find(t=>t.id==='ph_'+(c.callId||id+'_'+c.seq));
    applyDialogueCommand(st,id,turn,now,{canWork:supports(id,'work'),physicalOptions:actions(id)});
    p.memory.push({event:'phone_call',from:'владелец газеты',text:c.text,at:hhmm(now)});p.memory=p.memory.slice(-12);
@@ -1095,7 +1096,7 @@ async function pollNudges(now, status) {
 let dialogueSavePending=false,phoneReplySignature=null;
 // Telegram consumes only this projection, exported after canonical durable save.
 function publishPhoneReplies(saved=false){
- const result={chars:Object.fromEntries(Object.entries(st.chars).map(([id,p])=>[id,{ownerDialogue:(p.ownerDialogue||[]).filter(t=>t.source==='phone'&&['answered','closed','cancelled'].includes(t.status)).map(t=>({id:t.id,source:t.source,status:t.status,reply:t.reply,reaction:t.reaction,control:t.control,effect:t.effect?{type:t.effect.type,status:t.effect.status,summary:t.effect.summary}:null}))}]))};
+ const result={chars:Object.fromEntries(Object.entries(st.chars).map(([id,p])=>[id,{ownerDialogue:(p.ownerDialogue||[]).filter(t=>t.source==='phone'&&['answered','closed','cancelled','failed'].includes(t.status)).map(t=>({id:t.id,source:t.source,status:t.status,reply:t.reply,reaction:t.reaction,control:t.control,effect:t.effect?{type:t.effect.type,status:t.effect.status,summary:t.effect.summary}:null}))}]))};
  const serialized=JSON.stringify(result);if(serialized===phoneReplySignature)return true;if(!saved&&!save(true))return false;
  try{const file=HERE+'director/phone-dialogue-replies.json';fs.writeFileSync(file+'.tmp',serialized,{mode:0o600});const fd=fs.openSync(file+'.tmp','r');try{fs.fsyncSync(fd);}finally{fs.closeSync(fd);}fs.renameSync(file+'.tmp',file);const parent=fs.openSync(dirname(file),'r');try{fs.fsyncSync(parent);}finally{fs.closeSync(parent);}phoneReplySignature=serialized;return true;}catch{log('phone reply export failed; will retry');return false;}
 }
@@ -1380,7 +1381,8 @@ async function tick() {
     try{await pollOwnerDialogue(now);}catch(e){log('owner dialogue inbox unavailable');}
     if(dialogueSavePending)return;
     if(!finishOwnerIntentCalls(now))return;
-    for(const [id,p]of Object.entries(st.chars))if(p.ownerPhoneSession?.until<=now&&!p.pendingOwnerCall)endOwnerPhone(id,now);
+    // A conversation remains open while the owner reads/types, including unseen time.
+    for(const p of Object.values(st.chars))if(p.ownerPhoneSession&&p.activity==='phone')p.busyUntil=p.activityUntil=p.ownerPhoneSession.until=now+OWNER_PHONE_IDLE_MS;
     receiveOwnerCall(now);
     if(dialogueSavePending)return;
     ownerCalls(now);                                                 // the owner's call rings once someone watches

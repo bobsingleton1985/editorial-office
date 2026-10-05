@@ -15,3 +15,16 @@ export function requestDeferred(st,actor,kind,id,now){const h=health(st);h.curre
 
 // Explicit owner hangup cancels only a failed dialogue; retain its prior error in history.
 export function cancelOwnerDialogueRequest(st,actor,now){const h=health(st),key=requestKey(actor,'dialogue'),old=h.current[key];if(old?.status!=='error')return false;const item={...old,status:'cancelled',cancelledAt:now,cancelledBy:'owner_hangup'};h.current[key]=item;h.history.push({...item});h.history=h.history.slice(-20);return true;}
+
+// A fresh owner message can move past a malformed interpretation without
+// repeating an old financial/task effect. Keep that failed turn and its error.
+export function advanceFailedOwnerDialogue(st,actor,nextId,now){
+ const h=health(st),key=requestKey(actor,'dialogue'),old=h.current[key],p=st.chars[actor];
+ if(old?.status!=='error'||old.error!=='invalid_owner_intent')return false;
+ const turn=p?.ownerDialogue?.find(t=>t.status==='waiting');
+ if(!turn||turn.id===nextId)return false;
+ if(turn.effect||turn.intentResolved){return retryModelRequest(st,actor,'dialogue',old.id,now);}
+ Object.assign(turn,{status:'failed',failedAt:now,failure:'invalid_owner_intent',supersededBy:nextId});
+ const item={...old,status:'cancelled',cancelledAt:now,cancelledBy:'owner_new_message'};
+ h.current[key]=item;h.history.push({...item});h.history=h.history.slice(-20);return true;
+}

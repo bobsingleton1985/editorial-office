@@ -25,6 +25,13 @@ class BotTests(unittest.TestCase):
         args.update(overrides);return self.bot.process(update,**args)
     def choose(self):
         self.process(self.update('/start'));self.process(self.update(action='to:reporter'))
+    def test_followup_is_queued_for_same_actor_without_hangup_or_pickup_instruction(self):
+        self.choose();self.world['phoneTarget']='reporter'
+        self.process(self.update('А что ты об этом думаешь?'))
+        self.assertEqual(len(self.calls),1)
+        self.assertEqual(self.calls[0][:2],('А что ты об этом думаешь?','reporter'))
+        self.assertIn('текущий разговор',self.sent[-1][1])
+        self.assertNotIn('возьмёт трубку',self.sent[-1][1])
     def test_private_owner_identity_no_other_sender_or_group_can_control(self):
         self.process(self.update('/start',user=8));self.assertEqual(self.sent,[]);self.assertFalse(self.bot.file.exists())
         update=self.update('/start');update['message']['chat']['type']='group';self.assertFalse(self.process(update));self.assertEqual(self.calls,[])

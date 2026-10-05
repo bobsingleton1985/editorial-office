@@ -7,6 +7,14 @@ spec=importlib.util.spec_from_file_location('dialogue_bridge',Path(__file__).res
 b=importlib.util.module_from_spec(spec);spec.loader.exec_module(b)
 
 class DeliveryTests(unittest.TestCase):
+    def test_failed_interpretation_notice_is_technical_and_delivered_once(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            d=b.DialogueDelivery(Path(tmp)/'d.json');d.track('call',8,'reporter','Привет')
+            world={'chars':{'reporter':{'ownerDialogue':[{'id':'ph_call','source':'phone','status':'failed'}]}}}
+            d.collect(world);sent=[]
+            d.flush(lambda text,message:sent.append(text) or {'message_id':42},lambda *a:None)
+            d.collect(world);d.flush(lambda *a:sent.append(a),lambda *a:None)
+            self.assertEqual(len(sent),1);self.assertIn('ошибки модели',sent[0]);self.assertNotIn('Реакция:',sent[0])
     def test_failed_durable_tracking_cannot_ack_a_retry(self):
         with tempfile.TemporaryDirectory() as tmp:
             d=b.DialogueDelivery(Path(tmp)/'d.json');real=d.save

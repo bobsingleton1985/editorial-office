@@ -679,6 +679,7 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {
       receiving:ch.activity==='phone'&&phase==='talk'&&phones?.M?.A?.up===true&&!!palm&&palm.distanceTo(phones.grip('A'))<.08};
   }
   function phoneCall() {
+    window.__ownerPhoneMaintain?.(ch,gDur);
     const want = !!phones && ch.activity === 'phone';
     if (ch.g?.phone && !want && !ch.g.wrapped) { ch.g = { ...gWrap(ch.g, ch.clk - ch.g.t0), wrapped: true }; }   // the call is over: hang up
     ringing = want && !ch.g?.phone;
@@ -989,6 +990,7 @@ export function createEditor(scene, office, gltf, chairTracks, extra = {}) {
       { const d = ch.seat && SEATS[ch.seat].desk, M = d && mugL[d], st = smoking ? smoking.sipTime() : -1;      // the hand takes the mug back to where it stood
         const c = M && st >= 0 && cur?.activity === 'smoke_coffee' ? handFix(st) : null;
         if (c) smoking.ikL(c.applyMatrix3(new THREE.Matrix3().setFromMatrix4(M.g.matrix)).multiplyScalar(smoking.sipW())); }
+      window.__ownerPhoneEmotion?.(ID,Bn,GEST,ch,cur);
       phonePost(); feetPost(); writePost(); knobPost(); diningPost();
       reading.update(dt,{requested:readRequested(),permitted:readPermitted(),elapsed:ch.clk});
       if (extra.talk) extra.talk.stage(ID, Bn, holder, !!cur?.sleep || typing() || eating() || sipping() || !!smoking?.active(), dt, !['idle','seated'].includes(ch.mode), itemFocus());   // invitations: look at each other, nod / shake

@@ -449,6 +449,7 @@ function reportExecution(dt) {
 let loadingPeople = false;const activatedPeople=new Set();
 const admitSocialWorld=createSocialAdmission();
 function onWorld(w) {
+  window.__ownerPhoneWorld?.(w);
   if(!REMOTE)w=admitSocialWorld(w,window.__simNow??live.now());
   const cast=Object.keys(charsOf(w)).sort().join(',');
   if(simulationCast!==null&&cast!==simulationCast){if(AUTHORITY)throw Error('Simulation cast changed; restart required');simulationIncompatible=true;window.__simulationStatus='incompatible';simulationNotice.hidden=false;simulationNotice.textContent='Состав редакции изменился. Обновите страницу.';return;}

@@ -250,8 +250,8 @@ class DialogueDelivery:
                 if not item or turn.get('source')!='phone': continue
                 if item['status']=='waiting':
                     if self.state.get('target') is None: self.state['target']=actor;changed=True
-                    if turn.get('status') in ['answered','closed','cancelled']:
-                        reply=('☎ Звонок завершён по вашей команде.' if turn.get('status')=='closed' else '☎ Ответ на эту реплику отменён: вы завершили звонок.' if turn.get('status')=='cancelled' else f"☎ {NAMES.get(actor,actor)}\n{turn['reply']}\n\nРеакция: {turn['reaction']}")
+                    if turn.get('status') in ['answered','closed','cancelled','failed']:
+                        reply=('☎ Звонок завершён по вашей команде.' if turn.get('status')=='closed' else '☎ Ответ на эту реплику отменён: вы завершили звонок.' if turn.get('status')=='cancelled' else '☎ Предыдущую реплику не удалось обработать из-за ошибки модели. Новая фраза продолжает этот же звонок.' if turn.get('status')=='failed' else f"☎ {NAMES.get(actor,actor)}\n{turn['reply']}\n\nРеакция: {turn['reaction']}")
                         if turn.get('effect',{}): reply+='\n\n'+turn['effect'].get('summary','')
                         item.update(status='ready',reply=reply,replyHash=hashlib.sha256(reply.encode()).hexdigest(),actor=actor)
                         changed=True
