@@ -37,9 +37,15 @@ export function available(st,id){const e=st.economy;return (e.accounts[id]||0)-O
 const purchaseKind=activity=>activity==='heroine_coffee'?'coffee':activity;
 export function price(st,activity){return st.economy?.config.enabled?(st.economy.config.prices[purchaseKind(activity)]??0):0;}
 export function canAfford(st,id,activity,now=Date.now()) {return price(st,activity)<=available(st,id)||st.economy.treats.some(t=>t.to===id&&t.activity===purchaseKind(activity)&&t.status==='available'&&t.expiresAt>now);}
-export function reservePurchase(st,id,activity,seq,now){
+export function reservePurchase(st,id,activity,seq,now,joint=null){
   const e=st.economy;let cents=price(st,activity);if(!cents)return true;
   const key=`${id}:${seq}`;if(e.receipts['purchase:'+key])return true;if(e.reservations[key])return e.reservations[key].activity===activity;
+  if(joint){
+    const r=e.reservations[joint.key];
+    if(!r?.credit||r.actor!==id||r.payer!==joint.payer||r.cents!==joint.cents||r.cents!==cents||available(st,r.payer)+r.cents<cents)return false;
+    delete e.reservations[joint.key];
+    e.reservations[key]={actor:id,payer:r.payer,activity,seq,cents,at:now,jointId:joint.id};e.revision++;return true;
+  }
   const treat=e.treats.find(t=>t.to===id&&t.activity===purchaseKind(activity)&&t.status==='available'&&t.expiresAt>now);
   if(treat)cents=treat.cents;
   if(!treat&&available(st,id)<cents)return false;
@@ -63,8 +69,9 @@ export function confirmPurchases(st,capabilities,now){
     if(usesConsumption(r.actor,r.activity)&&!(p.consumption?.seq===r.seq&&p.consumption.consumedMs>0))continue;
     if(!Number.isFinite(capabilities?.at)||capabilities.at>now||a?.moneyWitness!==1||!a?.loaded||(!a.executing&&!usesConsumption(r.actor,r.activity))||a.seq!==r.seq||a.activity!==r.activity||now-capabilities.at>3500)continue;
     delete e.reservations[key];
-    if(post(st,'purchase:'+key,r.payer||r.actor,null,r.cents,r.treatId?'treat_purchase':'purchase',now,{activity:r.activity,beneficiary:r.actor})){
-      changed=true;if(r.treatId){const t=e.treats.find(t=>t.id===r.treatId);t.status='used';t.usedAt=now;remember(st,r.actor,{id:'treat:'+key,event:'treated',partner:r.payer,summary:`${r.payer} оплатил твоё угощение: ${r.cents/100} USD.`},now,{important:true});observedMoney(st,r.payer,r.actor,'gift_accepted','treat:'+key,now);}
+    if(post(st,'purchase:'+key,r.payer||r.actor,null,r.cents,r.treatId||r.payer!==r.actor?'treat_purchase':'purchase',now,{activity:r.activity,beneficiary:r.actor})){
+      changed=true;if(r.jointId&&r.payer!==r.actor){remember(st,r.actor,{id:'treat:'+key,event:'treated',partner:r.payer,summary:`${r.payer} оплатил твой напиток: ${r.cents/100} USD.`},now);observedMoney(st,r.payer,r.actor,'gift_accepted','treat:'+key,now);}
+      if(r.treatId){const t=e.treats.find(t=>t.id===r.treatId);t.status='used';t.usedAt=now;remember(st,r.actor,{id:'treat:'+key,event:'treated',partner:r.payer,summary:`${r.payer} оплатил твоё угощение: ${r.cents/100} USD.`},now,{important:true});observedMoney(st,r.payer,r.actor,'gift_accepted','treat:'+key,now);}
     }
   }return changed;
 }
