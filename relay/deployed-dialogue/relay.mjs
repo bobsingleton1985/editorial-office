@@ -265,7 +265,7 @@ const server = http.createServer(async (req, res) => {
   if(url.pathname==='/settings/dialogue'){
     if(req.method!=='POST')return json(res,405,{error:'method_not_allowed'});
     const h=req.headers.authorization||'',owner=OWNER&&h.startsWith('Bearer ')&&same(h.slice(7),OWNER);
-    if(!owner)return json(res,403,{error:'owner_only'});
+    if(!OPEN&&!owner)return json(res,403,{error:'owner_only'});
     const ip=ipOf(req)+'|dialogue';if(Date.now()-(lastChange.get(ip)||0)<1000)return json(res,429,{error:'too_often'});
     let b;try{b=await readBody(req,4096);}catch{return json(res,400,{error:'invalid_owner_dialogue'});}
     try{const receipt=ownerDialogueInbox.enqueue(b,Date.now());lastChange.set(ip,Date.now());return json(res,202,receipt);}

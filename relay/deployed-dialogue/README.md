@@ -1,1 +1,3 @@
-Exact relay source deployed in owner-dialogue-20261005-v02. It runs in the immutable server release with the inherited simulation modules and ../owner-dialogue-inbox.mjs copied into the release relay directory. This source snapshot is kept for review; this directory is not a standalone server package. No secrets or live messages are included.
+Exact relay source deployed in owner-dialogue-access-20261005-v01. It runs in the immutable server release with the inherited simulation modules and ../owner-dialogue-inbox.mjs copied into the release relay directory. This source snapshot is kept for review; this directory is not a standalone server package. No secrets or live messages are included.
+
+Dialogue follows the existing settings access policy: SETTINGS_OPEN=1 permits dialogue without separate credentials, as with other controls. With SETTINGS_OPEN disabled, the existing OWNER_TOKEN is required. The inbox, rate limits and validation remain the same.
