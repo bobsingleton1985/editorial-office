@@ -198,7 +198,9 @@ export async function createCrowd(G, extra, radius) {
       t0 = q30(t0); const p = person(id);
       const busy = [...people.values()].some((o) => { const l = o.reqs[o.reqs.length - 1]; return l && (!l.done || l.doneT > t0); });
       if (![...people.values()].some((o) => o.reqs.length)) tBase = t0;
-      else if (crowd && !dirty && !busy) {                      // a new episode: everybody stands where his last walk ended
+      else if (crowd && !busy) {                      // a new episode: everybody stands where his last walk ended
+        // A final stand event makes history dirty even after all walks finish.
+        // Rebase completed episodes so resuming after idle does not replay hours.
         for (const o of people.values()) { const l = o.reqs[o.reqs.length - 1]; if (l) o.stand = l.doneAt; o.reqs = []; }
         tBase = t0;
       } else if (t0 < tBase) tBase = t0;
