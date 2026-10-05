@@ -19,8 +19,34 @@ export function finalContextGuardReady(status){
   &&g.admission_context_limit===25600&&g.admission_request_limit===51200
   &&g.state_and_longest_question_limit===32000&&g.request_limit===64000&&g.target===(['jev-context-v5','newsroom-qwen-chat-v1'].includes(g.version)?20000:24000)&&g.counter_available===true;
 }
+// Repeated terminal refusals are supporting history, not live contracts.
+// Keep the latest exact participant/activity/reason group and every externally
+// referenced record. This projection never changes canonical finances.
+export function repeatedDeclinedPerformanceIds(input){
+ const rows=input.self?.finances?.performances;
+ if(!Array.isArray(rows))return new Set();
+ const external=structuredClone(input);delete external.self.finances.performances;
+ const references=new Set();
+ const visit=value=>{if(typeof value==='string')references.add(value);else if(value&&typeof value==='object')for(const child of Object.values(value))visit(child);};
+ visit(external);
+ for(const row of rows)for(const [key,value] of Object.entries(row))if(key!=='id')visit(value);
+ const seen=new Set(),omittable=new Set();
+ for(let i=rows.length-1;i>=0;i--){
+  const row=rows[i];if(row.status!=='declined'||typeof row.id!=='string'||!Number.isFinite(row.closedAt))continue;
+  const signature=JSON.stringify(['from','to','performer','payer','activity','reason'].map(k=>[Object.hasOwn(row,k),row[k]]));
+  if(seen.has(signature)&&!references.has(row.id))omittable.add(row.id);
+  seen.add(signature);
+ }
+ return omittable;
+}
+// Projection bookkeeping is local audit data, not character knowledge.
+export function takeContextProjection(projected){
+ const projection=projected.self?.contextProjection;
+ if(!projection||projection.reason!=='bounded_transport_history'||Object.keys(projection).some(k=>!['reason','maxStateBytes','omittedRecords','omittedDialogueIds','omittedPerformanceIds'].includes(k)))return null;
+ delete projected.self.contextProjection;return projection;
+}
 export function fitRelationshipRequest(input,maxBytes=65000,serverStatus=null){
- const out=structuredClone(input),s=out.self;
+ const out=structuredClone(input),s=out.self,declinedHistory=repeatedDeclinedPerformanceIds(input);
  if(s.ownerDialogue)s.ownerDialogue=compactDialogueOptions(s.ownerDialogue);
  // Wallet rows already carry these exact numbers. Retain one factual source
  // and an explicit per-action lookup instead of repeating the prose in criteria.
@@ -53,6 +79,13 @@ export function fitRelationshipRequest(input,maxBytes=65000,serverStatus=null){
     ||relations.some(r=>Object.values(r.dimensions||{}).some(d=>pop(d.basis,1)))||relations.some(r=>pop(r.courtship?.history,3))
     ||relations.some(r=>pop(r.dimensionDecisions))||relations.some(r=>pop(r.observations,1))||pop(s.finances?.transactions,1)
     ||pop(s.memory,1)||pop(s.recentEpisodes,1))continue;
+  const performances=s.finances?.performances;
+  const duplicate=Array.isArray(performances)?performances.findIndex(r=>declinedHistory.has(r.id)):-1;
+  if(duplicate>=0){
+   const [row]=performances.splice(duplicate,1);
+   s.contextProjection.omittedPerformanceIds??=[];s.contextProjection.omittedPerformanceIds.push(row.id);
+   s.contextProjection.omittedRecords++;continue;
+  }
   // Keep every choice and remaining fact for the final server compactor. A
   // byte target before compaction must not reject a request that can fit there.
   if(finalContextGuardReady(serverStatus))break;

@@ -10,7 +10,7 @@ import {ChronicleStore} from './chronicle-store.mjs';
 import {extractChronicle,DanceObserver} from './chronicle-core.mjs';
 import {projectWorld} from './world-transport.mjs';
 import {trace,newTraceId,offeredKinds,mappedDecision} from './decision-trace.mjs';
-import {fitRelationshipRequest} from './relationship-context.mjs';
+import {fitRelationshipRequest,takeContextProjection} from './relationship-context.mjs';
 import {compactSnapshot} from './compact-snapshot.mjs';
 import {FLIRT,flirtGrowth,advanceFlirtNeed,flirtContext,financialFlirtPressure} from './flirt-need.mjs';
 import {nextReflection,reflectionActions,applyReflection,courtshipStatus,flirtPermitted} from './relationship-development.mjs';
@@ -811,9 +811,10 @@ async function askJev(id, avail, reflection = null, diagnosticId=newTraceId(), o
           intermediateBytes:new TextEncoder().encode(JSON.stringify(projected)).length,
           historyTargetBytes:65000,guardVersion:status.jev_context_guard.version});
       }
+      const contextProjection=takeContextProjection(projected);
       const wire=behaviorWireSnapshot(projected);
       trace(diagnosticId,'director_request',{attempt,actorId:id,requestId:original.requestId,revision:original.revision,
-        choiceKinds:offeredKinds(avail),optionCount:avail.length,snapshot:original,wireSnapshot:wire.snapshot,aliases:Object.fromEntries(wire.choices)});
+        choiceKinds:offeredKinds(avail),optionCount:avail.length,contextProjection,snapshot:original,wireSnapshot:wire.snapshot,aliases:Object.fromEntries(wire.choices)});
       {const watch=await relay('/director/status');if(!Number.isInteger(watch.viewers)||watch.viewers<=0)throw new Error('no_viewers');}
       const d = await jevPost('/api/behavior-decide', { session_id: sid, snapshot: wire.snapshot, diagnostic_id:diagnosticId });
       trace(diagnosticId,'director_response',{attempt,requestId:original.requestId,response:d});

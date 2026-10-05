@@ -9,7 +9,7 @@ import {applyDialogueCommand,completeOwnerTask,ownerTaskContext,ownerRequestCont
 import {OwnerDialogueInbox} from '../relay/owner-dialogue-inbox.mjs';
 import {dollarsToCents} from '../relay/owner-dialogue-contract.mjs';
 import {harness} from './director-harness.mjs';
-import {fitRelationshipRequest} from '../director/relationship-context.mjs';
+import {fitRelationshipRequest,repeatedDeclinedPerformanceIds,takeContextProjection} from '../director/relationship-context.mjs';
 import {compactDialogueOptions,compactPerformanceMetadata} from '../director/dialogue-options.mjs';
 const config={...structuredClone(UNCONFIGURED_ECONOMY),enabled:true,startingCents:1000,workRewardCents:300};
 const source=new URL('../director/director.mjs',import.meta.url).pathname;
@@ -146,4 +146,17 @@ test('shared performance metadata reconstructs exact contracts and preserves sta
  const out=compactPerformanceMetadata(original);assert(out.performanceMetadata);
  const decode=value=>typeof value==='string'&&/^@S\d+;$/.test(value)?out.performanceMetadata[value.slice(1,-1)]:value;
  const rows=out.performances.map(r=>({...r,sequence:decode(r.sequence),consent:decode(r.consent)}));assert.deepEqual(rows,original.performances);assert.equal(original.performanceMetadata,undefined);
+});
+
+
+test('only old completed identical refusals are projected; live contracts and ID dependencies remain',()=>{
+ const declined=(id,extra={})=>({id,status:'declined',closedAt:10,from:'heroine',to:'reporter',performer:'heroine',payer:'reporter',activity:'dance',reason:'busy',...extra});
+ const rows=[declined('old'),declined('referenced'),declined('different',{reason:'no'}),declined('unclosed',{closedAt:null}),declined('live',{status:'offered'}),declined('latest'),declined('dependent',{to:'columnist',previousId:'old'})];
+ const input={self:{memory:[{evidenceId:'referenced'}],finances:{performances:rows}}};
+ assert.deepEqual([...repeatedDeclinedPerformanceIds(input)],[]);
+ delete rows.at(-1).previousId;
+ assert.deepEqual([...repeatedDeclinedPerformanceIds(input)],['old']);
+ const projected={self:{contextProjection:{reason:'bounded_transport_history',maxStateBytes:65000,omittedRecords:1,omittedPerformanceIds:['old']},memory:input.self.memory}};
+ const audit=takeContextProjection(projected);assert.deepEqual(audit.omittedPerformanceIds,['old']);assert.equal(projected.self.contextProjection,undefined);assert.equal(input.self.finances.performances.length,7);
+ const extension={self:{contextProjection:{reason:'unknown',fact:true}}};assert.equal(takeContextProjection(extension),null);assert.equal(extension.self.contextProjection.fact,true);
 });
