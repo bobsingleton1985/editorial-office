@@ -16,9 +16,14 @@ function note(st,s,event,text,now) {
 function say(st,s,id,targets,kind,mark,now,input) {
   const p=st.chars[id],to=[...new Set(targets)].filter(k=>k!==id&&st.chars[k]);
   if(!to.length)return;
-  p.entry={...(p.entry||{}),talk:{at:now,to:to[0],targets:to,icon:'whisky',mark,
+  p.entry={...(p.entry||{}),talk:{at:now,until:now+10000,to:to[0],targets:to,icon:'whisky',mark,
     service:{version:2,kind,count:kind==='reply'?1:Object.values(s.guests).filter(g=>!['declined','cancelled'].includes(g.status)).length,
-      ownDrink:s.ownDrink===true,payment:s.payment,payer:s.payment==='treat'?s.initiator:null,speaker:id,payerName:s.payment==='treat'?name(input,s.initiator):null}}};
+      guestNames:Object.keys(s.guests).map(k=>name(input,k)),ownDrink:s.ownDrink===true,payment:s.payment,payer:s.payment==='treat'?s.initiator:null,speaker:id,payerName:s.payment==='treat'?name(input,s.initiator):null}}};
+}
+export function serviceReplyDue(st,id,now) {
+  if(!st.economy?.config?.enabled)return false;
+  return st.economy.services.some(s=>s.version===2&&s.status==='inviting'&&s.expiresAt>now&&
+    (id==='heroine'&&!s.consent&&!s.performerDeferred||s.consent&&s.guests[id]?.status==='pending'));
 }
 export function resolveV2Service(s,now) {
   if(!live(s)||s.status==='running')return;
@@ -50,7 +55,7 @@ export function v2ServiceActions(st,id,now,input,seated) {
       out.push({id:`money_drinks_reply@${s.id}:decline`,description:text+'Отказаться.'});
       if(g.status==='pending')out.push({id:`money_drinks_reply@${s.id}:defer`,description:text+'Ответить «позже», пока действует заказ; наливание ещё не начинается.'});
       const r=e.reservations[key(s,id)];
-      if(enabled&&input.guestReady?.[id]&&(r||available(st,payer)>=200))for(const seat of input.benches?.[id]||[])
+      if(input.serviceVersion===2&&input.guestReady?.[id]&&(r||available(st,payer)>=200))for(const seat of input.benches?.[id]||[])
         out.push({id:`money_drinks_reply@${s.id}:accept:${seat}`,description:text+`Согласиться и сесть на ${seat}. Деньги резервируются до подтверждённой доставки; можно уйти.`});
     }
     const accepted=Object.entries(s.guests).filter(([,g])=>g.status==='accepted');

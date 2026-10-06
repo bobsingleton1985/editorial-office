@@ -9,6 +9,7 @@ export function serviceBubbleLines(t) {
   const payment=s.payment==='each'?(s.kind==='reply'?'За свой счёт':'Каждый за себя'):
     s.payer===s.speaker&&t.mark!=='no'&&t.mark!=='later'?'Я угощаю':`Угощение: ${typeof s.payerName==='string'?s.payerName.slice(0,30):'инициатор'}`;
   const lines=[`${title} · ${s.count} ${s.count===1?'бокал':'бокала'}`,payment];
+  if(['offer','order'].includes(s.kind)&&Array.isArray(s.guestNames)&&s.guestNames.length)lines.push(...(s.count===3?['Всем троим']:s.guestNames.map(n=>`Для: ${String(n).slice(0,24)}`)));
   if(s.kind==='start')lines.push(s.ownDrink?'Себе — за свой счёт':'Я не пью');
   return lines;
 }

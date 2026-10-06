@@ -1,0 +1,39 @@
+{
+  "phase": "director_verified",
+  "at": "2026-10-06T16:21:26.076237+00:00",
+  "seqBefore": 73877,
+  "seqAfter": 73878,
+  "newPid": 59490,
+  "providerRestarted": false,
+  "stateRestored": false,
+  "ownerTabsReloaded": false,
+  "ledgerPrefixRetained": true,
+  "accountsContinuity": true,
+  "memoryTailRetained": {
+    "columnist": true,
+    "reporter": true,
+    "newspaper_editor": true,
+    "heroine": true
+  },
+  "pinnedRulesRetained": true,
+  "canonicalPhoneContentRetained": true,
+  "stateEncrypted": true,
+  "files": {
+    "director/director.mjs": "f7c55dd3af2df02bd5b4c9f5e6b9f677cef472b523a4b4050d19d921517b1928",
+    "director/drink-service-v2.mjs": "715fd1534a4e5e23bd35d66da02b4c821fa25a4ec6356003de2ba460e9f76c8f",
+    "director/drink-service.mjs": "3095c2bf71488b5408fe659bf5b9b2d15d4df624383d3668648b017b6ea08cab"
+  },
+  "baseline": {
+    "director/director.mjs": "472e0f686d24c0a8ecd28ec3fc312c5c0c806390eb8b6568847381a819632208",
+    "director/drink-service-v2.mjs": "0cd2216a0f2b88263dc1eae10258a175c5b23acb4893432bba63c414874bf4a1",
+    "director/drink-service.mjs": "871af505e2246629adac9e1705fc2571f3b727bd8c21c489fad7fa64b5d802b3"
+  },
+  "remoteRelease": {
+    "phase": "remote_activated",
+    "relayRestarted": true,
+    "frontendActivated": true,
+    "runtime": "office-service-v46-20261006",
+    "newAssets": false,
+    "relayPid": 81317
+  }
+}

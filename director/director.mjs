@@ -23,7 +23,7 @@ import {FLIRT,flirtGrowth,advanceFlirtNeed,flirtContext,financialFlirtPressure} 
 import {nextReflection,reflectionActions,applyReflection,courtshipStatus,flirtPermitted} from './relationship-development.mjs';
 import {livelihoodContext,explainEarningActions,isEarningStep} from './livelihood.mjs';
 import {usesConsumption,consumptionReady,acceptConsumption,resetConsumption,CONSUMPTION} from './consumption.mjs';
-import {cancelService,clearDeliveredService,serviceCommandChanged,ensureServices,serviceActions,serviceContext,chooseService,observeServices,tickServices} from './drink-service.mjs';
+import {cancelService,clearDeliveredService,serviceCommandChanged,ensureServices,serviceReplyDue,serviceActions,serviceContext,chooseService,observeServices,tickServices} from './drink-service.mjs';
 import {advancePerformances,committedPerformance,performancePlaces,ensurePerformances,performanceActions,performanceContext,choosePerformance,startPerformance,observePerformances,tickPerformances,cancelPerformance,performanceReplyDue,consideredPerformanceReply} from './paid-performance.mjs';
 import {expandMealActions,resolveMealAction} from './meal-repertoire.mjs';
 import {HER_SOCIAL_CATALOG} from './heroine-social-catalog.mjs';
@@ -647,9 +647,11 @@ function performanceInput(now){const a=executionCapabilities?.actors?.heroine;
  const contactReady=id=>socialReady(id,now)&&!st.chars[id].sleep&&!st.chars[id].sleepPending&&!busyWith(st.chars[id])&&arrivedForAbort(st.chars[id],executionCapabilities.actors[id])&&!Object.values(st.sleepDeskLeases).some(l=>l.owner===id)&&!(st.diningChairLease?.owner===id&&st.diningChairLease.phase==='departing');
  const contacts=Object.fromEntries(IDS.map(id=>[id,!st.invite&&contactReady(id)?IDS.filter(other=>other!==id&&(id==='heroine'||other==='heroine')&&contactReady(other)):[]]));
  return {contacts,mode:st.hostessMode||'dance',capabilities:executionCapabilities,arrived:Object.fromEntries(IDS.map(id=>[id,socialReady(id,now)&&executionCapabilities.at<=now&&arrivedForAbort(st.chars[id],executionCapabilities.actors[id])])),benches:Object.fromEntries(IDS.map(id=>[id,['benchS'].filter(b=>!takenBy(id).has(b))])),ready:socialReady('heroine',now)&&a?.moneyWitness===1&&executionCapabilities.at<=now,music:musicOn(now),musicMs:musicLeftMs(now),durations:a?.performanceDurations||{},places:['tv','tv3'].filter(p=>!takenBy('heroine').has(p))};}
+function serviceResponseDue(id,now){const p=st.chars[id];return serviceReplyDue(st,id,now)&&p.activity!=='phone'&&!p.ownerPhoneSession&&!p.pendingOwnerCall&&!p.sleep&&!p.sleepPending&&!committedPerformance(st,id);}
 function actions(id) { return [...physicalActions(id),...(id==='heroine'?wardrobeActions(st.chars[id],{ready:wardrobeReady&&socialReady(id,Date.now()),awake:!st.chars[id].sleep&&!st.chars[id].sleepPending}):[])]; }
 function physicalActions(id) {
   const p = st.chars[id], here = p.place, P = PLACES[here], out = [], taken = takenBy(id), home = PEOPLE[id].home;
+  if(serviceResponseDue(id,Date.now()))return serviceActions(st,id,Date.now(),serviceInput(Date.now())).filter(a=>a.id.startsWith('money_drinks_reply@')||a.id.startsWith('money_drinks_performer@'));
   if(performanceReplyDue(st,id,Date.now())&&p.busyUntil>Date.now()&&(p.activity!=='conversation'||pairOf(st,id)?.phase!=='active'))return [{id:'continue',description:'Продолжить уже выполняемое занятие; предложение выступления остаётся без ответа.'},...performanceActions(st,id,pairOf(st,id),Date.now(),performanceInput(Date.now())).filter(a=>a.id.startsWith('money_performance_reply@')||a.id.startsWith('money_performance_cancel@'))];
   if(Object.values(st.sleepDeskLeases).some(l=>l.owner===id))return [{id:'continue',description:'Завершить освобождение места для сна: оно удерживается до фактического выхода.'}];
   if(st.diningChairLease?.owner===id&&st.diningChairLease.phase==='departing')return [{id:'continue',description:'Продолжить выход со стула; место удерживается до фактического освобождения.'}];
@@ -1117,7 +1119,7 @@ function applyDecision(id, action, source, confidence, expected=null, performanc
   if (verb === 'music_ask' && PEOPLE[variant]) { startInvite(id, variant, now); st.invite.kind = 'music'; }
   if(verb==='social_invite'||verb==='social_join') {const o=verb==='social_invite'?variant:st.social.deferred[variant]?.from;startInvite(id,o,now);st.invite.kind='social';st.invite.proposal=structuredClone(proposed);st.invite.proposal.actorRevisions[id]=p.seq;if(verb==='social_join')delete st.social.deferred[variant];}
   if (verb === 'smoke' && st.deferredInvites[id]?.place === place) delete st.deferredInvites[id];
-  const t = taskOf(id), talk = p.entry?.talk && now - p.entry.talk.at < 6000 ? p.entry.talk : undefined;   // the last words stay while their bubble runs
+  const t = taskOf(id), talk = p.entry?.talk && now < (p.entry.talk.until??p.entry.talk.at+6000) ? p.entry.talk : undefined;   // the last words stay while their bubble runs
   if(verb==='heroine_tv_channel')st.pendingTvSwitch={actor:id,seq:p.seq,channel:selection,requestedAt:now};
   p.entry = { sharedDrinkId:sharedDrinkDispatch&&joint?joint.id:undefined,channel:verb==='heroine_tv_channel'?selection:undefined,talk, from: target(from), cmd: move ? target(place) : null, at: now, label: labelOf(id, activity, place), activity, source, confidence, action:selectedAction, meal:activity==='lunch'?resolved.meal:null, fatigue: before,
     story: activity === 'work' && t ? { id: t.id, en: WIRE_EN[t.title] || '' } : undefined };
@@ -1395,7 +1397,7 @@ async function pollParticipation(now,status,performanceOnly=false) {
       updatePersonNeeds(id,now);p.lastExecution={seq:p.seq,activity:p.activity,outcome:'completed',replayed:a.executionEnd.replayed===true,receivedAt:now};
       if(p.activity==='heroine_serve'&&a.serviceWitness?.trayOnTable===true){p.place=p.entry.service.version===2?'serviceDock':'trayTable';st.trayDelivery={version:p.entry.service.version||1,ownDrink:p.entry.service.ownDrink===true,id:p.entry.service.id,recipients:p.entry.service.recipients,poured:a.serviceWitness.poured,at:now};}
       p.activity='wait';p.since=p.arriveAt=p.activityUntil=p.busyUntil=now;delete p.executionGate;p.seq++;
-      p.entry={from:target(p.place),cmd:null,at:now,label:labelOf(id,'wait',p.place),activity:'wait',source:'executor_completion',fatigue:p.fatigue};gateChanged=true;
+      p.entry={talk:p.entry?.talk?.until>now?p.entry.talk:undefined,from:target(p.place),cmd:null,at:now,label:labelOf(id,'wait',p.place),activity:'wait',source:'executor_completion',fatigue:p.fatigue};gateChanged=true;
     }else if(p.executionGate && a?.loaded===true && a.seq===p.seq && a.seq===p.executionGate.seq && a.activity===p.activity && executionCapabilities.at<=now && now-executionCapabilities.at<3500 && (a.executing===true||(p.activity==='conversation'&&a.conversationReady&&a.conversationId===pairOf(st,id)?.id))){updatePersonNeeds(id,now);const delay=Math.max(0,now-p.executionGate.expectedStart);p.activityUntil+=delay;p.busyUntil=p.activityUntil;p.arriveAt=now;delete p.executionGate;gateChanged=true;}else if(gateStuck(p,a,now)){abortExecution(id,p,'page_not_executing',now);gateChanged=true;}}
     for(const id of IDS)gateChanged=reconcileEditorialWork(id,now)||gateChanged;
     if(st.chars.heroine){const running=activityRunning('heroine',now);if(running!==heroineFeedbackRunning){updatePersonNeeds('heroine',now);heroineFeedbackRunning=running;gateChanged=true;}}
@@ -1464,7 +1466,7 @@ async function tick() {
     if (st.invite && (now - st.invite.answerAt > INV_PATIENCE || now - st.invite.at > 60000)) { closeInvite(st.invite, 'no_answer', now); await relay('/director/world', st.world); }   // never stuck
     // one decision per tick, the people in turn; they may walk at the same time — the page walks them together (crowd, keep right; owner 30.09)
     const ids = Object.keys(st.chars).filter((k) => PEOPLE[k] && !(st.invite && (k === st.invite.from || k === st.invite.to)) && !st.steps.some((x) => x.id === k));
-    let id = null, nextTurn = turn; for (let k = 0; k < ids.length; k++) { const c = ids[(turn + k) % ids.length]; if (requestAllowed(st,c,'physical',now)&&ownerPhoneExitReady(c,now)&&!st.chars[c].sleep&&!st.chars[c].sleepPending&&!Object.values(st.sleepDeskLeases).some(l=>l.owner===c)&&!(st.diningChairLease?.owner===c&&st.diningChairLease.phase==='departing')&&(now >= st.chars[c].busyUntil||performanceReplyDue(st,c,now)||sharedDrinkReplyDue(st,c,now))) { id = c; nextTurn = (turn + k + 1) % ids.length; break; } }
+    let id = null, nextTurn = turn; for (let k = 0; k < ids.length; k++) { const c = ids[(turn + k) % ids.length]; if (requestAllowed(st,c,'physical',now)&&ownerPhoneExitReady(c,now)&&!st.chars[c].sleep&&!st.chars[c].sleepPending&&!Object.values(st.sleepDeskLeases).some(l=>l.owner===c)&&!(st.diningChairLease?.owner===c&&st.diningChairLease.phase==='departing')&&(now >= st.chars[c].busyUntil||performanceReplyDue(st,c,now)||sharedDrinkReplyDue(st,c,now)||serviceResponseDue(c,now))) { id = c; nextTurn = (turn + k + 1) % ids.length; break; } }
     if((!id||!st.reflection?.yieldPhysical)&&await reflectRelationships(now)){st.reflection.yieldPhysical=true;save();await relay('/director/world',st.world);return;}
     if (!id) return;
     turn=nextTurn;

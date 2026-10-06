@@ -1,0 +1,238 @@
+TAP version 13
+# Subtest: version gate keeps new orders unavailable before the new executor is connected
+ok 1 - version gate keeps new orders unavailable before the new executor is connected
+  ---
+  duration_ms: 1.1725
+  type: 'test'
+  ...
+# Subtest: each worker has all self-including groups of 1/2/3; heroine offers one or all independently of private wallets
+ok 2 - each worker has all self-including groups of 1/2/3; heroine offers one or all independently of private wallets
+  ---
+  duration_ms: 0.470208
+  type: 'test'
+  ...
+# Subtest: ordering reserves only the explicitly promised costs without moving anyone or charging
+ok 3 - ordering reserves only the explicitly promised costs without moving anyone or charging
+  ---
+  duration_ms: 1.02375
+  type: 'test'
+  ...
+# Subtest: sponsor pays for penniless colleagues; each refusal frees exactly one sponsored share
+ok 4 - sponsor pays for penniless colleagues; each refusal frees exactly one sponsored share
+  ---
+  duration_ms: 0.237042
+  type: 'test'
+  ...
+# Subtest: self payment does not consult other private balances and recipient cannot accept without funds
+ok 5 - self payment does not consult other private balances and recipient cannot accept without funds
+  ---
+  duration_ms: 0.203541
+  type: 'test'
+  ...
+# Subtest: deferred guests hold no self-paid money and can independently return before expiry
+ok 6 - deferred guests hold no self-paid money and can independently return before expiry
+  ---
+  duration_ms: 0.263417
+  type: 'test'
+  ...
+# Subtest: partial group expiry releases unanswered costs; accepted guests remain for delivery
+ok 7 - partial group expiry releases unanswered costs; accepted guests remain for delivery
+  ---
+  duration_ms: 0.191042
+  type: 'test'
+  ...
+# Subtest: no acceptance or unaccepted performer expires without any payment
+ok 8 - no acceptance or unaccepted performer expires without any payment
+  ---
+  duration_ms: 0.074917
+  type: 'test'
+  ...
+# Subtest: v2 orders remain available in dance mode and performer income includes both existing jobs
+ok 9 - v2 orders remain available in dance mode and performer income includes both existing jobs
+  ---
+  duration_ms: 0.553125
+  type: 'test'
+  ...
+# Subtest: delivery pays 150 cents to newsroom and 50 to heroine for each of 1/2/3 glasses, exactly once after reload
+ok 10 - delivery pays 150 cents to newsroom and 50 to heroine for each of 1/2/3 glasses, exactly once after reload
+  ---
+  duration_ms: 1.613
+  type: 'test'
+  ...
+# Subtest: self-paid delivery charges each recipient with the same split
+ok 11 - self-paid delivery charges each recipient with the same split
+  ---
+  duration_ms: 0.45125
+  type: 'test'
+  ...
+# Subtest: stale, replayed, mismatched or unverified delivery never charges
+ok 12 - stale, replayed, mismatched or unverified delivery never charges
+  ---
+  duration_ms: 0.400375
+  type: 'test'
+  ...
+# Subtest: cancellation and executor disappearance free all unpaid reserves
+ok 13 - cancellation and executor disappearance free all unpaid reserves
+  ---
+  duration_ms: 0.165667
+  type: 'test'
+  ...
+# Subtest: settlement preflight rejects missing reserve, insolvency, invalid split and overflow without partial posting
+ok 14 - settlement preflight rejects missing reserve, insolvency, invalid split and overflow without partial posting
+  ---
+  duration_ms: 0.357291
+  type: 'test'
+  ...
+# Subtest: authoritative capability sanitizer preserves v2 only with ready measured motions
+ok 15 - authoritative capability sanitizer preserves v2 only with ready measured motions
+  ---
+  duration_ms: 0.170958
+  type: 'test'
+  ...
+# Subtest: actual obligations and exact sponsor survive compact request projection; wallet distinguishes reserved money from new expenses
+ok 16 - actual obligations and exact sponsor survive compact request projection; wallet distinguishes reserved money from new expenses
+  ---
+  duration_ms: 0.349
+  type: 'test'
+  ...
+# Subtest: production director dispatches v2 worker orders and guest consent through its existing whitelist and snapshot
+ok 17 - production director dispatches v2 worker orders and guest consent through its existing whitelist and snapshot
+  ---
+  duration_ms: 18.443041
+  type: 'test'
+  ...
+# Subtest: heroine can treat one or all, retaining gross split and exactly-once self commission
+ok 18 - heroine can treat one or all, retaining gross split and exactly-once self commission
+  ---
+  duration_ms: 0.424875
+  type: 'test'
+  ...
+# Subtest: heroine treat affordability, rejection and cancellation use her own reserves
+ok 19 - heroine treat affordability, rejection and cancellation use her own reserves
+  ---
+  duration_ms: 0.126
+  type: 'test'
+  ...
+# Subtest: all service decisions carry bubble metadata without fabricating other answers
+ok 20 - all service decisions carry bubble metadata without fabricating other answers
+  ---
+  duration_ms: 0.108
+  type: 'test'
+  ...
+# Subtest: wallet exposes heroine full treat commitment instead of labeling it free income
+ok 21 - wallet exposes heroine full treat commitment instead of labeling it free income
+  ---
+  duration_ms: 0.071834
+  type: 'test'
+  ...
+# Subtest: heroine chooses own glass independently, pays herself only after verified sip, dose and split exactly once
+ok 22 - heroine chooses own glass independently, pays herself only after verified sip, dose and split exactly once
+  ---
+  duration_ms: 0.184417
+  type: 'test'
+  ...
+# Subtest: without own drink there is no own reserve, charge or dose even if a raw flag is present
+ok 23 - without own drink there is no own reserve, charge or dose even if a raw flag is present
+  ---
+  duration_ms: 0.080959
+  type: 'test'
+  ...
+# Subtest: missing recipient confirmation releases unpaid share on completion; paid departure does not cancel other drinkers
+ok 24 - missing recipient confirmation releases unpaid share on completion; paid departure does not cancel other drinkers
+  ---
+  duration_ms: 0.090791
+  type: 'test'
+  ...
+# Subtest: actual tick sends busy addressee its offer and applies independent decline
+ok 25 - actual tick sends busy addressee its offer and applies independent decline
+  ---
+  duration_ms: 34.633125
+  type: 'test'
+  ...
+# Subtest: actual tick sends busy addressee its offer and applies independent defer
+ok 26 - actual tick sends busy addressee its offer and applies independent defer
+  ---
+  duration_ms: 17.869291
+  type: 'test'
+  ...
+# Subtest: actual tick sends busy addressee its offer and applies independent accept:benchS
+ok 27 - actual tick sends busy addressee its offer and applies independent accept:benchS
+  ---
+  duration_ms: 18.812792
+  type: 'test'
+  ...
+# Subtest: service response remains visible through next physical decision and expires naturally
+ok 28 - service response remains visible through next physical decision and expires naturally
+  ---
+  duration_ms: 9.714084
+  type: 'test'
+  ...
+# Subtest: visible viewers still required and unanswered offer remains pending without them
+ok 29 - visible viewers still required and unanswered offer remains pending without them
+  ---
+  duration_ms: 5.640666
+  type: 'test'
+  ...
+# Subtest: address line uses actual recipients and does not assert they answered
+ok 30 - address line uses actual recipients and does not assert they answered
+  ---
+  duration_ms: 0.11625
+  type: 'test'
+  ...
+# Subtest: guest can accept after heroine consent while heroine is temporarily smoking
+ok 31 - guest can accept after heroine consent while heroine is temporarily smoking
+  ---
+  duration_ms: 15.418583
+  type: 'test'
+  ...
+# Subtest: service invitation does not interrupt active owner phone dialogue
+ok 32 - service invitation does not interrupt active owner phone dialogue
+  ---
+  duration_ms: 8.307875
+  type: 'test'
+  ...
+# Subtest: order bubble explicitly names both recipients
+ok 33 - order bubble explicitly names both recipients
+  ---
+  duration_ms: 0.220042
+  type: 'test'
+  ...
+# Subtest: service bubbles distinguish own treat, sponsor and each pays; answers concern only their own glass
+ok 34 - service bubbles distinguish own treat, sponsor and each pays; answers concern only their own glass
+  ---
+  duration_ms: 1.124166
+  type: 'test'
+  ...
+# Subtest: group offer addresses every recipient and directs the speaker successively to each
+ok 35 - group offer addresses every recipient and directs the speaker successively to each
+  ---
+  duration_ms: 0.158792
+  type: 'test'
+  ...
+# Subtest: actual canvas drawing renders payer and count with original drink and response icons, preserving older bubbles
+ok 36 - actual canvas drawing renders payer and count with original drink and response icons, preserving older bubbles
+  ---
+  duration_ms: 0.248375
+  type: 'test'
+  ...
+# Subtest: refusal and deferral captions report their decision without affirming payment
+ok 37 - refusal and deferral captions report their decision without affirming payment
+  ---
+  duration_ms: 0.1025
+  type: 'test'
+  ...
+# Subtest: service caption stays at least 12.5 CSS pixels on phone and desktop; original bubbles retain their scale
+ok 38 - service caption stays at least 12.5 CSS pixels on phone and desktop; original bubbles retain their scale
+  ---
+  duration_ms: 0.071542
+  type: 'test'
+  ...
+1..38
+# tests 38
+# suites 0
+# pass 38
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 203.34925

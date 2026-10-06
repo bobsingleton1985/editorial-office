@@ -1,0 +1,20 @@
+{
+  "scope": "Only bounded service helper; all bytes outside helper preserved; only two talk source modules changed",
+  "roles": {
+    "backend": {
+      "beforeSHA": "d1184b93d105c07e104ecf5093f6fbbfe66a78bb226dc23afcdd8064fdf22d2b",
+      "afterSHA": "4430865c44241621a00c9d0d6644bed31ad590d24808d8e8ab4bc1c139d14848",
+      "indexSHA": "6144dd5f5ffafec7509ae1ed3ad39ff7f6278c195ab656a87c7e7866536f451e"
+    },
+    "frontend": {
+      "beforeSHA": "a51812136c302c0a7b7f4f8f3369f72b5c9ea4a3507c8afec5296a9c60ec6672",
+      "afterSHA": "a0e534954e7d6906e59e5f4eed8d5f928ab9a997090b8c631999fcdd079ae0d2",
+      "indexSHA": "da12634b7c24c22b18dc01aea6fb8fc4ba4d24462d7a5e05e28b3b440c0c6b69"
+    },
+    "pages": {
+      "beforeSHA": "db2e84c50e74b651aab1a97dc81b48dd76b7623836b7337537e1b827e19f358d",
+      "afterSHA": "7d9118f3a36e7830c0c430f78878ebbd67499a3baf5421e335f7c8973c4a3692",
+      "indexSHA": "99128e3a7ae9b1ef7868b1fd027b684aaa69aa715a96b746630332d77469c34e"
+    }
+  }
+}

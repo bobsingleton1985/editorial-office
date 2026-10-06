@@ -167,11 +167,11 @@ export function createTalk({ scene, addDynamic, chars, people, now, show = () =>
     const T = now();
     for (const [id, p] of Object.entries(people())) {
       const t = talkOf(id), s = bubbleOf(id), ed = p.ed;
-      const u = t ? (T - t.at) / 1000 : -1;
-      if (!t || !ed || u < 0 || u > SHOW || !show()) { s.visible = false; continue; }   // the menu can switch the bubbles off (the heads still answer)
+      const u = t ? (T - t.at) / 1000 : -1, duration=t?.service?.version===2&&Number.isFinite(t.until)?Math.max(SHOW,Math.min(15,(t.until-t.at)/1000)):SHOW;
+      if (!t || !ed || u < 0 || u > duration || !show()) { s.visible = false; continue; }   // the menu can switch the bubbles off (the heads still answer)
       const h = headPos(ed); if (!h) { s.visible = false; continue; }
       const map=texture(t);s.material.map !== map && (s.material.map = map, s.material.needsUpdate = true);
-      s.material.opacity = sm(u / FADE) * (1 - sm((u - SHOW + FADE) / FADE));
+      s.material.opacity = sm(u / FADE) * (1 - sm((u - duration + FADE) / FADE));
       s.position.set(h.x, h.y + 0.30, h.z);
       const scale=talkBubbleScale(camH,pixelHeight,map.image.height,!!serviceBubbleLines(t));s.scale.set(scale.width,scale.height,1); s.visible = true;
     }

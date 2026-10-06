@@ -1,3 +1,4 @@
+export {serviceReplyDue} from './drink-service-v2.mjs';
 import {available,settleService} from './economy.mjs';
 import {remember} from './economy-events.mjs';
 import {SERVICE_TERMS,v2ServiceActions,chooseV2Service,resolveV2Service} from './drink-service-v2.mjs';
