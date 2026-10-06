@@ -12,7 +12,9 @@
     "accepted-v46 player and props",
     "remote skin-binding pose stream",
     "scoped production bundle graft",
-    "activation, remote activation, rollback and maintenance scripts"
+    "activation, remote activation, rollback and maintenance scripts",
+    "actual clean Pages source commit delta",
+    "activation verification addendum and concurrent authorization receipts"
   ],
   "candidate": {
     "backendAppSHA256": "d1184b93d105c07e104ecf5093f6fbbfe66a78bb226dc23afcdd8064fdf22d2b",
@@ -114,12 +116,69 @@
     "entry losing held carry pose",
     "source overwrite by late talk/gaze overlays",
     "partial release payload hash preflight",
-    "rollback overwriting concurrent Caddy drift"
+    "rollback overwriting concurrent Caddy drift",
+    "missing inherited owner-obligation-context import target in actual Pages commit"
   ],
   "limitations": [
     "No live activation or rollback execution by reviewer.",
     "Runtime fixtures used forced decisions; they do not establish model choice quality.",
     "Review covers exact recorded candidate hashes; later changes require scoped recheck.",
-    "Legacy standalone pour registration retains a measured approximate 6.3 cm offset; this was not newly introduced by fourth-slot cloning."
-  ]
+    "Legacy standalone pour registration retains a measured approximate 6.3 cm offset; this was not newly introduced by fourth-slot cloning.",
+    "Activation continuity in this addendum is supported by static verifier review and matching receipts; reviewer did not independently read canonical/private state."
+  ],
+  "addendumReviewedAt": "2026-10-06T15:22:59Z",
+  "pagesSourceReview": {
+    "reviewedCommit": "529d547add597fec72f2ac753295e546b97e7151",
+    "method": "Actual git parent-to-commit diff, syntax checks, relative import resolution and byte comparisons. Stale broader artifact diffs were not used as the source delta.",
+    "changedJavaScriptSyntaxChecksPassed": 23,
+    "newOrChangedSourceRelativeImportsResolve": true,
+    "sevenDirectorModulesMatchReviewedAndActivatedStaging": true,
+    "serviceHelperTrayStreamAndTalkModulesMatchPreviouslyReviewedOfficeSources": true,
+    "editorMainLayoutAndLiveHooksReviewedAsNarrowServiceDelta": true,
+    "retainedInheritedDirectorScope": "Exact existing live baseline ownerObligationProjection, gifts, numeric preflight and context behavior; retained intentionally per integrator confirmation. Existing behavior was not revalidated by this addendum.",
+    "ownerObligationModuleSHA256": "caf75f89b914c0ea079c83ff38c0814b63b817f0e8acc0eaa10b2b9b6d88e6c8",
+    "ownerObligationMissingImportFoundAndFixed": true,
+    "relaySnapshotTopology": "relay/deployed-dialogue is a documented source snapshot, not a standalone package; missing inherited sibling imports predate this delta. Runtime marker is the sole changed span.",
+    "productionSourceCaveat": "Clean historical main lacks some already published source patches; full rebuilding it is not equivalent to the reviewed production graft.",
+    "pagesAppSHA256": "db2e84c50e74b651aab1a97dc81b48dd76b7623836b7337537e1b827e19f358d",
+    "pagesBaselineAppSHA256": "3e0abc93f91577367c811a35c85faa078167bdee38d4686489404fdf064d46b8",
+    "pagesGraftPatchIntervalsVerified": 16,
+    "allPagesRecordedPatchHashesMatched": true,
+    "allUntouchedPagesIntervalsAndTailByteExact": true
+  },
+  "activationOverlapReview": {
+    "method": "Static source review of verify-after-activation.py and reconciliation of two non-sensitive activation receipts. Reviewer did not execute verification or access canonical/private state.",
+    "verifierSHA256": "4e103fdecc6e37c98b08a0346e718e71191a46863284ffd9a758b040b9b9acb8",
+    "verifierSyntaxValid": true,
+    "serviceReceipt": "project-handoffs/drink-service-v46-release-20261006/activation.json",
+    "contextReceipt": "project-handoffs/final-context-budget-20261006/activation.json",
+    "serviceFrozenAt": "2026-10-06T15:15:51.562901+00:00",
+    "contextFrozenAt": "2026-10-06T15:15:51.693602+00:00",
+    "oldDirectorPid": 19744,
+    "oldProviderPid": 67499,
+    "newDirectorPid": 44214,
+    "newProviderPid": 44207,
+    "seqBefore": 72968,
+    "seqAfter": 72969,
+    "contextReceiptPhase": "verified",
+    "serviceReceiptFinalPhase": "director_verified",
+    "contextReceiptRecordsOwnerApprovedProviderRestart": true,
+    "contextReceiptProviderRestartCount": 1,
+    "contextReceiptDirectorRestartCount": 1,
+    "serviceTaskProviderRestarted": false,
+    "providerPIDChangeAcceptedOnlyAgainstVerifiedAuthorizedMatchingOldNewPIDs": true,
+    "receiptContinuityFlagsMatch": [
+      "ledger prefix",
+      "accounts",
+      "memory tails",
+      "pinned rules",
+      "canonical phone content",
+      "AES state"
+    ],
+    "installedSevenServiceModulesHashesAreGatedByVerifier": true,
+    "providerModelAndGuardReadinessAreGatedAfterExplainedPIDChange": true,
+    "initialNoSuchProcessExplainedByOverlappingAuthorizedDirectorRestart": true,
+    "stateRestorationAndOwnerTabReloadAbsentInBothReceipts": true,
+    "independentLiveContinuityValidationByReviewer": false
+  }
 }

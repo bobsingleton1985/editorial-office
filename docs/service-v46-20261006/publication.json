@@ -1,0 +1,55 @@
+{
+  "phase": "published_served_verified",
+  "at": "2026-10-06T15:24:44.988751+00:00",
+  "url": "https://bobsingleton1985.github.io/editorial-office/",
+  "pagesCodeCommit": "529d547add597fec72f2ac753295e546b97e7151",
+  "pagesBuild": "built",
+  "runtime": "office-service-v46-20261006",
+  "backendRelease": "service-v46-20261006-v01",
+  "frontendRelease": "service-v46-frontend-20261006-v01",
+  "pagesBundleSha256": "db2e84c50e74b651aab1a97dc81b48dd76b7623836b7337537e1b827e19f358d",
+  "remoteFileHashesVerified": true,
+  "remoteWorkerHealthy": true,
+  "serviceVersion": 2,
+  "serviceReady": true,
+  "browser": {
+    "url": "https://bobsingleton1985.github.io/editorial-office/",
+    "bundleHash": "db2e84c50e74b651aab1a97dc81b48dd76b7623836b7337537e1b827e19f358d",
+    "simulationStatus": "live",
+    "errorPresent": false,
+    "actors": [
+      "columnist",
+      "reporter",
+      "newspaper_editor",
+      "heroine"
+    ],
+    "schemaNodes": 0,
+    "pageErrors": 0,
+    "forcedChoices": false,
+    "ownerTabsReloaded": false
+  },
+  "continuity": {
+    "ledgerPrefixRetained": true,
+    "accountsContinuity": true,
+    "memoryTailRetained": {
+      "columnist": true,
+      "reporter": true,
+      "newspaper_editor": true,
+      "heroine": true
+    },
+    "pinnedRulesRetained": true,
+    "canonicalPhoneContentRetained": true,
+    "stateEncrypted": true
+  },
+  "lan": {
+    "url": "http://192.168.1.197:8765/",
+    "reachable": false,
+    "reason": "Connection refused; current provider listens only on127.0.0.1, cloud relay remains canonical."
+  },
+  "manualOwnerRefreshRequired": true,
+  "forcedLiveChoices": false,
+  "limitations": [
+    "Historical gates fail on deliberately deleted old GLBs; new assets and changed boundaries passed.",
+    "Offline forced playback proves execution, not a natural model choice of all six variants."
+  ]
+}

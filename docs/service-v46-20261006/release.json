@@ -7,7 +7,7 @@
   ],
   "fps": 30,
   "authorization": "Owner: animation ready, launch; no joint drinking at different tables. Own drink only by heroine choice and at her expense.",
-  "stage": "remote_and_director_activated_pages_pending",
+  "stage": "published_served_verified",
   "checks": {
     "mechanics": "29/29",
     "runtimeVariants": "6/6",
@@ -20,5 +20,6 @@
     "motions.glb": "018452d86e107e8e2a2bc29c90c28bcc3c83572085c201e905bffcfe231e69af",
     "props.glb": "9cbcf6747c00bc23a83ee3cfdc6ded74b90d53235542bb311ad72d29e9ab4108",
     "bindings.json": "80b366204ef2361f2fa508e4fe5f901a7117b62a505290a638e25df84c8c9bce"
-  }
+  },
+  "publication": "publication.json"
 }
