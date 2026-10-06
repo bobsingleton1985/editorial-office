@@ -19,7 +19,6 @@ export const HEROINE_ACTIVITIES = {
   heroine_pour:activity('наливает в бокал у бара',12.9666666667,'bar'),
   heroine_dance1:activity('танцует — вариант 1',38.5833333333,'tv_dance',{when:'music',rate:4,needs:{dance:-40}}),
   heroine_dance2:activity('танцует — вариант 2',37.3666666667,'tv_dance',{when:'music',rate:4,needs:{dance:-40}}),
-  heroine_mx_dance:activity('танцует чарльстон',21.2,'tv_dance',{when:'music',rate:4,needs:{dance:-40}}),
 };
 // Addressed gestures are selected only inside the shared conversation engine.
 // Work still requires separate HER-compatible execution; smoking is standing only.

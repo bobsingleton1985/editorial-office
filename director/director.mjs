@@ -1,8 +1,12 @@
+import {ownerReplyOption} from './owner-dialogue-context.mjs';
+import {migrateChronicleFile} from './chronicle-privacy.mjs';
+import {privateParse,privateStringify} from '../privacy-vault.mjs';
+import {privateTurn,protectPublicWorld,migratePhonePrivacy,publicRequestContext,privateChronicleState} from './phone-privacy.mjs';
 import {processOwnerGiftRepairs} from './owner-gift-repairs.mjs';
 import {ownerIntentActions,ownerIntentContext,parseOwnerIntent,ownerActionContext,ownerActionRefusal,applyOwnerIntent} from './owner-intent.mjs';
 import {applyDialogueCommand,completeOwnerTask,ownerTaskContext,ownerRequestContext,recordOwnerRequestChoice,publicOwnerCommands} from './owner-dialogue-commands.mjs';
 import {ensureSharedDrinks,sharedDrinkFor,sharedDrinkPlaces,sharedDrinkContext,sharedDrinkActions,chooseSharedDrink,observeSharedDrinks,sharedDrinkCommandChanged,sharedDrinkReplyDue,consideredSharedDrink} from './shared-drinks.mjs';
-import {receiveDialogue,nextDialogue,dialogueContext,answerDialogue,publicDialogue} from './owner-dialogue.mjs';
+import {receiveDialogue,nextDialogue,dialogueContext,answerDialogue,publicDialogue,dialogueHistory} from './owner-dialogue.mjs';
 import {TV_CHANNELS,tvActions,receiveTvSwitch} from './tv-control.mjs';
 import {processBonusQueue} from './owner-bonuses.mjs';
 import {parseOwnerCall} from './owner-calls.mjs';
@@ -11,20 +15,22 @@ import {recoverInterruptedRequests,requestAllowed,requestStarted,requestDeferred
 import {ChronicleStore} from './chronicle-store.mjs';
 import {extractChronicle,DanceObserver} from './chronicle-core.mjs';
 import {projectWorld} from './world-transport.mjs';
-import {trace,newTraceId,offeredKinds,mappedDecision} from './decision-trace.mjs';
+import {trace,markPrivateTrace,markPrivateActor,newTraceId,offeredKinds,mappedDecision} from './decision-trace.mjs';
 import {fitRelationshipRequest,takeContextProjection} from './relationship-context.mjs';
 import {compactSnapshot} from './compact-snapshot.mjs';
 import {FLIRT,flirtGrowth,advanceFlirtNeed,flirtContext,financialFlirtPressure} from './flirt-need.mjs';
 import {nextReflection,reflectionActions,applyReflection,courtshipStatus,flirtPermitted} from './relationship-development.mjs';
 import {livelihoodContext,explainEarningActions,isEarningStep} from './livelihood.mjs';
 import {usesConsumption,consumptionReady,acceptConsumption,resetConsumption,CONSUMPTION} from './consumption.mjs';
-import {clearDeliveredService,serviceCommandChanged,ensureServices,serviceActions,serviceContext,chooseService,observeServices,tickServices} from './drink-service.mjs';
+import {cancelService,clearDeliveredService,serviceCommandChanged,ensureServices,serviceActions,serviceContext,chooseService,observeServices,tickServices} from './drink-service.mjs';
 import {advancePerformances,committedPerformance,performancePlaces,ensurePerformances,performanceActions,performanceContext,choosePerformance,startPerformance,observePerformances,tickPerformances,cancelPerformance,performanceReplyDue,consideredPerformanceReply} from './paid-performance.mjs';
 import {expandMealActions,resolveMealAction} from './meal-repertoire.mjs';
 import {HER_SOCIAL_CATALOG} from './heroine-social-catalog.mjs';
 import {UNCONFIGURED_ECONOMY,ensureEconomy,available,price,canAfford,canReplacePurchase,reservePurchase,cancelPurchases,confirmPurchases,rewardWork,moneyContext,moneyActions,chooseMoney,tickEconomy} from './economy.mjs';
 import {workInterval,resetWorkWitness} from './work-witness.mjs';
 import {HEROINE_PROFILE,HEROINE_ACTIVITIES,heroineSupports} from './heroine-profile.mjs';
+import {wardrobeState,wardrobeContext,wardrobeActions,selectOutfit,setWardrobeAutonomy} from './wardrobe.mjs';
+let wardrobeReady=false;
 import {SLEEP,initializeSleep,requireSleep,awakeFatigueRate,awakeFatigue,startSleep,acceptSleepSample} from './sleep-core.mjs';
 import {benchPassageTags,conversationPlaceProposals,revalidateConversationPlace,CONVERSATION_PLACES} from './conversation-places.mjs';
 import {observeWorkCompleted,appraisalActions,chooseAppraisal,courtshipActions,chooseCourtship,expressionStyle,publicRelations,currentIntent,chooseIntent,chooseRelation,availableIntents,relationOptions,RELATION_TEXT,INTENT_TEXT} from './relationship-core.mjs';
@@ -103,19 +109,17 @@ const TV_IDS = ['tv', 'tv2', 'tv3', 'tv4', 'tv5'];
 const target = (id) => (PLACES[id].kind === 'spot' ? { spot: id } : { seat: id });
 const RATE = {sleep_desk:0,read_wire:-4, conversation: 0, work: 7, rest_desk: -6, rest_lounge: -12, wait: 0, invite: 0 };  // fatigue change per minute (core activities; the rest come from the registry)
 const DWELL = { conversation: [40,75], work: [180, 360], rest_desk: [60, 120], rest_lounge: [120, 240], wait: [30, 60], read_wire:[30,60], phone: [20, 40], invite: [60, 60] };   // invite: until the answer moves him   // seconds after arriving (phone: the talk; owner 30.09: 1–2.5 min was too long)
-// phone calls (owner 30.09): now and then the phone on desk A rings; the nearest one answers — seated if he sits at desk A, otherwise he
-// walks to the phone (phoneA). The call is the director's, not Jev's; after it Jev decides again (no «continue» for a call).
-// Next: the owner's Telegram messages ring it as well (startCall).
-const CALL_EVERY = [20, 40];                                         // minutes of watched time between calls
+// Owner 2026-10-05: only explicit owner calls may ring the newsroom phone.
+// Addressed calls wait for their recipient; unaddressed owner calls use proximity.
 const NEED_TXT = { flirt: 'интерес к флирту', social: 'потребность в общении', alcohol: 'желание выпить', nicotine: 'тяга к сигарете', coffee: 'желание выпить кофе', hunger: 'голод', drunk: 'опьянение', music: 'желание послушать музыку', dance: 'желание потанцевать' };
 // the wish to dance (owner 30.09): a need of its own, apart from listening; drunkenness raises it (+1.5 a minute when fully drunk) and it is
-// catching (+0.8 a minute while someone else dances). Dancing only while music plays (registry: when 'music'), at tv2, tv3, tv4 (the Charleston travels)
+// catching (+0.8 a minute while someone else dances). Men dance with their music-listening motions; the old swing bank is retired (owner 2026-10-05).
 const DANCE_IDS = ['tv2', 'tv3', 'tv4'];
-const danceBoost = (id, now) => ((st.chars[id]?.needs?.drunk ?? 0) / 100) * 1.5 + (Object.entries(st.chars).some(([k, p]) => k !== id && p.activity === 'dance' && activityRunning(k, now) && musicOn(now)) ? 0.8 : 0);
+const danceBoost = (id, now) => ((st.chars[id]?.needs?.drunk ?? 0) / 100) * 1.5 + (Object.entries(st.chars).some(([k, p]) => k !== id && ['jazz','dance','heroine_dance1','heroine_dance2'].includes(p.activity) && activityRunning(k, now) && musicOn(now)) ? 0.8 : 0);
 // music (owner 30.09): it plays when the TV grid has its music channel (tv-schedule.js: at night 01–06 in the city, otherwise one minute in
 // eight) or when someone turned the knob (st.tvMusic: the TV plays music for everybody for TV_MUSIC_MIN). Registry: director.when =
 // 'music' — offered only while music plays (he stops when it ends); 'quiet' — only while it does not; director.effect = 'tv_music' —
-// turning the knob. The wish to dance is a separate need: it comes with the dance clips.
+// turning the knob. Music-listening movements relieve both music and dance needs.
 const TV_MUSIC_MIN = 10;
 // Match the viewer's scheduled channel, including its night jazz and complete 60-second slots.
 // FROM is a scheduled switch, not a physical knob/audio receipt. A viewer may tune earlier after seeing the knob turn.
@@ -144,7 +148,7 @@ const cleanNeeds = (n) => Object.fromEntries(Object.entries(n && typeof n === 'o
 // ---------- activities from the animation registry: chains «в живой редакции» that carry a `director` block
 // director: {verb, rate, dwell: [a, b], once, where: [{at, label, jev}]}; at = window | teletype | desk_here | desk_other | desk_any | bench
 // {desk} and {place} in label/jev are filled in. A chain is «в живой редакции» only once the page can play it — for every person at once.
-const REGISTRY = process.env.REGISTRY_FILE || (process.env.HOME + '/Editorial/Claude outputs/registry/chains-v01.json');
+const REGISTRY = process.env.REGISTRY_FILE || HERE + 'registry/chains-v01.json';
 const CORE = new Set(['continue', 'work', 'work_variant', 'rest_desk', 'rest_lounge', 'wait']);
 const DESK_IDS = ['deskA', 'deskB', 'deskC'], BENCH_IDS = ['benchS', 'benchM', 'benchN'];
 const sleepTargets=id=>id==='heroine'?['diningChair']:DESK_IDS;
@@ -164,7 +168,7 @@ function loadRegistry() {
     const m = fs.statSync(REGISTRY).mtimeMs; if (m === regMtime) return;
     const next = {};
     for (const c of JSON.parse(fs.readFileSync(REGISTRY, 'utf8')).chains || []) {
-      const d = c.director; if (!d || c.status !== 'в живой редакции') continue;
+      const d = c.director; if (!d || d.verb === 'dance' || c.status !== 'в живой редакции') continue;
       if (!/^[a-z][a-z0-9_]{0,39}$/.test(d.verb || '') || CORE.has(d.verb) || !Number.isFinite(d.rate) || !Array.isArray(d.dwell) || d.dwell.length !== 2 || !Array.isArray(d.where)) { log('registry: chain skipped (director block malformed):', c.id); continue; }
       const v = next[d.verb] ??= { rate: d.rate, dwell: d.dwell, once: !!d.once, needs: cleanNeeds(d.needs), where: [],
         people: Array.isArray(d.people) ? d.people.filter((x) => typeof x === 'string') : null,
@@ -181,7 +185,7 @@ const dwellOf = (a) => DWELL[a] ?? REG[a]?.dwell ?? [60, 120];
 const cityHour = (now) => cityUtc === null ? new Date(now).getHours() : new Date(now + cityUtc * 1000).getUTCHours();
 const ownFinancialFlirtPressure=id=>id==='heroine'&&st.economy?.config.enabled?financialFlirtPressure(available(st,id),price(st,'lunch')):0;
 const needGrowth = (id, k, now) => k==='flirt' ? flirtGrowth(st.chars[id],PEOPLE[id].personality,ownFinancialFlirtPressure(id)) : (PEOPLE[id].grow[k] ?? 0) * (EVENING[k] && cityHour(now) >= EVENING_FROM ? EVENING[k] : 1) + (k === 'dance' ? danceBoost(id, now) : 0);
-function witnessedExecution(id,now){const p=st.chars[id],a=executionCapabilities?.actors?.[id];return !p.entry?.sharedDrinkId&&!['gathering','drinking'].includes(sharedDrinkFor(st,id)?.status)&&id!=='heroine'&&p.activity!=='lunch'&&!['smoke','smoke_coffee'].includes(p.activity)||(a?.seq===p.seq&&a.activity===p.activity&&a.executing===true&&now-executionCapabilities.at<3500);}
+function witnessedExecution(id,now){const p=st.chars[id],a=executionCapabilities?.actors?.[id];return !p.entry?.sharedDrinkId&&!['gathering','drinking'].includes(sharedDrinkFor(st,id)?.status)&&id!=='heroine'&&p.activity!=='lunch'&&!['smoke','smoke_coffee','jazz','dance'].includes(p.activity)||(a?.seq===p.seq&&a.activity===p.activity&&a.executing===true&&now-executionCapabilities.at<3500);}
 function activityRunning(id, now) { const p = st.chars[id]; return witnessedExecution(id,now)&&!p.executionGate && now >= (p.arriveAt || 0) && (!REG[p.activity]?.once || now < (p.activityUntil ?? p.busyUntil)); }
 const smokingNeedBlocked=(id,k,activity)=>['smoke','smoke_coffee'].includes(activity)&&(k==='nicotine'?!executionCapabilities?.actors?.[id]?.smoking?.lit:k==='coffee'&&activity==='smoke_coffee'?!executionCapabilities?.actors?.[id]?.smoking?.sip:false);
 const needRate = (id, k, a, now = Date.now()) => needGrowth(id, k, now) + (activityRunning(id, now)&&!usesConsumption(id,a) ? (smokingNeedBlocked(id,k,a)?0:(REG[a]?.needs?.[k] ?? 0)) : 0);
@@ -226,7 +230,8 @@ function freshPerson(id, now, place) {
   return { place, activity, since: now, busyUntil: now + 60000 / FAST, fatigue: 20, lastNeeds: now, needs: { ...P.start }, memory: [], repeats: 0, arriveAt: 0, seq: 1,
     chairsAtStart: {}, entry: { from: target(place), cmd: null, at: now, label: desk?`сидит за столом ${PLACES[place].desk}`:`находится ${PLACES[place].name}`, activity, source: 'start' } };
 }
-let st; try { st = JSON.parse(fs.readFileSync(STATE, 'utf8')); } catch { st = null; }
+let st; try { const restored=privateParse(fs.readFileSync(STATE, 'utf8'));if(!restored||typeof restored!=='object'||!Number.isInteger(restored.seq)||!restored.chars||typeof restored.chars!=='object')throw Error('private_state_unreadable');st=migratePhonePrivacy(restored); } catch(e) { if(e.code!=='ENOENT')throw Error('private_state_unreadable'); st = null; }
+for(const [id,p]of Object.entries(st?.chars||{}))if(p.privateContext)markPrivateActor(id);
 const now0 = Date.now();
 if (!st) st = { seq: 1, chairs: { A: CHAIR_REST, B: CHAIR_REST, C: CHAIR_REST, D:CHAIR_REST }, day: new Date().toDateString(), jevToday: 0, request: 0, tasks: [], taskSeq: 0, nextTask: 0, chars: {} };
 st.chairs ??= {}; st.chairs.D ??= CHAIR_REST; st.sleepDeskLeases ??= {};
@@ -246,7 +251,7 @@ for (const id of IDS) if (!st.chars[id]) {                           // a new pe
   st.chars[id] = freshPerson(id, now0, free); if(PLACES[free].desk){st.chars[id].chairsAtStart = { [PLACES[free].desk]: 0 }; st.chairs[PLACES[free].desk] = 0;}st.seq += 1;
   log(`state: ${PEOPLE[id].name} comes in, ${PLACES[free].name}`);
 }
-for (const [id, p] of Object.entries(st.chars)) { p.activityUntil ??= p.busyUntil; p.needs ??= {}; initializeSleep(p); requireSleep(p,now0); p.lastNeeds=now0; for (const [k, v0] of Object.entries(PEOPLE[id]?.start || {})) p.needs[k] ??= v0; }
+for (const [id, p] of Object.entries(st.chars)) { p.activityUntil ??= p.busyUntil; p.needs ??= {}; initializeSleep(p); if(!p.pendingOwnerCall&&!p.ownerPhoneSession)requireSleep(p,now0); p.lastNeeds=now0; for (const [k, v0] of Object.entries(PEOPLE[id]?.start || {})) p.needs[k] ??= v0; }
 initializeSocial(st);
 const economyConfig=JSON.parse(fs.readFileSync(process.env.ECONOMY_CONFIG_FILE||new URL('./economy-config.json',import.meta.url),'utf8'));
 ensureEconomy(st,economyConfig,now0);ensurePerformances(st);ensureServices(st);ensureSharedDrinks(st);
@@ -254,7 +259,7 @@ st.lastWire=now0; // Restarted/unwatched wall time is not active simulation time
 const recoveredRequests=recoverInterruptedRequests(st,now0);
 let teletypeDirty=recoveredRequests||st.fatigueRulesVersion!==2||st.economy.config.enabled&&!st.world?.chars?.columnist?.finances?.enabled;st.fatigueRulesVersion=2;
 if(teletypeDirty)st.seq++; // Publish newly initialized accounts even if every actor is still busy.
-st.nextCall ??= rnd(CALL_EVERY) * 60000 / FAST;
+delete st.nextCall; // Retire the saved automatic-call timer without changing owner queues.
 // Hold the handset across command changes until its executor confirms release.
 if(!st.phoneLease){const active=Object.entries(st.chars).find(([,p])=>p.activity==='phone');if(active)st.phoneLease={actor:active[0],seq:active[1].seq};}
 function releasePhone(now){
@@ -264,35 +269,45 @@ function releasePhone(now){
 }
 const OWNER_PHONE_IDLE_MS=120000;
 function phoneDialogueReady(id,now){const p=st.chars[id],a=executionCapabilities?.actors?.[id];return p?.activity==='phone'&&socialReady(id,now)&&a?.activity==='phone'&&a.phone?.seq===p.seq&&a.phone.receiving===true;}
-function endOwnerPhone(id,now,onAccepted=null){const p=st.chars[id];if(p.activity==='phone'){if(applyDecision(id,'wait@'+p.place,'owner_hangup',null,null,false,false,false,false,onAccepted)===false)return false;}delete p.ownerPhoneSession;return true;}
-function startCall(now, text = null, recipient = null, callId = null, command = null, instructionEligible = true) {            // addressed calls wait for their recipient; ordinary calls use proximity
-  if (!text) st.nextCall = rnd(CALL_EVERY) * 60000 / FAST;         // text: the owner's message (Archie, ring.sh) — a fact for the one who answers
+function endOwnerPhone(id,now,onAccepted=null){const p=st.chars[id];if(p.activity==='phone'){
+ // Closing the call is a physical transition, not a new 30–60 second wait.
+ // Commit its readiness timer in the same durable boundary as the command.
+ const accepted=()=>{p.busyUntil=p.activityUntil=now;if(onAccepted)onAccepted();};
+ if(applyDecision(id,'wait@'+p.place,'owner_hangup',null,null,false,false,false,false,accepted)===false)return false;
+ }delete p.ownerPhoneSession;return true;}
+function ownerPhoneExitReady(id,now){
+ const p=st.chars[id];if(p?.entry?.source!=='owner_hangup'||p.activity!=='wait')return true;
+ const a=executionCapabilities?.actors?.[id];
+ return executionCapabilities?.at<=now&&now-executionCapabilities.at<3500&&a?.loaded===true&&a.seq===p.seq&&a.phone?.seq===p.seq&&a.phone.occupied===false&&settledForSleep(id,now);
+}
+function startCall(now, text = null, recipient = null, callId = null, command = null, instructionEligible = true, confidential = true) {            // addressed calls wait for their recipient; ordinary calls use proximity
+  if (typeof text !== 'string' || !text.trim()) return false; // No synthetic/background calls.
   releasePhone(now);
   const ongoing=Object.entries(st.chars).find(([id,p])=>p.ownerPhoneSession&&p.activity==='phone');
   if(text&&ongoing){const [id,p]=ongoing;
-   if(recipient===null||recipient===id){if(p.pendingOwnerCall)return false;p.pendingOwnerCall={seq:p.seq,text,callId,...(command?{command}:{}),...(instructionEligible===false?{instructionEligible:false}:{})};p.busyUntil=p.activityUntil=p.ownerPhoneSession.until=now+OWNER_PHONE_IDLE_MS;st.world=composeWorld(now);save();return true;}
+   if(recipient===null||recipient===id){if(p.pendingOwnerCall)return false;p.pendingOwnerCall={seq:p.seq,text,callId,confidential,...(command?{command}:{}),...(instructionEligible===false?{instructionEligible:false}:{})};p.busyUntil=p.activityUntil=p.ownerPhoneSession.until=now+OWNER_PHONE_IDLE_MS;st.world=composeWorld(now);save();return true;}
    if(!nextDialogue(p)&&!p.pendingOwnerCall)endOwnerPhone(id,now);
   }
   if(st.phoneLease||Object.values(st.chars).some(p=>p.activity==='phone')||executionCapabilities&&now-executionCapabilities.at<3500&&Object.values(executionCapabilities.actors).some(a=>a.phone?.occupied))return false;
-  const ids = Object.keys(st.chars).filter((k) => PEOPLE[k]&&supports(k,'phone')&&(k!=='heroine'||recipient==='heroine'&&socialReady(k,now)&&executionCapabilities.actors[k].phone?.ready===true&&st.chars[k].activity!=='heroine_serve')&&!st.chars[k].sleep&&!st.chars[k].sleepPending&&!Object.values(st.sleepDeskLeases).some(l=>l.owner===k)&&!(st.diningChairLease?.owner===k&&st.diningChairLease.phase==='departing'));
+  const ids = Object.keys(st.chars).filter((k) => PEOPLE[k]&&supports(k,'phone')&&(k!=='heroine'||recipient==='heroine'&&socialReady(k,now)&&executionCapabilities.actors[k].phone?.ready===true));
   const id = recipient !== null ? ids.find(k=>k===recipient) : ids.find((k) => st.chars[k].place === 'deskA') || ids.sort((a, b) => travelSeconds(st.chars[a].place, 'phoneA') - travelSeconds(st.chars[b].place, 'phoneA'))[0];
-  if (!id) return false;
-  if(applyDecision(id, st.chars[id].place === 'deskA' ? 'phone@deskA' : 'phone@phoneA', text ? 'owner_call' : 'call', null)===false)return false;
+  if (!id||st.sleepDeskLeases.deskA?.owner&&st.sleepDeskLeases.deskA.owner!==id) return false;
+  if(applyDecision(id, st.chars[id].place === 'deskA' ? 'phone@deskA' : 'phone@phoneA', 'owner_call', null)===false)return false;
   st.phoneLease={actor:id,seq:st.chars[id].seq};
-  log(`phone: desk A rings${text ? ` (the owner: «${text.slice(0, 60)}»)` : ''}, ${PEOPLE[id].name} answers`);
-  if(text){const p=st.chars[id];p.pendingOwnerCall={seq:p.seq,text,callId,...(command?{command}:{}),...(instructionEligible===false?{instructionEligible:false}:{})};p.busyUntil=Math.max(now,p.arriveAt||0)+10000/FAST;st.world=composeWorld(now);save();}
+  log(`phone: desk A rings (${confidential?'confidential':'open'}), ${PEOPLE[id].name} answers`);
+  if(text){const p=st.chars[id];p.pendingOwnerCall={seq:p.seq,text,callId,confidential,...(command?{command}:{}),...(instructionEligible===false?{instructionEligible:false}:{})};p.busyUntil=Math.max(now,p.arriveAt||0)+10000/FAST;st.world=composeWorld(now);save();}
   save();return true;
 }
 // the owner's message is a fact of the whole newsroom for half an hour (emergence decisions 28.09 §8): everybody's snapshot has it
-const ownerNote = (now) => (st.ownerMsg && now - st.ownerMsg.at < 30 * 60000 ? { owner_message: `В ${st.ownerMsg.time} звонил владелец газеты, трубку взял ${st.ownerMsg.by}. Владелец сказал: «${st.ownerMsg.text}»` } : {});
+const ownerNote = (now) => (st.ownerMsg && st.ownerMsg.confidential===false && now - st.ownerMsg.at < 30 * 60000 ? { owner_message: `В ${st.ownerMsg.time} звонил владелец газеты, трубку взял ${st.ownerMsg.by}. Владелец сказал: «${st.ownerMsg.text}»` } : {});
 const CALLS = HERE + 'calls/';                                       // the owner's calls: ring.sh (Archie) drops {text} files here, one call per file
 function ownerCalls(now) {
   let f; try { f = fs.readdirSync(CALLS).filter((n) => n.endsWith('.json')).sort()[0]; } catch { return; }
   if (!f) return;
-  let call; try { call = parseOwnerCall(JSON.parse(fs.readFileSync(CALLS + f, 'utf8'))); }
-  catch { log('phone: rejected invalid call'); }                    // never reroute an invalid addressed call
+  let decoded;try{decoded=privateParse(fs.readFileSync(CALLS+f,'utf8'));}catch{log('phone: encrypted queue unavailable; retained for retry');return;}
+  let call;try{call=parseOwnerCall(decoded);}catch{log('phone: rejected invalid call');}
   if(Object.values(st.chars).some(p=>p.pendingOwnerCall?.queueFile===f))return;
-  if (call && !startCall(now, call.text, call.target, f.replace(/\.json$/, ''),call.command??null,call.instructionEligible!==false)) return;       // wait for the phone and the selected recipient
+  if (call && !startCall(now, call.text, call.target, f.replace(/\.json$/, ''),call.command??null,call.instructionEligible!==false,call.confidential!==false)) return;       // wait for the phone and the selected recipient
   if(call){const p=Object.values(st.chars).find(p=>p.pendingOwnerCall?.callId===f.replace(/\.json$/,''));if(p){p.pendingOwnerCall.queueFile=f;save();return;}}
   try { fs.mkdirSync(CALLS + 'done', { recursive: true }); fs.renameSync(CALLS + f, CALLS + 'done/' + f); } catch (e) { log('calls:', e.message); }
 }
@@ -303,16 +318,16 @@ function receiveOwnerCall(now){
   if(!c.delivered){
    if(p.activity!=='phone'||p.seq!==c.seq){delete p.pendingOwnerCall;save();continue;}
    if(!socialReady(id,now)||a.activity!=='phone'||a.phone?.seq!==c.seq||a.phone.receiving!==true){p.busyUntil=Math.max(p.busyUntil,now+1000);continue;}
-   const isNewTurn=receiveDialogue(p,{id:'ph_'+(c.callId||id+'_'+c.seq),text:c.text,source:'phone',at:now,command:c.command,instructionEligible:c.instructionEligible!==false},now);
+   const isNewTurn=receiveDialogue(p,{id:'ph_'+(c.callId||id+'_'+c.seq),text:c.text,source:'phone',at:now,command:c.command,instructionEligible:c.instructionEligible!==false,confidential:c.confidential!==false},now);
    if(isNewTurn)advanceFailedOwnerDialogue(st,id,'ph_'+(c.callId||id+'_'+c.seq),now);
-   const turn=p.ownerDialogue.find(t=>t.id==='ph_'+(c.callId||id+'_'+c.seq));
+   const turn=p.ownerDialogue.find(t=>t.id==='ph_'+(c.callId||id+'_'+c.seq));if(privateTurn(turn))markPrivateActor(id);
    applyDialogueCommand(st,id,turn,now,{canWork:supports(id,'work'),physicalOptions:actions(id)});
-   p.memory.push({event:'phone_call',from:'владелец газеты',text:c.text,at:hhmm(now)});p.memory=p.memory.slice(-12);
-   st.ownerMsg={text:c.text,at:now,time:hhmm(now),by:PEOPLE[id].name};
+   p.memory.push({event:'phone_call',from:'владелец газеты',text:c.text,confidential:c.confidential!==false,at:hhmm(now)});p.memory=p.memory.slice(-12);
+   if(c.confidential!==false)delete st.ownerMsg;else st.ownerMsg={text:c.text,confidential:false,at:now,time:hhmm(now),by:PEOPLE[id].name};
    p.ownerPhoneSession={until:now+OWNER_PHONE_IDLE_MS,lastMessageAt:now,ending:c.instructionEligible!==false&&['/конец','/hangup'].includes(c.text.trim().toLowerCase())};p.busyUntil=p.activityUntil=p.ownerPhoneSession.until;c.delivered=true;st.seq++;st.world=composeWorld(now);
   }
   if(p.ownerPhoneSession?.ending||c.ending){
-   c.ending=true;const turn=p.ownerDialogue.find(t=>t.id==='ph_'+(c.callId||id+'_'+c.seq));turn.status='closing';
+   c.ending=true;const turn=p.ownerDialogue.find(t=>t.id==='ph_'+(c.callId||id+'_'+c.seq));if(privateTurn(turn))markPrivateActor(id);turn.status='closing';
    if(!endOwnerPhone(id,now)){save();continue;}
    const firstWaiting=nextDialogue(p);if(firstWaiting?.source==='phone')cancelOwnerDialogueRequest(st,id,now);
    for(const old of p.ownerDialogue)if(old!==turn&&old.source==='phone'&&['waiting','closing'].includes(old.status))Object.assign(old,{status:'cancelled',cancelledAt:now,control:{type:'owner_hangup',status:'applied'}});
@@ -335,7 +350,7 @@ st.inviteCool ??= {}; st.inviteSeq ??= 0; st.steps ??= []; st.deferredInvites ??
 const busyWith = (p) => !!p.sleep || !!p.sleepPending || Object.values(st.sleepDeskLeases).some(l=>st.chars[l.owner]===p) || (st.diningChairLease?.phase==='departing'&&st.chars[st.diningChairLease.owner]===p) || p.activity === 'phone' || p.activity === 'invite' || /^smoke/.test(p.activity);
 function canInvite(id, o, now) {
   const a = st.chars[id], b = st.chars[o]; if(id==='heroine'||o==='heroine'||!canAfford(st,id,'smoke',now)||!canAfford(st,o,'smoke',now))return false; if (!b || !PEOPLE[o] || st.invite || !supports(id,'smoke') || !supports(o,'smoke')) return false;
-  if (busyWith(a) || busyWith(b) || now < (b.arriveAt || 0) || now < (a.arriveAt || 0)) return false;
+  if (committedPerformance(st,id)||committedPerformance(st,o)||busyWith(a) || busyWith(b) || now < (b.arriveAt || 0) || now < (a.arriveAt || 0)) return false;
   if ((st.inviteCool[id + '>' + o] || 0) > now) return false;
   const taken = new Set(Object.entries(st.chars).filter(([k]) => k !== id && k !== o).map(([, p]) => p.place));
   return !taken.has('window') && !taken.has('window2');
@@ -510,12 +525,12 @@ const CHRONICLE_FILE=STATE+'.chronicle/events.jsonl',CHRONICLE_CURSOR=STATE+'.ch
 let chronicle=null,chronicleCursor=0,chronicleSending=false,chronicleWarning=0;
 let danceObserver;const chronicleNames=Object.fromEntries(Object.entries(PEOPLE).map(([id,p])=>[id,p.name]));
 const chronicleError=e=>{if(Date.now()-chronicleWarning>60000){log('chronicle unavailable:',e.message);chronicleWarning=Date.now();}};
-try{chronicle=new ChronicleStore(CHRONICLE_FILE);try{chronicleCursor=JSON.parse(fs.readFileSync(CHRONICLE_CURSOR,'utf8')).cursor||0;}catch{}if(chronicleCursor>chronicle.records.length)chronicleCursor=0;}catch(e){chronicleError(e);}
+try{migrateChronicleFile(CHRONICLE_FILE);chronicle=new ChronicleStore(CHRONICLE_FILE);try{chronicleCursor=JSON.parse(fs.readFileSync(CHRONICLE_CURSOR,'utf8')).cursor||0;}catch{}if(chronicleCursor>chronicle.records.length)chronicleCursor=0;}catch(e){chronicleError(e);}
 let danceCheckpoint=[];try{const saved=JSON.parse(fs.readFileSync(STATE+'.chronicle/dance.json','utf8'));if(Array.isArray(saved))danceCheckpoint=saved;}catch{}
 danceObserver=new DanceObserver(chronicle?.records.filter(r=>r.type==='event').map(r=>r.data)||[],danceCheckpoint);
 let danceCheckpointHash=JSON.stringify(danceObserver.snapshot());
 const captureChronicle=(events=null)=>{if(!chronicle)return;try{
- const at=Date.now(),data=events?{events,current:null,observedAt:at}:extractChronicle(st,chronicleNames,at);
+ const at=Date.now(),data=events?{events,current:null,observedAt:at}:extractChronicle(privateChronicleState(st),chronicleNames,at);
  if(!events)data.events.push(...danceObserver.observe(st,null,at,FAST));chronicle.capture(data);
  const checkpoint=JSON.stringify(danceObserver.snapshot());if(checkpoint!==danceCheckpointHash){fs.writeFileSync(STATE+'.chronicle/dance.json.tmp',checkpoint);fs.renameSync(STATE+'.chronicle/dance.json.tmp',STATE+'.chronicle/dance.json');danceCheckpointHash=checkpoint;}
 }catch(e){chronicleError(e);}};
@@ -529,14 +544,14 @@ async function deliverChronicle(){
  }catch(e){chronicleError(e);}finally{chronicleSending=false;}
 }
 const save = (durable=false) => { captureChronicle();try {
-  fs.writeFileSync(STATE + '.tmp', JSON.stringify(st, null, 1));
+  fs.writeFileSync(STATE + '.tmp', privateStringify(st),{mode:0o600});
   if(durable){const fd=fs.openSync(STATE+'.tmp','r');try{fs.fsyncSync(fd);}finally{fs.closeSync(fd);}}
   fs.renameSync(STATE + '.tmp', STATE);
   if(durable){const fd=fs.openSync(dirname(STATE),'r');try{fs.fsyncSync(fd);}finally{fs.closeSync(fd);}}
   return true;
 } catch (e) { log('save failed', e.message); return false; } };
 
-const LABEL = {sleep_desk: (id,p)=>`${st.chars[id].sleep?.phase==='asleep'?'спит':st.chars[id].sleep?.phase==='waking'?'просыпается':'готовится ко сну'} ${sleepPlaceText(p)}`, work: (id, p) => (taskOf(id) ? `правит «${taskOf(id).title}» за столом ${PLACES[p].desk}` : `ожидает задания за столом ${PLACES[p].desk}`), rest_desk: (id, p) => `отдыхает за столом ${PLACES[p].desk}`,
+const LABEL = {sleep_desk: (id,p)=>`${st.chars[id].sleep?.phase==='asleep'?'спит':st.chars[id].sleep?.phase==='waking'?'просыпается':'готовится ко сну'} ${sleepPlaceText(p)}`, work: (id, p) => (taskOf(id) ? `правит «${taskOf(id).confidential?'Конфиденциальное поручение':taskOf(id).title}» за столом ${PLACES[p].desk}` : `ожидает задания за столом ${PLACES[p].desk}`), rest_desk: (id, p) => `отдыхает за столом ${PLACES[p].desk}`,
   rest_lounge: (id,p) => p==='diningChair'?'отдыхает на стуле у обеденного стола':'отдыхает на скамье у круглого стола', read_wire:()=> 'читает ленту телетайпа',wait: (id,p)=>PLACES[p].kind==='chair'?'сидит на стуле у обеденного стола':PLACES[p].kind==='desk'?'сидит за столом':PLACES[p].kind==='bench'?'сидит на скамье':p==='teletype'?'стоит у телетайпа':p==='teletypeRead'?'стоит перед телетайпом':'стоит '+PLACES[p].name,
   phone: (id, p) => (PLACES[p].kind === 'desk' ? `говорит по телефону за столом ${PLACES[p].desk}` : 'говорит по телефону у стола A'),
   conversation: (id) => {const p=pairOf(st,id);return p?`общается с ${PEOPLE[p.members.find(x=>x!==id)].name.toLowerCase()}`:'ждёт решения после разговора';},
@@ -553,8 +568,14 @@ function labelOf(id, a, p) {
 function tickNeeds(now) {                                          // runs only while someone watches
   const minW = (now - (st.lastWire ?? now)) / 60000; st.lastWire = now;
   st.nextTask -= minW * 60000; if (st.nextTask <= 0 && waiting().length < 3) newTask(now);
-  st.nextCall -= minW * 60000; if (st.nextCall <= 0) startCall(now);
+
   for (const id of Object.keys(st.chars)) updatePersonNeeds(id, now);
+}
+function cancelAutomaticCalls() {
+  for (const [id, p] of Object.entries(st.chars)) {
+    if (p.activity === 'phone' && p.entry?.source === 'call' && !p.pendingOwnerCall && !p.ownerPhoneSession)
+      applyDecision(id, 'wait@' + p.place, 'automatic_call_cancelled', null);
+  }
 }
 function updatePersonNeeds(id, now, witnessedWorkMs=0) {
     const p = st.chars[id];
@@ -567,9 +588,9 @@ function updatePersonNeeds(id, now, witnessedWorkMs=0) {
     if(p.executionGate)p.busyUntil=Math.max(p.busyUntil,now+2000);
     // A meal ends through its executor receipt, including after a temporary report gap.
     if(p.activity==='lunch'){p.busyUntil=Math.max(p.busyUntil,now+2000);if(witnessed)p.activityUntil=Math.max(p.activityUntil,now+2000);}
-    requireSleep(p,last); // Capture 95 before an ordinary rest tick can take it just below the threshold.
+    if(!p.pendingOwnerCall&&!p.ownerPhoneSession)requireSleep(p,last); // Capture 95 before an ordinary rest tick can take it just below the threshold.
     if(!p.sleep||p.sleep.phase==='entering')awakeFatigue(p,last,now,acting+after>0?((usesConsumption(id,p.activity)?0:rateOf(id,p.activity))*acting+rateOf(id,'wait')*after)/(acting+after):0,acting+after,FAST,cityUtc??-new Date(now).getTimezoneOffset()*60);
-    requireSleep(p,now);
+    if(!p.pendingOwnerCall&&!p.ownerPhoneSession)requireSleep(p,now);
     if(p.sleep)p.busyUntil=now+60000;
     // Shorten legacy rest timers without replaying the command or interrupting a committed show.
     if(['rest_desk','rest_lounge'].includes(p.activity)&&!p.sleep&&!p.sleepPending&&!p.executionGate&&!committedPerformance(st,id))p.busyUntil=Math.min(p.busyUntil,Math.max(now,p.arriveAt||0)+60000/FAST);
@@ -581,10 +602,10 @@ function updatePersonNeeds(id, now, witnessedWorkMs=0) {
     if (!t) return;
     t.done_min += (st.economy.config.enabled?witnessedWorkMs/60000:acting)*FAST;
     if (t.done_min >= t.need_min) {                                   // external work_finished event for this task
-      st.tasks = st.tasks.filter((x) => x !== t); p.memory.push({ event: 'work_finished', task: t.id, title: t.title, at: hhmm(now) }); p.memory = p.memory.slice(-12);
-      rewardWork(st,id,t,now);observeWorkCompleted(st,id,t,now);st.seq++;teletypeDirty=true;
+      st.tasks = st.tasks.filter((x) => x !== t); p.memory.push({ event: 'work_finished', task: t.id, title: t.title,confidential:t.confidential===true, at: hhmm(now) }); p.memory = p.memory.slice(-12);
+      rewardWork(st,id,t,now);observeWorkCompleted(st,id,t.confidential?{...t,title:'Конфиденциальное поручение'}:t,now);st.seq++;teletypeDirty=true;
       if(completeOwnerTask(st,id,t,now)){st.world=composeWorld(now);if(!save(true))dialogueSavePending=true;}
-      log(`work_finished ${t.id} «${t.title}» (${PEOPLE[id].name})`); p.busyUntil = Math.min(p.busyUntil, now + 15000);   // a natural moment to decide again
+      log(`work_finished ${t.id} «${t.confidential?'Конфиденциальное поручение':t.title}» (${PEOPLE[id].name})`); p.busyUntil = Math.min(p.busyUntil, now + 15000);   // a natural moment to decide again
     }
 }
 
@@ -593,7 +614,7 @@ function stateNow(id, now) {
   const p = st.chars[id], t = taskOf(id);
   return { at: now, needLimitations:needLimitations(id), needs: { fatigue: { v: +p.fatigue.toFixed(1), rate: p.sleep&&p.sleep.phase!=='entering'?0:(awakeFatigueRate(cityHour(now))+(activityRunning(id,now)?(usesConsumption(id,p.activity)?0:rateOf(id,p.activity)):p.executionGate||REG[p.activity]?.once&&now>=(p.activityUntil??p.busyUntil)?rateOf(id,'wait'):0))*FAST },
       ...Object.fromEntries(Object.keys(PEOPLE[id].grow).map((k) => [k, { v: +(p.needs[k] ?? 0).toFixed(1), rate: +(needRate(id, k, p.activity) * FAST).toFixed(2) }])) },
-    task: t ? { confirmedOnly:st.economy.config.enabled, title: t.title, done: +t.done_min.toFixed(2), need: t.need_min, working: p.activity === 'work', from: Math.max(now, p.arriveAt || 0) } : null,
+    task: t ? { confirmedOnly:st.economy.config.enabled, title: t.confidential?'Конфиденциальное поручение':t.title,confidential:t.confidential===true, done: +t.done_min.toFixed(2), need: t.need_min, working: p.activity === 'work', from: Math.max(now, p.arriveAt || 0) } : null,
     queue: waiting().length };
 }
 
@@ -624,7 +645,8 @@ function performanceInput(now){const a=executionCapabilities?.actors?.heroine;
  const contactReady=id=>socialReady(id,now)&&!st.chars[id].sleep&&!st.chars[id].sleepPending&&!busyWith(st.chars[id])&&arrivedForAbort(st.chars[id],executionCapabilities.actors[id])&&!Object.values(st.sleepDeskLeases).some(l=>l.owner===id)&&!(st.diningChairLease?.owner===id&&st.diningChairLease.phase==='departing');
  const contacts=Object.fromEntries(IDS.map(id=>[id,!st.invite&&contactReady(id)?IDS.filter(other=>other!==id&&(id==='heroine'||other==='heroine')&&contactReady(other)):[]]));
  return {contacts,mode:st.hostessMode||'dance',capabilities:executionCapabilities,arrived:Object.fromEntries(IDS.map(id=>[id,socialReady(id,now)&&executionCapabilities.at<=now&&arrivedForAbort(st.chars[id],executionCapabilities.actors[id])])),benches:Object.fromEntries(IDS.map(id=>[id,['benchS'].filter(b=>!takenBy(id).has(b))])),ready:socialReady('heroine',now)&&a?.moneyWitness===1&&executionCapabilities.at<=now,music:musicOn(now),musicMs:musicLeftMs(now),durations:a?.performanceDurations||{},places:['tv','tv3'].filter(p=>!takenBy('heroine').has(p))};}
-function actions(id) {
+function actions(id) { return [...physicalActions(id),...(id==='heroine'?wardrobeActions(st.chars[id],{ready:wardrobeReady&&socialReady(id,Date.now()),awake:!st.chars[id].sleep&&!st.chars[id].sleepPending}):[])]; }
+function physicalActions(id) {
   const p = st.chars[id], here = p.place, P = PLACES[here], out = [], taken = takenBy(id), home = PEOPLE[id].home;
   if(performanceReplyDue(st,id,Date.now())&&p.busyUntil>Date.now()&&(p.activity!=='conversation'||pairOf(st,id)?.phase!=='active'))return [{id:'continue',description:'Продолжить уже выполняемое занятие; предложение выступления остаётся без ответа.'},...performanceActions(st,id,pairOf(st,id),Date.now(),performanceInput(Date.now())).filter(a=>a.id.startsWith('money_performance_reply@')||a.id.startsWith('money_performance_cancel@'))];
   if(Object.values(st.sleepDeskLeases).some(l=>l.owner===id))return [{id:'continue',description:'Завершить освобождение места для сна: оно удерживается до фактического выхода.'}];
@@ -634,11 +656,13 @@ function actions(id) {
   if(p.sleep)return [{id:'continue',description:'Сон продолжается до восстановления усталости до 30; другие занятия требуют завершения выхода из сна.'}];
   if(p.sleepPending)return [{id:'continue',description:'При усталости 95 назначен обязательный сон. Исполнитель завершает безопасный выход и ждёт совместимого свободного места для сна.'}];
   if(id==='heroine'&&p.activity==='heroine_serve')return serviceActions(st,id,Date.now(),serviceInput(Date.now())).filter(a=>a.id.startsWith('money_drinks_cancel@'));
-  const performance=committedPerformance(st,id);if(performance)return [{id:'continue',description:'Продолжить согласованное выступление: исполнитель автоматически организует посадку зрителя и танец; повторного согласия не требуется.'},{id:`money_performance_cancel@${performance.id}`,description:'Отменить согласованное выступление без оплаты.'}];
+  const performance=committedPerformance(st,id);if(performance)return [
+    {id:'continue',description:performance.status==='running'&&performance.payer===id?'Досмотреть согласованное выступление с лавки до подтверждённого завершения всей программы; затем снова выбрать занятие.':'Продолжить согласованное выступление: исполнитель автоматически организует посадку зрителя и танец; повторного согласия не требуется.'},
+    ...(performance.status!=='running'||performance.performer===id?[{id:`money_performance_cancel@${performance.id}`,description:'Отменить согласованное выступление без оплаты.'}]:[])];
   loadRegistry();                                                   // picks up registry edits without a restart
   const nowMs = Date.now(), musicLeft = musicLeftMs(nowMs), pending = musicPending(nowMs);
   const fits = (x, pl,activity=p.activity) => !x?.when || (x.when === 'music' ? danceActivity(activity)||musicLeft > ((pl ? travelSeconds(here, pl) : 0) + 10) * 1000 : musicLeft <= 0 && !pending);   // Dances start music automatically; listening still requires an actual scheduled music window.
-  if ((p.activity !== 'work' || hasEditorialWork(id)) && p.activity !== 'phone' && p.activity !== 'invite' && !REG[p.activity]?.once && fits(REG[p.activity])) out.push({ id: 'continue', description: `Продолжать текущее занятие: ${labelOf(id, p.activity, here)} (${EFFECT(id, p.activity)})` });   // a call and a once-activity (a cigarette, lunch) end by themselves: no «one more» in a loop (owner 30.09)
+  if (!['dance','heroine_mx_dance'].includes(p.activity) && (p.activity !== 'work' || hasEditorialWork(id)) && p.activity !== 'phone' && p.activity !== 'invite' && !REG[p.activity]?.once && fits(REG[p.activity])) out.push({ id: 'continue', description: `Продолжать текущее занятие: ${labelOf(id, p.activity, here)} (${EFFECT(id, p.activity)})` });   // a call and a once-activity (a cigarette, lunch) end by themselves: no «one more» in a loop (owner 30.09)
   // work: at his own desk; if it is taken, at a free one; not getting up — where he sits
   const free = DESK_IDS.filter((d) => !taken.has(d)), workDesks = [...new Set([...(P.kind === 'desk' ? [here] : []), ...(free.includes(home) ? [home] : free)])];
   for (const d of hasEditorialWork(id) ? workDesks : []) {
@@ -705,12 +729,13 @@ async function snapshot(id, avail) {
   st.request += 1;
   return { scope: 'behavior-two-v01', sessionId: CLIENT, requestId: 'request-' + st.request, revision: st.seq,
     self: { id, role: P.role, character: P.character, personality: P.personality,
+      ...(id==='heroine'?{wardrobe:wardrobeContext(p)}:{}),
       needs: { fatigue: Math.round(p.fatigue), ...Object.fromEntries(liveNeeds(id).map((k) => [k, Math.round(p.needs[k] ?? 0)])) },
       flirt:flirtContext(st,id),
       need_limitations: needLimitations(id),
       needs_scale: 'Шкалы 0–100, чем выше, тем сильнее: fatigue — усталость' + liveNeeds(id).map((k) => `, ${k} — ${NEED_TXT[k]}`).join('') + '.', mode: p.activity, place: PLACES[p.place].name,
       since_minutes: Math.round((now - p.since) / 60000), own_desk: P.home ? PLACES[P.home].name : null,
-      task: task ? { id: task.id, kind: task.ownerDialogueId?'редакционное поручение владельца':'отредактировать сообщение с ленты для утреннего номера', title: task.title,
+      task: task ? { id: task.id,confidential:task.confidential===true, kind: task.ownerDialogueId?'редакционное поручение владельца':'отредактировать сообщение с ленты для утреннего номера', title: task.title,
         arrived: task.arrived, progress_minutes: +task.done_min.toFixed(2), needs_minutes: task.need_min,...(task.ownerDialogueId?{ownerAssignment:true,brief:task.brief,deadlineAt:task.deadlineAt,rewardCents:task.ownerRewardCents}:{}),
         note: 'Работа продвигается только за письменным столом (work_variant); закончится внешним событием work_finished.' } : null,
       finances:{...moneyContext(st,id),...performanceContext(st,id),...serviceContext(st,id),...sharedDrinkContext(st,id),canWork:supports(id,'work'),livelihood:livelihoodContext(st,id,avail,now)}, pending_tasks: waiting().map((x) => ({ id: x.id, title: x.title, arrived: x.arrived })), memory: structuredClone(p.memory), relationships:publicRelations(st,id), courtship:Object.fromEntries(Object.entries(p.relationships).map(([other,r])=>[other,courtshipStatus(r,id,other)])), ownerTasks:ownerTaskContext(st,id,now),ownerRequests:ownerRequestContext(st,id),currentActivity: publicConversation(st,id), recentEpisodes: structuredClone(p.memory.filter(x=>x.event==='conversation_finished'||x.event==='conversation_cancelled').slice(-3)) },
@@ -765,13 +790,14 @@ async function reflectRelationships(now){
   const job=nextReflection(st,now,id=>requestAllowed(st,id,'reflection',now));if(!job)return false;
   const names=Object.fromEntries(Object.entries(PEOPLE).map(([id,p])=>[id,p.name]));
   const options=reflectionActions(st,job,names),diagnosticId=newTraceId();
+  const feelings=Object.fromEntries(['sympathy','romance'].map(k=>[k,st.chars[job.actor].relationships[job.partner].dimensions[k].value]));
   trace(diagnosticId,'choice_started',{actorId:job.actor,revision:st.seq,choiceKinds:offeredKinds(options),optionCount:options.length,offered:options});
   st.reflection.lastAttemptAt=now;st.reflection.actorAttempts[job.actor]=now;
   st.reflection.last={actor:job.actor,partner:job.partner,dimension:job.key,at:now,status:'pending',events:job.events.map(e=>e.id)};save();
   try{
     const d=await askJev(job.actor,options,job,diagnosticId);st.jevToday++;
     const p=st.chars[job.actor];
-    const ok=!p.sleep&&!p.sleepPending&&applyReflection(st,job,d.action,Date.now(),d.source||'jev',d.confidence??null);
+    const ok=!p.sleep&&!p.sleepPending&&applyReflection(st,job,d.action,Date.now(),d.source||'jev',d.confidence??null,d.source==='qwen'?d.reason:null,feelings);
     st.reflection.last.status=ok?'applied':'stale';
     trace(diagnosticId,'application',{actorId:job.actor,action:d.action,source:d.source||'jev',status:ok?'applied':'stale_rejected',revisionAfter:st.seq+1,actorSeq:p.seq,physicalExecution:'reflection_has_no_physical_command'});
   }catch{st.reflection.last.status='unavailable';trace(diagnosticId,'application',{actorId:job.actor,source:'none',status:'request_failed',revisionAfter:st.seq+1,physicalExecution:'reflection_has_no_physical_command'});} // no fabricated fallback appraisal
@@ -779,10 +805,12 @@ async function reflectRelationships(now){
 }
 async function publishModelStatus(){st.seq++;st.world=composeWorld(Date.now());save();try{await relay('/director/world',st.world);}catch{teletypeDirty=true;}}
 let modelDecisionSerial=0;
-async function askJev(id, avail, reflection = null, diagnosticId=newTraceId(), ownerDialogue = null, ownerInterpretation = null) {
+async function askJev(id, avail, reflection = null, diagnosticId=newTraceId(), ownerDialogue = null, ownerInterpretation = null, explicitPhoneTurn = null) {
   const kind=ownerDialogue||ownerInterpretation?'dialogue':reflection?'reflection':'physical';
+  if(st.chars[id].privateContext||privateTurn(explicitPhoneTurn))markPrivateTrace(diagnosticId);
+  const ownerAttention=()=>kind==='dialogue'&&!!explicitPhoneTurn&&explicitPhoneTurn.source==='phone'&&explicitPhoneTurn.status==='waiting'&&Object.values(st.chars).some(p=>p.ownerDialogue?.includes(explicitPhoneTurn));
   if(!requestAllowed(st,id,kind,Date.now()))throw new Error('model_request_waiting');
-  {const watch=await relay('/director/status');if(!Number.isInteger(watch.viewers)||watch.viewers<=0)throw new Error('no_viewers');}
+  {const watch=await relay('/director/status');if(!ownerAttention()&&(!Number.isInteger(watch.viewers)||watch.viewers<=0))throw new Error('no_viewers');}
   requestStarted(st,id,kind,diagnosticId,Date.now());await publishModelStatus();
   for (let attempt = 0; attempt < 2; attempt++) {
     let requestId=null;
@@ -790,14 +818,16 @@ async function askJev(id, avail, reflection = null, diagnosticId=newTraceId(), o
       if (!sid) { const s = await session('start'); sid = s.session_id; await pinCharacterRules(s); if (s.state === 'paused') await session('resume'); }
       else { try { await session('resume'); } catch (e) { if (!/session_not_paused/.test(e.message)) throw e; } }
       const snap=await snapshot(id,structuredClone(avail));
-      if(reflection){snap.self.reflection=structuredClone(reflection);snap.limits.push('This request is dedicated reflection, not a choice of physical activity. Assess only the listed dimension using the listed actual events, prior appraisals and your character. Keeping the value is allowed. A friendly conversation can matter without proving romance; a refusal is not misconduct. Do not infer unknown thoughts or a topic.');}
+      if(reflection){snap.self.reflection=structuredClone(reflection);snap.limits.push('Appraise only the listed dimension against all current feelings and known events. Keeping it is allowed. Attraction with avoidance needs explanation in reason; if facts give no cause, say unknown. Conversation alone proves no romance; refusal is not misconduct. Invent no topic or others’ thoughts. Physical activity continues.');}
       if(ownerDialogue){
         const physicalOptions=actions(id);
         snap.self.ownerDialogue={...structuredClone(ownerDialogue),physicalOptions:structuredClone(physicalOptions),physicalOptionsAt:Date.now()};
         snap.self.finances.livelihood=livelihoodContext(st,id,physicalOptions,Date.now());
       }
       else if(ownerInterpretation){snap.self.ownerInterpretation=structuredClone(ownerInterpretation);}
-      else if(st.chars[id].ownerDialogue?.length)snap.self.ownerDialogueHistory=publicDialogue(st.chars[id]).slice(-12);
+      else if(st.chars[id].ownerDialogue?.length)snap.self.ownerDialogueHistory=dialogueHistory(st.chars[id]).slice(-12);
+      if(explicitPhoneTurn&&!privateTurn(explicitPhoneTurn))publicRequestContext(snap);
+      if(st.chars[id].privateContext)snap.limits.push('Private owner calls are known only to you and the human owner. Never quote, paraphrase or disclose them to colleagues or public conversations. Observable actions and confirmed balances remain facts.');
       const original=structuredClone(snap);
       const context=compactSnapshot(original);
       requestId=original.requestId;
@@ -821,7 +851,7 @@ async function askJev(id, avail, reflection = null, diagnosticId=newTraceId(), o
       const wire=behaviorWireSnapshot(projected);
       trace(diagnosticId,'director_request',{attempt,actorId:id,requestId:original.requestId,revision:original.revision,
         choiceKinds:offeredKinds(avail),optionCount:avail.length,contextProjection,snapshot:original,wireSnapshot:wire.snapshot,aliases:Object.fromEntries(wire.choices)});
-      {const watch=await relay('/director/status');if(!Number.isInteger(watch.viewers)||watch.viewers<=0)throw new Error('no_viewers');}
+      {const watch=await relay('/director/status');if(!ownerAttention()&&(!Number.isInteger(watch.viewers)||watch.viewers<=0))throw new Error('no_viewers');}
       const d = await jevPost('/api/behavior-decide', { session_id: sid, snapshot: wire.snapshot, diagnostic_id:diagnosticId });
       trace(diagnosticId,'director_response',{attempt,requestId:original.requestId,response:d});
       if(d.revision!==original.revision)trace(diagnosticId,'response_revision_mismatch',{requestId:original.requestId,expected:original.revision,received:d.revision??null});
@@ -848,7 +878,7 @@ function urgentOnly(id, avail) {
 }
 
 function fallback(id, avail) {
-  avail=avail.filter(a=>!/^courtship_|^money_|^drink_|^social_(intent|relation|style)@|^relationship_appraise@/.test(a.id));
+  avail=avail.filter(a=>!/^wardrobe_select@|^courtship_|^money_|^drink_|^social_(intent|relation|style)@|^relationship_appraise@/.test(a.id));
   const p = st.chars[id], ids = avail.map((a) => a.id), f = p.fatigue;
   const pick = (re) => ids.filter((i) => re.test(i));
   let pool = f > 65 ? ids.filter((i) => { const v = i.split('@')[0]; return v !== 'continue' && rateOf(id, v === 'work_variant' ? 'work' : v) < 0; }) : (supports(id,'work') && (f < 30 || taskOf(id) || waiting().length)) ? ids.filter(i=>/^work_variant@/.test(i)||i==='continue'&&p.activity==='work') : ids;
@@ -903,8 +933,8 @@ function cancelSleepCommitments(id,now){
 }
 function mandatorySleep(now){
  let changed=releaseDiningChair(now);changed=releaseSleepDesks(now)||changed;
- for(const id of IDS)changed=requireSleep(st.chars[id],now)||changed;
- const pending=IDS.filter(id=>st.chars[id].sleepPending).sort((a,b)=>st.chars[a].sleepPending.requestedAt-st.chars[b].sleepPending.requestedAt||IDS.indexOf(a)-IDS.indexOf(b));
+ for(const id of IDS)if(!st.chars[id].pendingOwnerCall&&!st.chars[id].ownerPhoneSession)changed=requireSleep(st.chars[id],now)||changed;
+ const pending=IDS.filter(id=>st.chars[id].sleepPending&&!st.chars[id].pendingOwnerCall&&!st.chars[id].ownerPhoneSession).sort((a,b)=>st.chars[a].sleepPending.requestedAt-st.chars[b].sleepPending.requestedAt||IDS.indexOf(a)-IDS.indexOf(b));
  for(const id of pending){
   const p=st.chars[id],request=p.sleepPending;
   changed=cancelSleepCommitments(id,now)||changed;
@@ -942,31 +972,56 @@ function mandatorySleep(now){
 }
 function entryOf(id, now) {                                          // his line in the world: who he is (for the page) + what he does now
   const P = PEOPLE[id], p = st.chars[id];
-  return { name: P.name, glb: P.glb, chairBack: P.chairBack, home: P.home, ...(P.walkPolicy ? { walkPolicy: P.walkPolicy } : {}), ...(P.mouth ? { mouth: P.mouth } : {}), ...(P.phoneMouth ? { phoneMouth: P.phoneMouth } : {}), seq: p.seq, social: publicConversation(st,id) ? {...publicConversation(st,id,true), style:p.socialStyle||'neutral', styleRevision:p.socialStyleRevision||0} : null, sleep:p.sleep||null,sleepPending:p.sleepPending||null,finances:{...moneyContext(st,id),...performanceContext(st,id),...serviceContext(st,id),...sharedDrinkContext(st,id),canWork:supports(id,'work'),livelihood:livelihoodContext(st,id,[],now)},ownerDialogue:publicDialogue(p),ownerActions:actions(id),ownerTasks:ownerTaskContext(st,id,now),ownerCommands:publicOwnerCommands(st,id),relationships:publicRelations(st,id),reflection:st.reflection?.last?.actor===id?st.reflection.last:null,memory:p.memory.filter(x=>x.event==='conversation_finished'||x.event==='conversation_cancelled'||x.event==='sleep_started'||x.event==='sleep_finished').slice(-6), ...(p.entry || { from: target(p.place), cmd: null, at: now, label: labelOf(id, p.activity, p.place), activity: p.activity, source: 'start' }), state: stateNow(id, now) };
+  return { ...(id==='heroine'?{wardrobe:wardrobeState(p)}:{}),privateContext:!!p.privateContext,name: P.name, glb: P.glb, chairBack: P.chairBack, home: P.home, ...(P.walkPolicy ? { walkPolicy: P.walkPolicy } : {}), ...(P.mouth ? { mouth: P.mouth } : {}), ...(P.phoneMouth ? { phoneMouth: P.phoneMouth } : {}), seq: p.seq, social: publicConversation(st,id) ? {...publicConversation(st,id,true), style:p.socialStyle||'neutral', styleRevision:p.socialStyleRevision||0} : null, sleep:p.sleep||null,sleepPending:p.sleepPending||null,finances:{...moneyContext(st,id),...performanceContext(st,id),...serviceContext(st,id),...sharedDrinkContext(st,id),canWork:supports(id,'work'),livelihood:livelihoodContext(st,id,[],now)},ownerDialogue:publicDialogue(p),ownerActions:actions(id),ownerTasks:ownerTaskContext(st,id,now),ownerCommands:publicOwnerCommands(st,id),relationships:publicRelations(st,id),reflection:st.reflection?.last?.actor===id?st.reflection.last:null,memory:p.memory.filter(x=>x.event==='conversation_finished'||x.event==='conversation_cancelled'||x.event==='sleep_started'||x.event==='sleep_finished').slice(-6), ...(p.entry || { from: target(p.place), cmd: null, at: now, label: labelOf(id, p.activity, p.place), activity: p.activity, source: 'start' }), state: stateNow(id, now) };
 }
 function composeWorld(now) {
   const chars = {}, chairs = { ...st.chairs };
   for (const id of Object.keys(st.chars)) if (PEOPLE[id]) { chars[id] = entryOf(id, now);
     for (const g of [chars[id].from, chars[id].cmd]) { const d = g?.seat && (PLACES[g.seat]?.desk||PLACES[g.seat]?.chair); if (d && st.chars[id].chairsAtStart?.[d] !== undefined) chairs[d] = st.chars[id].chairsAtStart[d]; } }   // a chair someone is moving: as at the start of his command
   const first = chars.columnist || Object.values(chars)[0], tv = st.tvMusic && now < st.tvMusic.until ? st.tvMusic : undefined;   // tv: the channel someone turned on, for every viewer
-  return { seq: st.seq, modelRequests:st.modelRequests||null, trayDelivery:st.trayDelivery||null, chars, chairs, teletype: st.teletype, tv, editor: first, state: first?.state };   // editor/state: pages cached before 29.09 evening see the columnist alone
+  return protectPublicWorld({ seq: st.seq, modelRequests:st.modelRequests||null, trayDelivery:st.trayDelivery||null, chars, chairs, teletype: st.teletype, tv, editor: first, state: first?.state });   // editor/state: pages cached before 29.09 evening see the columnist alone
 }
-function decisionContext(id){const p=st.chars[id],pair=pairOf(st,id),partner=pair?.members.find(x=>x!==id),r=partner&&p.relationships?.[partner];return {hostessMode:st.hostessMode||'dance',economyRevision:st.economy.revision,actorSeq:p.seq,conversationId:pair?.id||null,partner:partner||null,intentRevision:currentIntent(pair,id).revision,relationRevision:r?.revision||0,lastSignal:r?.observations.at(-1)?.id||null,relations:Object.entries(p.relationships||{}).map(([other,r])=>[other,r.revision,r.observations.at(-1)?.id||null])};}
+function decisionContext(id){const p=st.chars[id],pair=pairOf(st,id),partner=pair?.members.find(x=>x!==id),r=partner&&p.relationships?.[partner];return {wardrobeRevision:id==='heroine'?wardrobeState(p).revision:null,hostessMode:st.hostessMode||'dance',economyRevision:st.economy.revision,actorSeq:p.seq,conversationId:pair?.id||null,partner:partner||null,intentRevision:currentIntent(pair,id).revision,relationRevision:r?.revision||0,lastSignal:r?.observations.at(-1)?.id||null,relations:Object.entries(p.relationships||{}).map(([other,r])=>[other,r.revision,r.observations.at(-1)?.id||null])};}
+function interruptForOwnerPhone(id,now){
+ const p=st.chars[id];
+ updatePersonNeeds(id,now);
+ const performance=committedPerformance(st,id);
+ if(performance){
+  if(performance.performer===id||performance.status==='reserved')cancelPerformance(st,performance,'owner_call',now);
+  else {performance.audienceLeftAt=now;performance.audienceLeftReason='owner_call';st.economy.revision++;}
+ }
+ if(id==='heroine')for(const s of st.economy.services)if(['inviting','reserved','running'].includes(s.status))cancelService(st,s,'owner_call',now);
+ if(p.sleep){const s=p.sleep;p.memory.push({event:'sleep_finished',kind:s.kind,place:p.place,startedAt:s.startedAt,endedAt:now,participatingSeconds:s.confirmedMs/1000,fatigueBefore:s.fatigueBefore,fatigueAfter:p.fatigue,drunkBefore:s.drunkBefore,drunkAfter:p.needs?.drunk??0,reason:'owner_call',source:'owner_call'});p.memory=p.memory.slice(-12);}
+ delete p.sleep;delete p.sleepPending;
+ if(st.invite&&(st.invite.from===id||st.invite.to===id))closeInvite(st.invite,'owner_call',now);
+ st.steps=st.steps.filter(x=>x.id!==id);
+ for(const [key,v]of Object.entries(st.deferredInvites))if(key===id||v.from===id)delete st.deferredInvites[key];
+ for(const [key,v]of Object.entries(st.social.deferred))if(v.from===id||v.to===id)delete st.social.deferred[key];
+ delete p.beforeSocialInvite;
+}
 function applyDecision(id, action, source, confidence, expected=null, performanceDispatch=false,systemSleepDispatch=false,serviceDispatch=false,sharedDrinkDispatch=false,onAccepted=null) {
   let accepted=false;const persist=()=>{if(!accepted){accepted=true;if(onAccepted){onAccepted();st.world=composeWorld(Date.now());}}return save();};
   if(expected){const current=decisionContext(id);if(!action.startsWith('money_')||action.startsWith('money_performance_reply@'))expected={...expected,economyRevision:current.economyRevision};if(JSON.stringify(expected)!==JSON.stringify(current))return false;}
+  if(action.startsWith('wardrobe_select@')){
+    const p=st.chars[id],now=Date.now();
+    if(id!=='heroine'||!actions(id).some(a=>a.id===action)||!selectOutfit(p,action.slice(16),{source,now}))return false;
+    // A cosmetic decision keeps the physical command and its original timing.
+    p.busyUntil=Math.max(p.busyUntil,now+30000/FAST);st.seq++;st.world=composeWorld(now);persist();return true;
+  }
   const selectedAction=action,resolved=resolveMealAction(action,socialReady(id,Date.now())?executionCapabilities?.actors?.[id]?.meals:null);if(!resolved)return false;action=resolved.action;
   const now=Date.now(),p=st.chars[id],[verb,selection]=action.split('@'),variant=verb==='heroine_tv_channel'?'tvKnob':selection,from=p.place;
+  const ownerPhone=source==='owner_call'&&verb==='phone'&&['deskA','phoneA'].includes(variant)&&supports(id,'phone')&&(id!=='heroine'||socialReady(id,now)&&executionCapabilities.actors[id].phone?.ready===true);
+  if(ownerPhone)interruptForOwnerPhone(id,now);
   const joint=sharedDrinkDispatch&&sharedDrinkFor(st,id),jointPurchase=joint?.status==='gathering'&&joint.plan?.[id]?.action===action?{...joint.charges[id],id:joint.id,key:`joint:${joint.id}:${id}`} : null;
   if(action==='continue'&&sharedDrinkFor(st,id)){consideredSharedDrink(st,id);p.busyUntil=Math.max(p.busyUntil,now+30000/FAST);persist();return true;}
   if(action==='continue'&&performanceReplyDue(st,id,now)&&p.busyUntil>now){persist();return true;} // Considering a quote must not replay an in-flight command.
   if(action==='continue'&&committedPerformance(st,id)){p.busyUntil=Math.max(p.busyUntil,now+15000);persist();return true;}
-  if(!performanceDispatch&&!systemSleepDispatch&&committedPerformance(st,id)&&!action.startsWith('money_performance_cancel@'))return false;
+  if(!ownerPhone&&!performanceDispatch&&!systemSleepDispatch&&committedPerformance(st,id)&&!action.startsWith('money_performance_cancel@'))return false;
   const forcedSleep=systemSleepDispatch&&verb==='sleep_desk'&&!!p.sleepPending;
   const sleepWait=systemSleepDispatch&&verb==='wait'&&PLACES[variant]&&['fatigue_wait','fatigue_yield','fatigue_interrupt'].includes(source);
   if(p.sleepPending&&!forcedSleep&&!sleepWait)return false;
-  if(Object.values(st.sleepDeskLeases).some(l=>l.owner===id))return false;
-  if(st.sleepDeskLeases[variant]?.owner&&st.sleepDeskLeases[variant].owner!==id||variant==='phoneA'&&st.sleepDeskLeases.deskA)return false;
+  if(!ownerPhone&&Object.values(st.sleepDeskLeases).some(l=>l.owner===id))return false;
+  if(st.sleepDeskLeases[variant]?.owner&&st.sleepDeskLeases[variant].owner!==id||variant==='phoneA'&&st.sleepDeskLeases.deskA&&(!ownerPhone||st.sleepDeskLeases.deskA.owner!==id))return false;
   if(!consumptionReady(id,verb,variant,executionCapabilities,now)||!supports(id,verb)||st.hostessMode==='drinks'&&verb.includes('dance'))return false;
   const addressedPhone=id==='heroine'&&verb==='phone'&&source==='owner_call'&&['deskA','phoneA'].includes(variant)&&socialReady(id,now)&&executionCapabilities.actors[id].phone?.ready===true;
   if(id==='heroine'&&verb==='phone'&&!addressedPhone)return false;
@@ -978,7 +1033,7 @@ function applyDecision(id, action, source, confidence, expected=null, performanc
   if(id==='heroine'&&verb==='continue'&&!socialReady(id,now)){p.busyUntil=Math.max(p.busyUntil,now+30000/FAST);return false;}
   if(variant==='diningChair'&&(!['rest_lounge','conversation','wait','sleep_desk','heroine_coffee'].includes(verb)||takenBy(id).has(variant)))return false;
   // Repeated choices during departure must preserve the in-flight source command.
-  if(st.diningChairLease?.owner===id&&st.diningChairLease.phase==='departing')return verb==='continue';
+  if(!ownerPhone&&st.diningChairLease?.owner===id&&st.diningChairLease.phase==='departing')return verb==='continue';
   if(p.sleep)return false;
   if(verb==='sleep_desk'&&(!forcedSleep||!sleepTargets(id).includes(variant)||takenBy(id).has(variant)||!sleepReady(id,now)))return false;
   const pair=pairOf(st,id),partner=pair?.members.find(x=>x!==id),intent=currentIntent(pair,id),relation=partner&&p.relationships[partner];
@@ -1010,7 +1065,7 @@ function applyDecision(id, action, source, confidence, expected=null, performanc
   if(verb==='social_intent'&&(!pair||pair.phase!=='active'||!socialIntentReady(id,variant,now)||!chooseIntent(st,pair,id,variant,now,source,actorStyles(id))))return false;
   if(verb==='social_relation'&&(!pair||pair.phase!=='active'||!chooseRelation(st,pair,id,variant,now,source)))return false;
   if(verb!=='continue'&&!jointPurchase&&!canReplacePurchase(st,id,verb,now))return false;
-  updatePersonNeeds(id, now);
+  if(!ownerPhone)updatePersonNeeds(id, now);
   if((verb==='work_variant'||verb==='continue'&&p.activity==='work')&&!hasEditorialWork(id))return false;
   if(pair && !['continue','social_style','social_intent','social_relation','conversation'].includes(verb)) finishConversation(st,id,forcedSleep||source==='fatigue_wait'?'fatigue_sleep':source==='fatigue_yield'?'sleep_desk_yield':verb==='phone'?'phone_interrupt':'self_leave',source,now);                                       // include time spent waiting for the model before changing activity
   const before = Math.round(p.fatigue);
@@ -1043,7 +1098,7 @@ function applyDecision(id, action, source, confidence, expected=null, performanc
   p.chairsAtStart = {}; for (const pl of [from, place]) if (['desk','chair'].includes(PLACES[pl].kind)) {const k=PLACES[pl].desk||PLACES[pl].chair;p.chairsAtStart[k]=st.chairs[k]??CHAIR_REST;};
   if (move) { if (['desk','chair'].includes(PLACES[from].kind)) st.chairs[PLACES[from].desk||PLACES[from].chair] = CHAIR_TUCKED; if (['desk','chair'].includes(PLACES[place].kind)) st.chairs[PLACES[place].desk||PLACES[place].chair] = 0; }
   if (verb !== 'continue') p.since = now;
-  if(activity!=='phone')delete p.ownerPhoneSession;
+  if(activity!=='phone'&&p.ownerPhoneSession){const last=(p.ownerDialogue||[]).findLast(t=>t.source==='phone');if(last)last.conversationClosedAt=now;delete p.ownerPhoneSession;}
   p.place = place; p.activity = activity; p.activityUntil = p.busyUntil = now + (travel + decisionDwell) * 1000; p.seq += 1; p.lastNeeds = now; st.seq += 1;
   if(verb!=='continue'){cancelPurchases(st,id,now);reservePurchase(st,id,activity,p.seq,now,jointPurchase);}
   else {const oldKey=`${id}:${p.seq-1}`,reservation=st.economy.reservations[oldKey];if(reservation){delete st.economy.reservations[oldKey];reservation.seq=p.seq;st.economy.reservations[`${id}:${p.seq}`]=reservation;}}
@@ -1076,12 +1131,18 @@ function applyDecision(id, action, source, confidence, expected=null, performanc
 // ---------- viewers move the scales on the page (relay /settings/needs → /director/nudges; owner 30.09):
 // the value is set, and the person decides again soon (not before he arrives, not sooner than 8 s after his last choice — Jev is not flooded)
 async function pollNudges(now, status) {
+  wardrobeReady=status.wardrobeReady===true;
   if (st.nudgeBoot !== status.boot) { st.nudgeBoot = status.boot; st.nudgeSeq = 0; }               // the relay restarted: its count starts over
   if (!(status.nudge > (st.nudgeSeq || 0))) return;
   const r = await relay('/director/nudges?since=' + (st.nudgeSeq || 0)), moved = new Set();
   for (const n of r.items || []) {
     st.nudgeSeq = Math.max(st.nudgeSeq || 0, n.seq);
     if (r.now - n.at > 60000) continue;                                                              // an old command (nobody was listening): the viewer has moved on
+    if(n.kind==='wardrobe'){
+      const p=st.chars.heroine;if(!p||!wardrobeReady)continue;
+      const ok=n.selected!==undefined?selectOutfit(p,n.selected,{source:'owner_menu',now,expectedRevision:n.expectedRevision}):setWardrobeAutonomy(p,n.autonomous,n.expectedRevision);
+      if(ok){st.seq++;moved.add('heroine');}continue;
+    }
     if(n.kind==='model_retry'){if(retryModelRequest(st,n.person,n.requestKind,n.requestId,now))moved.add(n.person);continue;}
     const p = st.chars[n.person]; if (!p || !PEOPLE[n.person] || typeof n.value !== 'number') continue;
     const v = Math.max(0, Math.min(100, n.value));
@@ -1097,8 +1158,8 @@ let dialogueSavePending=false,phoneReplySignature=null;
 // Telegram consumes only this projection, exported after canonical durable save.
 function publishPhoneReplies(saved=false){
  const result={chars:Object.fromEntries(Object.entries(st.chars).map(([id,p])=>[id,{ownerDialogue:(p.ownerDialogue||[]).filter(t=>t.source==='phone'&&['answered','closed','cancelled','failed'].includes(t.status)).map(t=>({id:t.id,source:t.source,status:t.status,reply:t.reply,reaction:t.reaction,control:t.control,effect:t.effect?{type:t.effect.type,status:t.effect.status,summary:t.effect.summary}:null}))}]))};
- const serialized=JSON.stringify(result);if(serialized===phoneReplySignature)return true;if(!saved&&!save(true))return false;
- try{const file=HERE+'director/phone-dialogue-replies.json';fs.writeFileSync(file+'.tmp',serialized,{mode:0o600});const fd=fs.openSync(file+'.tmp','r');try{fs.fsyncSync(fd);}finally{fs.closeSync(fd);}fs.renameSync(file+'.tmp',file);const parent=fs.openSync(dirname(file),'r');try{fs.fsyncSync(parent);}finally{fs.closeSync(parent);}phoneReplySignature=serialized;return true;}catch{log('phone reply export failed; will retry');return false;}
+ const signature=JSON.stringify(result);if(signature===phoneReplySignature)return true;if(!saved&&!save(true))return false;
+ try{const file=HERE+'director/phone-dialogue-replies.json';fs.writeFileSync(file+'.tmp',privateStringify(result),{mode:0o600});const fd=fs.openSync(file+'.tmp','r');try{fs.fsyncSync(fd);}finally{fs.closeSync(fd);}fs.renameSync(file+'.tmp',file);const parent=fs.openSync(dirname(file),'r');try{fs.fsyncSync(parent);}finally{fs.closeSync(parent);}phoneReplySignature=signature;return true;}catch{log('phone reply export failed; will retry');return false;}
 }
 // Durable relay inbox: save canonical receipt before acknowledging delivery.
 async function pollOwnerDialogue(now){
@@ -1119,15 +1180,17 @@ async function interpretOwnerTurn(id,turn,now){
  const p=st.chars[id],roster=IDS.map(actor=>({id:actor,name:PEOPLE[actor].name,canWork:supports(actor,'work')}));
  if(!turn.intent){
   const context=ownerIntentContext(p,turn,roster,now,id),traceId=newTraceId();
-  const d=await askJev(id,ownerIntentActions(),null,traceId,null,context);st.jevToday++;
-  turn.intent=parseOwnerIntent(d,context);trace(traceId,'owner_intent_interpreted',{actorId:id,dialogueId:turn.id,intent:turn.intent});
+  const d=await askJev(id,ownerIntentActions(context),null,traceId,null,context,turn);st.jevToday++;
+  turn.intent=parseOwnerIntent(d,context);
+  if(privateTurn(turn)&&['action','task'].includes(turn.intent.kind)&&turn.intent.target!==id)turn.intent={kind:'clarify',question:'Чтобы сохранить содержание в тайне, позвоните нужному персонажу напрямую или повторите поручение в открытом режиме.',explanation:'Private instructions are not forwarded to a different character.'};
+  trace(traceId,'owner_intent_interpreted',{actorId:id,dialogueId:turn.id,intent:turn.intent});
   st.seq++;st.world=composeWorld(Date.now());if(!save(true)){dialogueSavePending=true;return false;}
  }
  const intent=turn.intent;
  if(intent.kind==='action'&&!intent.resolved){
   if(st.jevToday>=DAILY)throw Error('daily_limit');
   const options=actions(intent.target),traceId=newTraceId();
-  const d=await askJev(intent.target,[...options,ownerActionRefusal],null,traceId,null,ownerActionContext(turn,intent));st.jevToday++;
+  const d=await askJev(intent.target,[...options,ownerActionRefusal],null,traceId,null,ownerActionContext(turn,intent),turn);st.jevToday++;
   intent.resolved=true;intent.actionRequestId=d.requestId;intent.actionTraceId=traceId;intent.actorSeq=st.chars[intent.target].seq;intent.disposition=d.action===ownerActionRefusal.id?'refused':'requested';intent.choiceReason=d.reason;
   if(intent.disposition==='requested')intent.command={type:'request',action:d.action};
   trace(traceId,'owner_action_resolved',{actorId:intent.target,dialogueId:turn.id,intent});
@@ -1147,15 +1210,16 @@ function finishOwnerIntentCalls(now){
  }
  return true;
 }
-async function dispatchOwnerIntentActions(now){
+async function dispatchOwnerIntentActions(now,phoneOnly=false){
  for(const owner of Object.values(st.chars))for(const t of owner.ownerDialogue||[]){
+  if(phoneOnly&&t.source!=='phone')continue;
   const intent=t.intent,receipt=st.ownerDialogueEffects?.[t.id]??t.effect,id=intent?.target,p=st.chars[id];
   if(t.status!=='answered'||intent?.kind!=='action'||intent.disposition!=='requested'||receipt?.status!=='requested'||!p)continue;t.effect=receipt;
   if(p.seq!==(intent.dispatchActorSeq??intent.actorSeq)){Object.assign(receipt,{status:'superseded',closedAt:now,summary:'После согласования персонаж выбрал другое действие. Прежняя просьба не исполнена.'});st.seq++;st.world=composeWorld(now);if(!save(true)){dialogueSavePending=true;return true;}await relay('/director/world',st.world);return true;}
   // Hanging up inserted an ordinary 30–60 s wait. The already-agreed
   // activity needs only the real handset exit witness, not that decision dwell.
   const phone=executionCapabilities?.actors?.[id]?.phone,ownHangup=intent.dispatchActorSeq===p.seq&&p.activity==='wait'&&p.entry?.source==='owner_hangup'&&p.entry?.action==='wait@'+p.place;
-  if(ownHangup&&(phone?.seq!==p.seq||phone.occupied!==false)||p.ownerPhoneSession||p.pendingOwnerCall||nextDialogue(p)||p.sleep||p.sleepPending||(now<p.busyUntil&&!ownHangup)||st.steps.some(x=>x.id===id)||st.invite&&(st.invite.from===id||st.invite.to===id)||!settledForSleep(id,now))continue;
+  if(ownHangup&&!ownerPhoneExitReady(id,now)||p.ownerPhoneSession||p.pendingOwnerCall||nextDialogue(p)||p.sleep||p.sleepPending||(now<p.busyUntil&&!ownHangup)||st.steps.some(x=>x.id===id)||st.invite&&(st.invite.from===id||st.invite.to===id)||!settledForSleep(id,now))continue;
   // The actor's independent model choice is dispatched once; current capability
   // and execution witnesses remain authoritative after replying/hanging up.
   const option=actions(id).find(a=>a.id===receipt.action);
@@ -1170,20 +1234,22 @@ async function dispatchOwnerIntentActions(now){
  }
  return false;
 }
-async function respondOwnerDialogue(now){
- const id=IDS.find(id=>{const p=st.chars[id],t=nextDialogue(p);return t&&!p.sleep&&!p.sleepPending&&requestAllowed(st,id,'dialogue',now)&&(t.source!=='phone'||phoneDialogueReady(id,now));});
- if(!id){const waiting=IDS.find(id=>{const p=st.chars[id],t=nextDialogue(p);return t?.source==='phone'&&!p.pendingOwnerCall&&!p.sleep&&!p.sleepPending&&p.activity!=='phone'&&requestAllowed(st,id,'dialogue',now);});if(waiting){const t=nextDialogue(st.chars[waiting]);startCall(now,t.text,waiting,t.id.slice(3),t.command??null,t.instructionEligible!==false);}return false;}
- const p=st.chars[id],turn=nextDialogue(p),traceId=newTraceId();
+async function respondOwnerDialogue(now,phoneOnly=false){
+ const selectTurn=p=>phoneOnly?p.ownerDialogue?.find(t=>t.status==='waiting'&&t.source==='phone')||null:nextDialogue(p);
+ const id=IDS.find(id=>{const p=st.chars[id],t=selectTurn(p);return t&&(!phoneOnly||t.source==='phone')&&!p.sleep&&!p.sleepPending&&requestAllowed(st,id,'dialogue',now)&&(t.source!=='phone'||phoneDialogueReady(id,now));});
+ if(!id){const waiting=IDS.find(id=>{const p=st.chars[id],t=selectTurn(p);return t?.source==='phone'&&!p.pendingOwnerCall&&!p.sleep&&!p.sleepPending&&p.activity!=='phone'&&requestAllowed(st,id,'dialogue',now);});if(waiting){const t=selectTurn(st.chars[waiting]);startCall(now,t.text,waiting,t.id.slice(3),t.command??null,t.instructionEligible!==false,privateTurn(t));}return false;}
+ const p=st.chars[id],turn=selectTurn(p),traceId=newTraceId();
  if(process.env.NO_JEV||st.jevToday>=DAILY){requestFailed(st,id,'dialogue',traceId,new Error(process.env.NO_JEV?'model_disabled':'daily_limit'),now);await publishModelStatus();return false;}
  try{
   if(!await interpretOwnerTurn(id,turn,now))return true;
   if(st.jevToday>=DAILY)throw Error('daily_limit');
-  const d=await askJev(id,[{id:'owner_reply',description:'Reply to the current owner message with words only. This is no physical action.'}],null,traceId,dialogueContext(p,turn));
+  const context=dialogueContext(p,turn);
+  const d=await askJev(id,[ownerReplyOption(context)],null,traceId,context,null,turn);
   st.jevToday++;
   const ok=answerDialogue(p,turn.id,d,Date.now());turn.replyActorSeq=p.seq;
   if(!ok)throw Error('invalid_dialogue_reply');
   if(turn.source==='phone'&&p.ownerPhoneSession)p.busyUntil=p.activityUntil=p.ownerPhoneSession.until=Date.now()+OWNER_PHONE_IDLE_MS;
-  p.memory.push({event:'owner_dialogue_reply',owner:'владелец газеты',text:turn.text,reply:turn.reply,reaction:turn.reaction,at:hhmm(Date.now())});p.memory=p.memory.slice(-12);
+  p.memory.push({event:'owner_dialogue_reply',owner:'владелец газеты',text:turn.text,reply:turn.reply,reaction:turn.reaction,confidential:privateTurn(turn),at:hhmm(Date.now())});p.memory=p.memory.slice(-12);
   trace(traceId,'application',{actorId:id,requestId:d.requestId,action:'owner_reply',source:d.source,status:'applied',dialogueId:turn.id,physicalExecution:'dialogue_has_no_physical_command'});
   st.seq++;st.world=composeWorld(Date.now());if(!save(true)){dialogueSavePending=true;log('owner dialogue reply awaiting durable save');return true;}if(!publishPhoneReplies(true)){dialogueSavePending=true;return true;}await relay('/director/world',st.world);return true;
  }catch(e){if(e.message==='no_viewers')return false;requestFailed(st,id,'dialogue',traceId,e,Date.now());await publishModelStatus();return false;}
@@ -1359,6 +1425,8 @@ async function tick() {
   const startedSerial=modelDecisionSerial;
   try {
     const now = Date.now();
+    cancelAutomaticCalls(); // Owner cancellation applies even without visible viewers; no model request.
+
     if(dialogueSavePending){if(!save(true))return;if(!publishPhoneReplies(true))return;dialogueSavePending=false;await relay('/director/world',st.world);return;}
     if(!publishPhoneReplies())return;
     try { const award=processBonusQueue(st,HERE+'owner-commands/',now,()=>{st.seq++;st.world=composeWorld(now);teletypeDirty=true;return save(true);});if(award)log('owner bonus',award.id,award.status); } catch(e) { log('owner bonus:',e.message); return; }
@@ -1374,7 +1442,7 @@ async function tick() {
     try { await pollNudges(now, status); } catch (e) { log('nudges:', e.message); }
     if (!st.world?.chars || status.seq !== st.world.seq || teletypeDirty) { teletypeDirty = false; st.world = composeWorld(now); save(); await relay('/director/world', st.world); }   // relay restarted, a story came in, someone took one
     if (status.viewers !== lastViewers) { log('viewers', status.viewers); lastViewers = status.viewers; }
-    if (!status.viewers) {await collectParticipation(status);return;}
+    if (!status.viewers) {await collectParticipation(status);await pollOwnerPhone();if(!dialogueSavePending){finishOwnerIntentCalls(Date.now());await respondOwnerDialogue(Date.now(),true);await dispatchOwnerIntentActions(Date.now(),true);}return;}
     await collectParticipation(status);
     if(dialogueSavePending)return;
     if(mandatorySleep(Date.now())){st.seq++;st.world=composeWorld(Date.now());save();await relay('/director/world',st.world);}
@@ -1393,7 +1461,7 @@ async function tick() {
     if (st.invite && (now - st.invite.answerAt > INV_PATIENCE || now - st.invite.at > 60000)) { closeInvite(st.invite, 'no_answer', now); await relay('/director/world', st.world); }   // never stuck
     // one decision per tick, the people in turn; they may walk at the same time — the page walks them together (crowd, keep right; owner 30.09)
     const ids = Object.keys(st.chars).filter((k) => PEOPLE[k] && !(st.invite && (k === st.invite.from || k === st.invite.to)) && !st.steps.some((x) => x.id === k));
-    let id = null, nextTurn = turn; for (let k = 0; k < ids.length; k++) { const c = ids[(turn + k) % ids.length]; if (requestAllowed(st,c,'physical',now)&&!st.chars[c].sleep&&!st.chars[c].sleepPending&&!Object.values(st.sleepDeskLeases).some(l=>l.owner===c)&&!(st.diningChairLease?.owner===c&&st.diningChairLease.phase==='departing')&&(now >= st.chars[c].busyUntil||performanceReplyDue(st,c,now)||sharedDrinkReplyDue(st,c,now))) { id = c; nextTurn = (turn + k + 1) % ids.length; break; } }
+    let id = null, nextTurn = turn; for (let k = 0; k < ids.length; k++) { const c = ids[(turn + k) % ids.length]; if (requestAllowed(st,c,'physical',now)&&ownerPhoneExitReady(c,now)&&!st.chars[c].sleep&&!st.chars[c].sleepPending&&!Object.values(st.sleepDeskLeases).some(l=>l.owner===c)&&!(st.diningChairLease?.owner===c&&st.diningChairLease.phase==='departing')&&(now >= st.chars[c].busyUntil||performanceReplyDue(st,c,now)||sharedDrinkReplyDue(st,c,now))) { id = c; nextTurn = (turn + k + 1) % ids.length; break; } }
     if((!id||!st.reflection?.yieldPhysical)&&await reflectRelationships(now)){st.reflection.yieldPhysical=true;save();await relay('/director/world',st.world);return;}
     if (!id) return;
     turn=nextTurn;
@@ -1433,10 +1501,28 @@ async function tick() {
     if(modelDecisionSerial!==startedSerial)setTimeout(tick,0);
   }
 }
+// Owner phone controls do not wait for an in-flight model choice. This poll
+// never sends a model request; a prior physical answer is revision-checked.
+let ownerPhonePolling=false;
+async function pollOwnerPhone(){
+ if(ownerPhonePolling||dialogueSavePending)return;ownerPhonePolling=true;
+ try{
+  if(!st.phoneLease&&!fs.readdirSync(CALLS).some(n=>n.endsWith('.json'))&&!Object.values(st.chars).some(p=>p.pendingOwnerCall||p.ownerPhoneSession||p.ownerDialogue?.some(t=>t.source==='phone'&&(t.status==='waiting'||t.status==='answered'&&t.intent?.kind==='action'&&t.effect?.status==='requested'))))return;
+  const status=await relay('/director/status');
+  // Explicit calls use physical feedback even without a visible browser tab.
+  const feedback=await relay('/director/execution?since='+executionSeq);executionCapabilities=feedback.capabilities||null;
+  const now=Date.now(),before=st.seq;
+  releasePhone(now);
+  receiveOwnerCall(now);if(dialogueSavePending)return;
+  ownerCalls(now);
+  if(st.seq!==before){st.world=composeWorld(Date.now());if(!save(true)){dialogueSavePending=true;return;}await relay('/director/world',st.world);}
+ }catch(e){if(e.code!=='ENOENT')log('owner phone poll unavailable');}
+ finally{ownerPhonePolling=false;}
+}
 if (!TOKEN) { console.error('DIRECTOR_TOKEN is required'); process.exit(1); }
 trace(newTraceId(),'diagnostics_enabled',{actors:IDS});
 log(`director: relay ${RELAY}, Jev ${JEV}, state ${STATE}, people ${IDS.join(', ')}`);
 st.seq++;st.world=composeWorld(Date.now());save();
 trace(newTraceId(),'director_ready',{pid:process.pid,revision:st.seq,decisionScheduling:'drain_after_valid_response'});
-tick(); setInterval(tick, 2000);setInterval(collectParticipation,1000);setInterval(deliverChronicle,3000);
+tick(); setInterval(tick, 2000);setInterval(pollOwnerPhone,250);setInterval(collectParticipation,1000);setInterval(deliverChronicle,3000);
 process.on('SIGTERM', () => { save(); if (sid) session('pause').catch(() => {}).finally(() => process.exit(0)); else process.exit(0); });

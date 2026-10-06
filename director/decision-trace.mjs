@@ -3,6 +3,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {randomUUID} from 'node:crypto';
 const dir=process.env.JEV_TRACE_DIR;
+const privateTraces=new Set(),privateActors=new Set();
+export const markPrivateActor=id=>privateActors.add(id);
+export function markPrivateTrace(id){privateTraces.add(id);if(privateTraces.size>10000)privateTraces.delete(privateTraces.values().next().value);}
+const metadata=new Set(['actorId','requestId','revision','attempt','action','source','status','dialogueId','physicalExecution','error','expected','received']);
 export const newTraceId=()=>randomUUID();
 const forbidden=/^(authorization|api[_-]?key|key|token|.*[_-]token|session_id|lease|serviceLease|pairing.*)$/i;
 const reflectionDimensions=new Set(['professional','personal','sympathy','romance','jealousy']);
@@ -16,6 +20,7 @@ function check(value,where=[]){
 export function trace(traceId,event,fields={}){
   if(!dir)return;
   try{
+    if(privateTraces.has(traceId)||privateActors.has(fields.actorId))fields={confidential:true,contentRecorded:false,...Object.fromEntries(Object.entries(fields).filter(([k,v])=>metadata.has(k)&&(typeof v==='number'||typeof v==='boolean'||typeof v==='string'&&/^[a-zA-Z0-9_:@.-]{1,120}$/.test(v))))};
     check(fields);
     // Serialize now: callers may subsequently mutate their world.
     const row=JSON.stringify({schema:'jev-trace-v1',source:'director',traceId,event,recordedAt:new Date().toISOString(),...fields});

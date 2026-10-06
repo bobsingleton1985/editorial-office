@@ -7,6 +7,9 @@ export const dayOf = at => dateFormatter.format(new Date(at));
 const text = value => typeof value === 'string' ? value.slice(0,500) : null;
 const numeric = value => Number.isFinite(value) ? value : null;
 const dimensions = ['professional','personal','sympathy','romance','jealousy'];
+const explanation = e => e&&typeof e.text==='string'&&e.text.trim()&&e.text.length<=1000
+  &&Number.isFinite(e.values?.sympathy)&&Number.isFinite(e.values?.romance)&&validAt(e.at)
+  ?{text:e.text,values:{sympathy:e.values.sympathy,romance:e.values.romance},at:e.at}:null;
 const members = (...ids) => [...new Set(ids.filter(id=>typeof id==='string'&&/^[a-z][a-z0-9_]{0,30}$/.test(id)))].sort();
 const evidence = e => ({id:text(e.id),kind:text(e.kind),actor:text(e.actor),recipient:text(e.recipient),at:numeric(e.observedAt??e.at),title:text(e.title),summary:text(e.summary),source:text(e.source)});
 export function extractChronicle(st, names, now) {
@@ -37,7 +40,7 @@ export function extractChronicle(st, names, now) {
       for(const e of r.dimensionDecisions||[]) {
         if(e.before===e.after||!dimensions.includes(e.dimension))continue;
         add('relationship_changed',[actor,partner,e.dimension,e.before,e.after],e.at,members(actor,partner),{
-          actor,partner,dimension:e.dimension,before:numeric(e.before),after:numeric(e.after),evidence:(e.evidence||[]).map(evidence)
+          actor,partner,dimension:e.dimension,before:numeric(e.before),after:numeric(e.after),...(explanation(e.explanation)?{explanation:explanation(e.explanation)}:{}),evidence:(e.evidence||[]).map(evidence)
         },e.source);
       }
       for(const e of r.observations||[]) {
@@ -81,7 +84,7 @@ export function extractChronicle(st, names, now) {
   for(const [actor,p]of Object.entries(st.chars||{})) {
     relations[actor]={};
     for(const [partner,r]of Object.entries(p.relationships||{}))relations[actor][partner]={
-      dimensions:Object.fromEntries(dimensions.map(key=>{const d=r.dimensions?.[key];return [key,d?{value:numeric(d.value),revision:numeric(d.revision),updatedAt:numeric(d.updatedAt),assessedAt:numeric(d.assessedAt),migratedFrom:text(d.migratedFrom),basis:Array.isArray(d.basis)?d.basis.map(evidence):d.basis?[evidence(d.basis)]:[]}:null];})),
+      dimensions:Object.fromEntries(dimensions.map(key=>{const d=r.dimensions?.[key];return [key,d?{value:numeric(d.value),revision:numeric(d.revision),updatedAt:numeric(d.updatedAt),assessedAt:numeric(d.assessedAt),migratedFrom:text(d.migratedFrom),...(explanation(d.explanation)?{explanation:explanation(d.explanation)}:{}),basis:Array.isArray(d.basis)?d.basis.map(evidence):d.basis?[evidence(d.basis)]:[]}:null];})),
       boundaries:Object.fromEntries(Object.entries(r.courtship?.boundaries||{}).map(([id,b])=>[id,{answer:text(b.answer),at:numeric(b.at)}]))
     };
   }
@@ -112,7 +115,7 @@ export class DanceObserver {
         out.push(this.finish(id,old,at,'command_changed'));this.active.delete(id);
       }
       if(!validAt(caps?.at)||caps.at>now||now-caps.at>=3500||!a?.loaded||a.seq!==p.seq||a.activity!==p.activity)continue;
-      if(!/^(dance|heroine_dance[12])$/.test(p.activity))continue;
+      if(!/^(jazz|dance|heroine_dance[12])$/.test(p.activity))continue;
       let live=this.active.get(id);
       if(a.executing===true&&!live){live={seq:p.seq,activity:p.activity,startedAt:caps.at,lastAt:caps.at,seconds:0,sceneSeconds:0};this.active.set(id,live);out.push(this.event(id,live,caps.at,'dance_started',{}));}
       if(!live)continue;

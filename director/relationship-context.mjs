@@ -1,7 +1,11 @@
+import {protectedConversation,currentMessageLast} from './owner-dialogue-context.mjs';
 import {compactDialogueOptions,compactPerformanceMetadata} from './dialogue-options.mjs';
 // Bound a transport copy only; the canonical relationship history remains intact.
 export function relationProjection(r,decisions=12){
  const out=structuredClone(r);
+ // Owner-facing explanations do not enlarge subsequent decision requests.
+ for(const d of Object.values(out.dimensions||{}))delete d.explanation;
+ for(const e of out.dimensionDecisions||[])delete e.explanation;
  out.projection={decisionsAvailable:r.dimensionDecisions?.length||0,observationsAvailable:r.observations?.length||0};
  out.dimensionDecisions=(out.dimensionDecisions||[]).slice(-decisions).map(e=>({...e,evidenceCount:e.evidence?.length||0,evidence:e.evidence?.slice(-3)}));
  out.observations=(out.observations||[]).slice(-24);
@@ -48,6 +52,11 @@ export function takeContextProjection(projected){
 export function fitRelationshipRequest(input,maxBytes=65000,serverStatus=null){
  const out=structuredClone(input),s=out.self,declinedHistory=repeatedDeclinedPerformanceIds(input);
  if(s.ownerDialogue)s.ownerDialogue=compactDialogueOptions(s.ownerDialogue);
+ // This room-wide note may belong to another caller/turn. Keep it as a
+ // historical observation, never a second competing current owner message.
+ if((s.ownerDialogue||s.ownerInterpretation)&&Object.hasOwn(out.situation||{},'owner_message')){
+  out.situation.lastObservedOwnerCall={text:out.situation.owner_message};delete out.situation.owner_message;
+ }
  // Wallet rows already carry these exact numbers. Retain one factual source
  // and an explicit per-action lookup instead of repeating the prose in criteria.
  for(const a of out.available_actions||[]){
@@ -71,7 +80,7 @@ export function fitRelationshipRequest(input,maxBytes=65000,serverStatus=null){
  while(new TextEncoder().encode(JSON.stringify(out)).length>maxBytes){
   // Prefer old supporting history over current personal memories and episodes.
   const dialogueHistory=s.ownerDialogue?.history||s.ownerInterpretation?.history||s.ownerDialogueHistory;
-  if(dialogueHistory?.length>1){
+  if(!protectedConversation(s.ownerDialogue||s.ownerInterpretation)&&dialogueHistory?.length>1){
    s.contextProjection.omittedDialogueIds??=[];s.contextProjection.omittedDialogueIds.push(dialogueHistory[0].id);
    pop(dialogueHistory,1);continue;
   }
@@ -93,5 +102,12 @@ export function fitRelationshipRequest(input,maxBytes=65000,serverStatus=null){
  }
  // Preserve every remaining contract, including refusals, with shared exact metadata.
  if(s.finances?.performances)s.finances=compactPerformanceMetadata(s.finances);
+ // Place the live exchange after the permanent facts and physical options.
+ // Reorder the transport copy only: do not duplicate or summarize any source.
+ const dialogueKey=s.ownerDialogue?'ownerDialogue':s.ownerInterpretation?'ownerInterpretation':null;
+ if(dialogueKey){
+  const dialogue=currentMessageLast(s[dialogueKey]);delete s[dialogueKey];s[dialogueKey]=dialogue;
+  delete out.self;out.self=s;
+ }
  return out;
 }

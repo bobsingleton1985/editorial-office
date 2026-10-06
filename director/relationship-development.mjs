@@ -33,9 +33,9 @@ export function reflectionActions(st,job,names={}){
  const r=ensureDevelopment(st.chars[job.actor].relationships[job.partner]),d=r.dimensions[job.key],spec=DIMENSIONS[job.key];
  const negative=job.events.some(e=>['directed_objection','loan_overdue'].includes(e.kind));
  const canIncrease=job.key==='jealousy'?d.value<3&&r.dimensions.romance.value>0&&job.events.some(e=>e.kind==='attention_to_other'):!negative;
- return [-1,0,1].filter(delta=>(delta<=0||canIncrease)&&d.value+delta>=spec.min&&d.value+delta<=spec.max).map(delta=>({id:`relationship_reflect@${job.partner}:${job.key}:${d.value+delta}`,description:`${spec.name} к ${names[job.partner]||job.partner}: ${delta===0?'сохранить нынешнюю оценку':dimensionLabel(job.key,d.value+delta)}. Осмысли перечисленные реальные события с учётом характера и прошлого опыта. Это собственная оценка; взаимность и чужие мысли неизвестны. Занятие продолжается.`}));
+ return [-1,0,1].filter(delta=>(delta<=0||canIncrease)&&d.value+delta>=spec.min&&d.value+delta<=spec.max).map(delta=>({id:`relationship_reflect@${job.partner}:${job.key}:${d.value+delta}`,description:`${spec.name} к ${names[job.partner]||job.partner}: ${delta===0?'сохранить нынешнюю оценку':dimensionLabel(job.key,d.value+delta)}. Оцени события и характер с учётом всех своих чувств. Взаимность неизвестна; занятие продолжается.`}));
 }
-export function applyReflection(st,job,action,now,source,confidence=null){
+export function applyReflection(st,job,action,now,source,confidence=null,explanation=null,appraisedValues=null){
  if(!['jev','qwen'].includes(source))return false;
  const r=st.chars[job.actor]?.relationships?.[job.partner];if(!r)return false;ensureDevelopment(r);
  const d=r.dimensions[job.key];if(d.revision!==job.revision||!reflectionActions(st,job).some(a=>a.id===action))return false;
@@ -45,7 +45,13 @@ export function applyReflection(st,job,action,now,source,confidence=null){
  if(before!==after){d.basis=structuredClone(job.events);d.updatedAt=now;}
  for(const e of r.observations)if(ids.includes(e.id)){e.dimensionAppraisals??=[];e.dimensionAppraisals.push(job.key);}
  const record={event:'relationship_reflected',partner:job.partner,dimension:job.key,before,after,at:now,source,confidence,evidence:structuredClone(job.events),summary:`${DIMENSIONS[job.key].name}: ${dimensionLabel(job.key,after)}. ${before===after?'После осмысления оценка сохранена.':'Оценка изменилась.'}`};
- r.dimensionDecisions.push(record);r.dimensionDecisions=r.dimensionDecisions.slice(-40);r.revision++;
+ // A model explanation is owner-facing evidence, never additional model memory.
+ const values=Object.fromEntries(['sympathy','romance'].map(k=>[k,r.dimensions[k].value]));
+ const expected=appraisedValues?{...appraisedValues,...(['sympathy','romance'].includes(job.key)?{[job.key]:after}:{})}:null;
+ const coherent=expected&&Object.keys(values).every(k=>values[k]===expected[k]);
+ const explained=source==='qwen'&&typeof explanation==='string'&&explanation.trim()&&explanation.length<=1000&&coherent;
+ d.explanation=explained?{text:explanation.trim(),values,at:now}:null;
+ r.dimensionDecisions.push({...record,...(d.explanation?{explanation:structuredClone(d.explanation)}:{})});r.dimensionDecisions=r.dimensionDecisions.slice(-40);r.revision++;
  // Only sympathy supplies the legacy animation stance. Other feelings stay independent.
  r.stance=r.dimensions.sympathy.value>0?'warm':r.dimensions.sympathy.value<0?'guarded':'neutral';
  st.chars[job.actor].memory.push(structuredClone(record));st.chars[job.actor].memory=st.chars[job.actor].memory.slice(-12);

@@ -38,6 +38,18 @@ export function dayStory(events=[],state=null,options={}){
    const phrases=['sympathy','romance','professional','personal','jealousy'].map(d=>latest.has(d)?relationship(actor,partner,d,latest.get(d).facts.after):null).filter(Boolean);
    if(!phrases.length)continue;
    let text=`${name(actor)} ${phrases.slice(0,2).join(' и ')}.`;
+   const sympathy=latest.get('sympathy')?.facts.after,romance=latest.get('romance')?.facts.after;
+   if(sympathy<0&&romance>0){
+    const assessment=[latest.get('sympathy'),latest.get('romance')].filter(Boolean).sort((a,b)=>a.at-b.at||a.id.localeCompare(b.id)).at(-1);
+    let reason=assessment?.facts.explanation,assessedAt=assessment.at,fromSnapshot=false;
+    const current=state?.relations?.[actor]?.[partner]?.dimensions;
+    if(options.date&&options.stateDay===options.date&&current?.sympathy?.value===sympathy&&current?.romance?.value===romance){
+     const lastAssessment=[current.sympathy,current.romance].filter(d=>Number.isFinite(d.assessedAt)).sort((a,b)=>a.assessedAt-b.assessedAt).at(-1);
+     if(lastAssessment?.assessedAt>assessedAt){reason=lastAssessment.explanation;assessedAt=lastAssessment.assessedAt;fromSnapshot=true;}
+    }
+    const matches=reason?.text&&reason.at===assessedAt&&reason.values?.sympathy===sympathy&&reason.values?.romance===romance;
+    text+=matches?` Пояснение модели ${fromSnapshot?'к последнему снимку':'к оценке'}: «${reason.text}»`:' Причина сочетания интереса с нежеланием общаться в доступных записях не указана.';
+   }
    if(latest.get('romance')?.facts.after>0){
     const reverse=state?.relations?.[partner]?.[actor]?.dimensions?.romance;
     text+=assessed(reverse)&&options.stateDay===options.date&&reverse.value===0?` К последнему снимку ${name(partner)} романтического интереса к ${name(actor,1)} не отмечает.`:' Ответные чувства этими записями не подтверждены.';

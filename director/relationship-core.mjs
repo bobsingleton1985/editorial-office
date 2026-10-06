@@ -71,7 +71,7 @@ export function observeWorkCompleted(st,actor,task,now){
  if(!st.chars[actor]||!task?.id||!(task.need_min>0)||!(task.done_min>=task.need_min))return false;
  let changed=false;
  for(const id of Object.keys(st.chars))if(id!==actor)changed=observe(st,id,actor,{id:'work-finished:'+task.id+':'+actor,kind:'work_completed',actor,
-  taskId:task.id,title:task.title,observedAt:now,source:'director_work_finished',visibility:'shared_newsroom_state'})||changed;
+  taskId:task.id,title:task.confidential?'Конфиденциальное поручение':task.title,observedAt:now,source:'director_work_finished',visibility:'shared_newsroom_state'})||changed;
  return changed;
 }
 function pendingEvidence(r){

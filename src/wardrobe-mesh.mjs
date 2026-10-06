@@ -14,19 +14,34 @@ function compatible(a,b){
  if(a.bindMatrix.elements.some((n,k)=>Math.abs(n-b.bindMatrix.elements[k])>1e-4))throw Error('Несовместимая привязка платья');
  if(a.geometry.attributes.skinIndex.count!==a.geometry.attributes.position.count||b.geometry.attributes.skinIndex.count!==b.geometry.attributes.position.count)throw Error('Повреждённая привязка');
 }
-export function createWardrobeMesh(root,load){
+export function createWardrobeMesh(root,load,{cacheLimit=3}={}){
+ if(!Number.isInteger(cacheLimit)||cacheLimit<2)throw Error("Invalid wardrobe cache limit");
  const targets=[...meshes(root,'body'),...meshes(root,'dress')];
  const original=targets.map(o=>({geometry:o.geometry,material:o.material}));
- const cache=new Map();let selected='red',wanted='red',generation=0,error=null,busy=false;
+ const cache=new Map();let selected='red',wanted='red',generation=0,error=null,busy=false;let loadQueue=Promise.resolve();
+ function dispose(parts){
+  const geometries=new Set(parts.map(p=>p.geometry)),materials=new Set(parts.flatMap(p=>[].concat(p.material))),textures=new Set();
+  for(const material of materials)for(const value of Object.values(material))if(value?.isTexture)textures.add(value);
+  for(const geometry of geometries)geometry.dispose();for(const material of materials)material.dispose();for(const texture of textures)texture.dispose();
+ }
+ function prune(){
+  while([...cache.values()].filter(e=>e.parts).length>cacheLimit){
+   const row=[...cache].find(([id,e])=>e.parts&&id!==selected&&id!==wanted);if(!row)break;cache.delete(row[0]);dispose(row[1].parts);
+  }
+ }
  async function prepare(id){
   if(id==='red')return original;
-  if(!cache.has(id))cache.set(id,load(id).then(g=>{
+  if(cache.has(id)){const entry=cache.get(id);cache.delete(id);cache.set(id,entry);return entry.promise;}
+  const entry={parts:null,promise:null};cache.set(id,entry);
+  const task=loadQueue.then(async()=>{if(wanted!==id)throw Error('Superseded wardrobe load');return load(id);});
+  loadQueue=task.then(()=>undefined,()=>undefined);
+  entry.promise=task.then(g=>{
    const sources=[...meshes(g.scene,'body'),...meshes(g.scene,'dress')];
    if(sources.length!==targets.length)throw Error('Несовместимые части платья');
    sources.forEach((o,i)=>compatible(targets[i],o));
-   return sources.map(o=>({geometry:o.geometry,material:o.material}));
-  }).catch(e=>{cache.delete(id);throw e;}));
-  return cache.get(id);
+   entry.parts=sources.map(o=>({geometry:o.geometry,material:o.material}));prune();return entry.parts;
+  }).catch(e=>{if(cache.get(id)===entry)cache.delete(id);throw e;});
+  return entry.promise;
  }
  return {
   async select(id){
@@ -35,8 +50,8 @@ export function createWardrobeMesh(root,load){
    try{const parts=await prepare(id);if(token!==generation)return;
     targets.forEach((o,i)=>{o.geometry=parts[i].geometry;o.material=parts[i].material;});selected=id;
    }catch(e){if(token===generation)error=e.message;}
-   finally{if(token===generation)busy=false;}
+   finally{if(token===generation)busy=false;prune();}
   },
-  status:()=>({selected,wanted,busy,error,parts:targets.length}),
+  status:()=>({selected,wanted,busy,error,parts:targets.length,cachedModels:[...cache].filter(([,e])=>e.parts).map(([id])=>id),cacheLimit}),
  };
 }

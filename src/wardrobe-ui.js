@@ -5,7 +5,7 @@ import {OUTFITS,wardrobeState} from './wardrobe.mjs';
 const query=new URLSearchParams(location.search),relay=(query.get('relay')||'https://135-106-229-50.sslip.io').replace(/\/$/,''),assetBase=query.get('charbase')||relay+'/';
 const loader=new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
 let world=null,mesh=null,root=null,pending=null,connected=false,commandError=null;
-let section,select,autonomy,message,retry;
+let section,select,autonomy,message,retry,gallery;let outfitCredits=[];const tiles=new Map();
 function mount(){
  const host=document.querySelector('#settings-group-people [data-section="director"]');
  const tabs=host?.querySelector('.ptabs'),card=host?.querySelector('.rep');if(!host||!tabs||!card)return false;
@@ -15,7 +15,17 @@ function mount(){
  for(const o of OUTFITS){const option=document.createElement('option');option.value=o.id;option.textContent=o.label;select.append(option);}label.append(select);section.append(label);
  const autoLabel=document.createElement('label');autoLabel.style.cssText='display:block;margin-top:10px';autonomy=document.createElement('input');autonomy.type='checkbox';autonomy.setAttribute('aria-label','Героиня сама выбирает платье по настроению');autoLabel.append(autonomy,' Сама выбирает по настроению');section.append(autoLabel);
  const hint=document.createElement('p');hint.textContent='Выбор общий для всех зрителей. Чтобы оставить выбранное вами платье, выключите самостоятельный выбор.';hint.style.cssText='font-size:12px;opacity:.8';section.append(hint);
- const credits=document.createElement('p');credits.style.cssText='font-size:11px;opacity:.7';credits.textContent='№33: MargaretToigo · CC0. №13: Mindfront · CC BY 4.0. №5: Elvaerwyn · CC-BY. Адаптированы к героине. ';const link=document.createElement('a');link.href=assetBase+'assets/heroine-wardrobe-20261006/credits.json';link.textContent='Источники и лицензии';link.target='_blank';link.rel='noopener';credits.append(link);section.append(credits);
+ const credits=document.createElement('p');credits.style.cssText='font-size:11px;opacity:.7';credits.dataset.wardrobeCredits='';
+ const link=document.createElement('a');link.href=assetBase+'assets/heroine-wardrobe-all-20261006/credits.json';link.textContent='Источники и лицензии';link.target='_blank';link.rel='noopener';credits.append(link);section.append(credits);
+ gallery=document.createElement('details');const galleryTitle=document.createElement('summary');galleryTitle.textContent='Все фасоны — миниатюры';gallery.append(galleryTitle);
+ const galleryHint=document.createElement('p');galleryHint.textContent='Миниатюры исходных фасонов. Выберите платье, чтобы увидеть его на героине.';galleryHint.style.cssText='font-size:11px;opacity:.7';gallery.append(galleryHint);
+ const grid=document.createElement('div');grid.style.cssText='display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin:10px 0';gallery.append(grid);
+ for(const o of OUTFITS){const tile=document.createElement('button');tile.type='button';tile.setAttribute('aria-label','Выбрать '+o.label);tile.style.cssText='padding:5px;border-radius:8px;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:11px;';tile.onclick=()=>send({selected:o.id});
+  if(o.id!=='red'){const img=document.createElement('img');img.dataset.src=assetBase+'assets/heroine-wardrobe-all-20261006/thumb-'+o.id+'.webp';img.alt=o.label;img.loading='lazy';img.width=80;img.height=100;img.style.cssText='max-width:100%;object-fit:contain;background:#f4f1eb;border-radius:4px';tile.append(img);}
+  const text=document.createElement('span');text.textContent=o.id==='red'?'Красное':o.label.split(' — ')[0];tile.title=o.label;tile.append(text);grid.append(tile);tiles.set(o.id,tile);
+ }
+ gallery.addEventListener('toggle',()=>{if(gallery.open)for(const img of gallery.querySelectorAll('img[data-src]')){img.src=img.dataset.src;delete img.dataset.src;}});section.append(gallery);
+ fetch(assetBase+'assets/heroine-wardrobe-all-20261006/credits.json').then(r=>r.ok?r.json():[]).then(rows=>{outfitCredits=rows;paint();}).catch(()=>{});
  message=document.createElement('p');message.setAttribute('role','status');message.style.fontSize='12px';section.append(message);
  retry=document.createElement('button');retry.textContent='Повторить загрузку платья';retry.hidden=true;retry.onclick=()=>{mesh?.select(wardrobeState(world?.chars?.heroine).selected);};section.append(retry);
  select.onchange=()=>send({selected:select.value});autonomy.onchange=()=>send({autonomous:autonomy.checked});host.insertBefore(section,card);
@@ -37,6 +47,8 @@ function paint(updateMessage=true){
  if(pending&&Date.now()-pending.at>15000){pending=null;commandError='Команда не подтверждена. Проверьте соединение и повторите.';}
  select.value=pending?.selected||w.selected;autonomy.checked=pending?.autonomous??w.autonomous;
  select.disabled=autonomy.disabled=!connected||!p||!!pending;
+ for(const [id,tile]of tiles){tile.disabled=select.disabled;tile.setAttribute('aria-pressed',String(id===select.value));tile.style.borderColor=id===select.value?'var(--accent)':'';}
+ const credits=section.querySelector('[data-wardrobe-credits]');if(credits){const row=outfitCredits.find(o=>o.id===w.selected),text=row?row.author+' · '+row.license+'. ':'';if(credits.dataset.creditText!==text){credits.dataset.creditText=text;let node=credits.firstChild;if(node?.nodeType!==3){node=document.createTextNode('');credits.prepend(node);}node.textContent=text;}}
  retry.hidden=!status?.error;
  if(updateMessage)message.textContent=commandError||(!connected?'Нет соединения с редакцией':!p?'Героиня ещё не появилась':pending?'Применяем общий выбор…':status?.error?'Платье не загрузилось: '+status.error:status?.busy?'Загружаем выбранное платье…':status?.selected===w.selected?'На героине: '+OUTFITS.find(o=>o.id===w.selected).label:'Ждём загрузки героини…');
 }
@@ -45,7 +57,7 @@ window.addEventListener('editorial-connection',e=>{connected=e.detail;paint();})
 const timer=setInterval(()=>{
  if(!section)mount();
  const r=window.__people?.heroine?.ed?.root;
- if(r&&r!==root){root=r;try{mesh=createWardrobeMesh(root,id=>loader.loadAsync(assetBase+'assets/heroine-wardrobe-20261006/'+id+'.glb'));}catch(e){if(message)message.textContent=e.message;}}
+ if(r&&r!==root){root=r;try{mesh=createWardrobeMesh(root,id=>loader.loadAsync(assetBase+'assets/heroine-wardrobe-all-20261006/'+id+'.glb'));}catch(e){if(message)message.textContent=e.message;}}
  const id=wardrobeState(world?.chars?.heroine).selected;
  if(mesh&&mesh.status().wanted!==id)mesh.select(id);
  paint();

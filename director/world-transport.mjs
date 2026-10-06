@@ -1,10 +1,11 @@
+import {protectPublicWorld} from './phone-privacy.mjs';
 // Browser transport only. Never use this projection as canonical memory or Jev context.
 const bytes=x=>new TextEncoder().encode(JSON.stringify(x)).length;
 // The authenticated /director/world relay endpoint admits 1 MiB (not the 64 KiB generic body limit).
 // Keep a 50% transport margin; this is unrelated to the Jev context/token budget.
 export const WORLD_TRANSPORT_BUDGET_BYTES=512*1024;
 export function projectWorld(input,maxBytes=WORLD_TRANSPORT_BUDGET_BYTES){
- const out=structuredClone(input),relations=[];
+ const out=protectPublicWorld(input),relations=[];
  for(const p of Object.values(out.chars||{})){
   // Jev-only explanatory text and duplicated relationship detail are not read by the viewer.
   if(p.social)delete p.social.relationship;
