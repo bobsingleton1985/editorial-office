@@ -203,7 +203,7 @@ export function wardrobeContext(p){
 export function wardrobeActions(p,{ready=false,awake=true}={}){
  const w=wardrobeState(p);
  if(!ready||!awake||!w.autonomous)return [];
- return OUTFITS.filter(o=>o.id!==w.selected).map(o=>({id:'wardrobe_select@'+o.id,description:`Select ${o.id}. Garment: self.wardrobe.outfits.${o.id}; all effects and constraints: self.wardrobe.choice.`}));
+ return OUTFITS.filter(o=>o.id!==w.selected).map(o=>({id:'wardrobe_select@'+o.id,description:`Wear ${o.id}; see self.wardrobe.`}));
 }
 export function selectOutfit(p,id,{source='owner_menu',now=Date.now(),expectedRevision=null}={}){
  const w=wardrobeState(p);
