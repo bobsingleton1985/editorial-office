@@ -176,8 +176,27 @@ export function settlePerformance(st,c,now){
 }
 
 export function settleService(st,s,id,now){
- const e=st.economy,key=`service:${s.id}:${id}`,r=e.reservations[key],g=s.guests[id];
+ const e=st.economy,key=`service:${s.id}:${id}`,r=e.reservations[key],g=id==='heroine'?s.ownGlass:s.guests[id];
  if(e.receipts[key])return e.receipts[key];
+ if(s.version===2){
+  const payer=id==='heroine'?'heroine':s.payment==='treat'?s.initiator:id;
+  if(s.status!=='running'||s.performer!=='heroine'||(id==='heroine'&&s.ownDrink!==true)||s.centsPerGuest!==200||s.newsroomCents!==150||s.heroineCents!==50||!s.consent||!s.orderConsent||g?.status!=='accepted'||!g.consent||g.payer!==payer||!r||r.actor!==id||r.service!==s.id||r.payer!==payer||r.cents!==200||!r.credit)return false;
+  // Preflight the complete split. No receipt or balance can be partially posted.
+  if(!Object.hasOwn(e.accounts,payer)||!Object.hasOwn(e.accounts,'heroine')||available(st,payer)<0||!Number.isSafeInteger(e.accounts[payer])||e.accounts[payer]<200||!Number.isSafeInteger(e.accounts.heroine+(payer==='heroine'?0:50))||!Number.isSafeInteger((e.accounts.newsroom??0)+150)||e.receipts[key+':newsroom']||e.receipts[key+':heroine'])return false;
+  e.accounts.newsroom??=0;
+  delete e.reservations[key];
+  const extra={service:s.id,beneficiary:id,activity:'drink_service'};
+  post(st,key+':newsroom',payer,'newsroom',150,'drink_service',now,extra);
+  if(payer==='heroine'){
+   // The payer and performer are the same account: her commission stays there.
+   // A self-transfer records the gross split without minting or moving money.
+   const credit={id:key+':heroine',from:payer,to:'heroine',cents:50,kind:'drink_service',at:now,...extra,selfTransfer:true};
+   e.ledger.push(credit);e.receipts[credit.id]=credit;e.revision++;
+   remember(st,'heroine',{id:`transaction:${credit.id}:heroine`,event:'money_drink_service',cents:50,summary:'Обслуживание за свой счёт: 0.50 USD комиссии остались на твоём счёте; редакции оплачено 1.50 USD.'},now);
+  }else post(st,key+':heroine',payer,'heroine',50,'drink_service',now,extra);
+  const receipt={id:key,kind:'drink_service_settlement',payer,beneficiary:id,cents:200,newsroomCents:150,heroineCents:50,at:now};
+  e.receipts[key]=receipt;e.revision++;return receipt;
+ }
  if(s.status!=='running'||s.performer!=='heroine'||id==='heroine'||s.centsPerGuest!==100||!s.consent||g?.status!=='accepted'||!g.consent||!r||r.service!==s.id||r.payer!==id||r.cents!==100||!r.credit)return false;
  delete e.reservations[key];const result=post(st,key,id,'heroine',100,'drink_service',now,{service:s.id});if(!result)e.reservations[key]=r;return result;
 }

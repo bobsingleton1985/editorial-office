@@ -37,7 +37,7 @@ async function ensureSimulation(){
   finally{simStarting=false;}
 }
 
-const CLIENT_RUNTIME = 'office-tray-service-v1'; // Separate HER skeleton support; old clients must refresh.
+const CLIENT_RUNTIME = 'office-service-v46-20261006'; // Separate HER skeleton support; old clients must refresh.
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';

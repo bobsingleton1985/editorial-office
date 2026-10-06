@@ -4,7 +4,7 @@ A living 1950s newsroom with wooden characters. This is the test build of the of
 
 - `index.html`, `app.js` — the page (three.js 0.186 bundled with esbuild).
 - `assets/office-v29c.glb` — the office from office-browser-v29-lights.blend: lite export (static meshes merged, city separate), then `gltf-transform webp --quality 85` and `gltf-transform meshopt --quantize-position 16 --quantize-normal 12 --quantize-texcoord 14 --quantization-volume mesh` (10.6 MB → 3.9 MB, same picture).
-- `src/main.js` — page source. Rebuild: `npx esbuild src/main.js --bundle --minify --format=iife --target=es2020 --outfile=app.js` (needs `three@0.186.0`).
+- `src/main.js` — page source. Production `app.js` also includes deployed patches that are not all represented in these historical sources. Do not replace it with a full rebuild; see `docs/service-v46-20261006/README.md` for the bounded production graft and hashes.
 - `src/lighting.js` — lamps (spot lights with shadows), ambient and window light; `src/settings.js` — the ☰ settings panel (saved in the browser).
 
 ## Director
@@ -61,3 +61,7 @@ Telegram text rings the actual newsroom phone and the selected character answers
 when physically ready. The existing visible-viewer rule still applies: keep a
 newsroom tab visible for model replies. The bridge and director keep durable
 message IDs so retries do not repeat payments or assignments.
+
+## Accepted service v46 — 2026-10-06
+
+Service for one to three workers uses the accepted v46 animation at one shared table. Invitations, independent answers, treating and the heroine’s optional self-funded drink are shown in bubbles. Guest drinks split $2 into $1.50 newsroom / $0.50 heroine. Separate-table joint drinking is retired. The actual relay and Mac director activation, source hashes and validation are recorded in `docs/service-v46-20261006/`.

@@ -5,6 +5,7 @@
 import * as THREE from 'three';
 import { drawBubble } from './talk-icons.js';
 import { resolveConversationAttention } from './conversation-attention.mjs';
+import {serviceBubbleLines,talkAddresses,talkTarget,talkBubbleScale} from './talk-service.mjs';
 
 const SHOW = 5, FADE = 0.25;                     // the bubble stays 5 s (2.8 s was too quick to read: owner 30.09), fading in and out
 const LOOK_BEFORE = 0.4, LOOK_AFTER = 4.5;        // the speaker turns to the other a moment before he «speaks», both hold the look
@@ -50,9 +51,9 @@ export function createTalk({ scene, addDynamic, chars, people, now, show = () =>
     for(const args of staged.values())if(poses.get(args[0])?.ready)post(...args);
     staged.clear();frameChars=null;frameHeads=null;frameTime=null;
   }
-  function texture(icon, mark) {
-    const k = icon + '|' + mark; if (tex[k]) return tex[k];
-    const t = new THREE.CanvasTexture(drawBubble(document.createElement('canvas'), icon, mark)); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+  function texture(talk) {
+    const {icon,mark}=talk,k=JSON.stringify([icon,mark,serviceBubbleLines(talk)]); if (tex[k]) return tex[k];
+    const t = new THREE.CanvasTexture(drawBubble(document.createElement('canvas'), icon, mark,talk)); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
     return (tex[k] = t);
   }
   function bubbleOf(id) {
@@ -79,8 +80,8 @@ export function createTalk({ scene, addDynamic, chars, people, now, show = () =>
       return {who:pair.partner,w:1,listener:true,dialogue:true,attention:{conversationId:pair.id,role:'waiting',targetActor:pair.partner}};
     // Missing/mismatched turn data never produces the old symmetric social stare.
     const own = talkOf(id);
-    if (own) { const u = (T - own.at) / 1000; const k = sm((u + LOOK_BEFORE) / 0.35) * (1 - sm((u - LOOK_AFTER) / 0.5)); if (k > w) { w = k; best = own.to; } }
-    for (const [o, e] of Object.entries(readChars() || {})) { if (o === id) continue; const t = valid(e?.talk) ? e.talk : null; if (!t || t.to !== id) continue;
+    if (own) { const u = (T - own.at) / 1000; const k = sm((u + LOOK_BEFORE) / 0.35) * (1 - sm((u - LOOK_AFTER) / 0.5)); if (k > w) { w = k; best = talkTarget(own,T); } }
+    for (const [o, e] of Object.entries(readChars() || {})) { if (o === id) continue; const t = valid(e?.talk) ? e.talk : null; if (!t || !talkAddresses(t,id)) continue;
       const u = (T - t.at) / 1000; const k = sm((u - 0.25) / 0.4) * (1 - sm((u - LOOK_AFTER) / 0.5)); if (k > w) { w = k; best = o; } }
     return { who: best, w, listener, dialogue:false, attention:null };
   }
@@ -162,17 +163,17 @@ export function createTalk({ scene, addDynamic, chars, people, now, show = () =>
         rotWorld(B.head, new THREE.Quaternion().setFromAxisAngle(ax, 0.65 * nod)); } }
   }
   // the bubbles: over the head of whoever is «speaking», facing the camera, the same size on the screen wherever he stands
-  function update(camH) {
+  function update(camH,pixelHeight) {
     const T = now();
     for (const [id, p] of Object.entries(people())) {
       const t = talkOf(id), s = bubbleOf(id), ed = p.ed;
       const u = t ? (T - t.at) / 1000 : -1;
       if (!t || !ed || u < 0 || u > SHOW || !show()) { s.visible = false; continue; }   // the menu can switch the bubbles off (the heads still answer)
       const h = headPos(ed); if (!h) { s.visible = false; continue; }
-      s.material.map !== texture(t.icon, t.mark) && (s.material.map = texture(t.icon, t.mark), s.material.needsUpdate = true);
+      const map=texture(t);s.material.map !== map && (s.material.map = map, s.material.needsUpdate = true);
       s.material.opacity = sm(u / FADE) * (1 - sm((u - SHOW + FADE) / FADE));
       s.position.set(h.x, h.y + 0.30, h.z);
-      const H = 0.09 * (camH || 1); s.scale.set(H * 256 / 176, H, 1); s.visible = true;
+      const scale=talkBubbleScale(camH,pixelHeight,map.image.height,!!serviceBubbleLines(t));s.scale.set(scale.width,scale.height,1); s.visible = true;
     }
   }
   return {beginFrame,reset,capture,stage,flush,update,attentionStatus:id=>st[id]?.attention||null,wants:id=>{const L=lookWant(id,now());return L.dialogue || L.w>0.01 || (st[id]?.w||0)>0.001 || (st[id]?.listenerWeight||0)>0.001;}};

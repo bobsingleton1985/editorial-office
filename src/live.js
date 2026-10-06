@@ -13,7 +13,7 @@ export function connectLive(url, onWorld, onStatus, on = {}) {        // on: {we
   if (!url) { onStatus({ online: false, reason: 'no_relay' }); return { now, url }; }
   const clock = (d) => { if (typeof d.now === 'number') offset = d.now - Date.now(); };
   function open() {
-    es = new EventSource(url.replace(/\/$/, '') + '/events?runtime=office-tray-service-v1');
+    es = new EventSource(url.replace(/\/$/, '') + '/events?runtime=office-service-v46-20261006');
     es.addEventListener('presence-lease',e=>{try{presenceLease=JSON.parse(e.data).lease;presence();}catch{}});
     es.addEventListener('presentation-lease',e=>{try{presentationLease=JSON.parse(e.data).lease;}catch{}});
     es.addEventListener('simulation', e=>{try{on.simulation?.(JSON.parse(e.data));}catch{}});

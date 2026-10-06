@@ -103,7 +103,8 @@ export function applySimulation(graph, frame) {
     const parent = s.p < 0 ? externalParents[i] : nodes[s.p];
     if (o.parent !== parent) { if (parent) parent.add(o); else o.removeFromParent(); }
     o.visible = s.v;
-    const f = x.p === y.p && !x.matrix && !y.matrix ? alpha : 0;
+    const actor=o.userData.serviceActor,sameBasis=!actor||(a.meta?.actors?.[actor]?.serviceBinding===true)===(b.meta?.actors?.[actor]?.serviceBinding===true);
+    const f = x.p === y.p && !x.matrix && !y.matrix && sameBasis ? alpha : 0;
     const v = f ? x.t.map((n, k) => n + (y.t[k] - n) * f) : s.t;
     o.position.fromArray(v); o.scale.fromArray(v, 7);
     q0.fromArray(f?x.t:s.t, 3); q1.fromArray(y.t, 3); o.quaternion.copy(q0.slerp(q1, f).normalize());

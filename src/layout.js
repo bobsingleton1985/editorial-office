@@ -32,6 +32,7 @@ export const BENCH = {
 };
 // places to stand
 export const SPOTS = {
+  serviceDock:{x:2.31373016,z:4.44687325,th:.21074422},
   trayTable:{x:.45,z:2.1,th:-Math.PI/2,label:'у столика с подносом'},
   teletypeRead: {...TTY_READ_SPOT},
   window: { x: -4.55, z: 2.5, th: -Math.PI / 2, label: 'у окна' },

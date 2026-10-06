@@ -1,6 +1,7 @@
 // Speech bubbles between people: two pictograms, the thing offered + the answer (owner 30.09: «in the bubble I must see what is
 // offered and what is refused»). Our own flat pictograms in the office's 1950s palette — not system emoji (they differ between
 // Mac, Windows and phones). Canvas 2D, drawn once per pair and cached as a texture.
+import {serviceBubbleLines} from './talk-service.mjs';
 
 const INK = '#2e2219', CREAM = '#f4e8cc', PAPER = '#fbf7ee', RED = '#b8412c', MUST = '#d9a43a', SMOKE = '#9c948a', SKIN = '#e2b48a', AMBER = '#c77a22', BROWN = '#6b3d22';
 
@@ -60,15 +61,16 @@ function thumb(c, dir) {                       // a fist with the thumb up (dir 
 export const ICON_NAMES = Object.keys(ICONS);
 
 // the bubble: a cream balloon with a tail pointing down at the speaker, the thing on the left, the answer on the right
-export function drawBubble(canvas, thing, mark) {
-  const W = 256, H = 176; canvas.width = W; canvas.height = H;
+export function drawBubble(canvas, thing, mark, talk=null) {
+  const lines=serviceBubbleLines(talk),extraHeight=lines?Math.max(0,lines.length-2)*24:0,W = 256, H = lines?226+extraHeight:176; canvas.width = W; canvas.height = H;
   const c = canvas.getContext('2d'); c.clearRect(0, 0, W, H);
-  c.beginPath(); const x = 8, y = 8, w = W - 16, h = 124, r = 34;
+  c.beginPath(); const x = 8, y = 8, w = W - 16, h = lines?174+extraHeight:124, r = 34;
   c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r);
   c.lineTo(W / 2 + 18, y + h); c.lineTo(W / 2 - 6, H - 8); c.lineTo(W / 2 - 16, y + h);
   c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath();
   c.fillStyle = CREAM; c.fill(); c.lineWidth = 7; c.strokeStyle = INK; c.lineJoin = 'round'; c.stroke();
   for (const [k, cx] of [[thing, 74], [mark, 182]]) { const f = ICONS[k]; if (!f) continue;
     c.save(); c.translate(cx, 70); c.scale(0.92, 0.92); f(c); c.restore(); }
+  if(lines){c.fillStyle=INK;c.textAlign='center';c.textBaseline='middle';for(const [i,line]of lines.entries()){let size=18,text=line;c.font=`bold ${size}px Georgia, serif`;while(c.measureText(text).width>220&&size>16)c.font=`bold ${--size}px Georgia, serif`;if(c.measureText(text).width>220){while(text.length&&c.measureText(text+'…').width>220)text=text.slice(0,-1);text+='…';}c.fillText(text,W/2,132+i*24);}}
   return canvas;
 }

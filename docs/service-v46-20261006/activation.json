@@ -1,0 +1,64 @@
+{
+  "phase": "director_verified",
+  "oldPid": 19744,
+  "providerBeforePid": 67499,
+  "providerRestarted": false,
+  "relayRestarted": true,
+  "ownerTabsReloaded": false,
+  "stateRestored": false,
+  "files": {
+    "director/director.mjs": "5e6fe0f8239b1bc26fc1e2c3101507f0eba3ffc67d4f2412f54af0f327265c4d",
+    "director/heroine-profile.mjs": "bd762da4c2cd91b01ca17466d45118b3f767337f8fa74ff912038281a20c3710",
+    "director/drink-service-v2.mjs": "0cd2216a0f2b88263dc1eae10258a175c5b23acb4893432bba63c414874bf4a1",
+    "director/drink-service.mjs": "871af505e2246629adac9e1705fc2571f3b727bd8c21c489fad7fa64b5d802b3",
+    "director/economy.mjs": "4ad538c9aabac7f785d8eb27821e3cad2202212f381cbf0f02cae086278601ee",
+    "director/livelihood.mjs": "717a14720b2010d989ce6397b7ff76319838342d8397683813f155b0778b345c",
+    "director/shared-drinks.mjs": "a3d1c48827c3bca350b78d78b3c602f968f54461fc8e69c0a6745734411eed60"
+  },
+  "baseline": {
+    "director/director.mjs": "12e1b96e42ae41f86382631312ee9ba10ac07c3d90970952fba50c1d74e05e18",
+    "director/heroine-profile.mjs": "e2c0764764e929e91554466941aef77b094d5c29445a52efa27bd076abd5614a",
+    "director/drink-service-v2.mjs": null,
+    "director/drink-service.mjs": "4bbb485f4f9f26823afed07b1f2a2f24dcb51d38bea2f1c44f2186055bd64cab",
+    "director/economy.mjs": "ba4c0be07e4858457b761036312d802f98a8dc41a2254e1ff20cacaaf4757195",
+    "director/livelihood.mjs": "1cebfa8d76612285a54b73decbe108ed63e6032050562d89a8341f4ef7ed42dc",
+    "director/shared-drinks.mjs": "287207d3373dc68921283c92fafb02d0f03d0978ee23b2c099a91b70b539d8b4"
+  },
+  "authorization": "Owner authorized service v46 publication, new drinks mechanics and removal of separate-table joint drinking; preserve provider and canonical state",
+  "terminalChoice": {
+    "traceId": "aadd59d4-0458-4737-a07a-79d7d398dd4c",
+    "applicationConfirmed": true
+  },
+  "seqBefore": 72968,
+  "at": "2026-10-06T15:15:51.562901+00:00",
+  "stateExactBeforeTermination": true,
+  "remoteActivation": {
+    "phase": "remote_activated",
+    "relayRestarted": true,
+    "frontendActivated": true,
+    "runtime": "office-service-v46-20261006",
+    "newAssets": true,
+    "relayPid": 79475
+  },
+  "error": "[Errno 3] No such process",
+  "ownerCommandsRestored": true,
+  "concurrentActivation": "project-handoffs/final-context-budget-20261006/activation.json",
+  "providerRestartedByThisTask": false,
+  "providerRestartedByConcurrentAuthorizedTask": true,
+  "providerActualAfterPid": 44207,
+  "processChangeReason": "Verified overlapping owner-approved Qwen context activation",
+  "newPid": 44214,
+  "seqAfter": 72969,
+  "ledgerPrefixRetained": true,
+  "accountsContinuity": true,
+  "memoryTailRetained": {
+    "columnist": true,
+    "reporter": true,
+    "newspaper_editor": true,
+    "heroine": true
+  },
+  "pinnedRulesRetained": true,
+  "canonicalPhoneContentRetained": true,
+  "stateEncrypted": true,
+  "providerAfterPid": 44207
+}

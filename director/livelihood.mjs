@@ -1,16 +1,18 @@
 import {available,price} from './economy.mjs';
 import {PERFORMANCE_TERMS,canPayForPerformance} from './paid-performance.mjs';
-export function livelihoodContext(st,id,actions,now){
+export function livelihoodContext(st,id,actions,now,serviceVersion=1){
  const e=st.economy,p=st.chars[id],enabled=e.config.enabled,money=enabled?available(st,id):null,cost=price(st,'lunch'),ids=actions.map(a=>a.id);
  const wallet=walletContext(st,id,actions,now);
- const isHeroine=id==='heroine',drinks=isHeroine&&st.hostessMode==='drinks',contracts=(e.performances||[]).filter(c=>c.performer===id&&['offered','reserved','running'].includes(c.status));
+ const isHeroine=id==='heroine',drinks=isHeroine&&(st.hostessMode==='drinks'||serviceVersion===2),combined=isHeroine&&serviceVersion===2&&st.hostessMode!=='drinks',contracts=(e.performances||[]).filter(c=>c.performer===id&&['offered','reserved','running'].includes(c.status));
  return {wallet,enabled,hunger:p.needs.hunger,availableCents:money,mealPriceCents:cost,mealAffordable:!enabled||wallet.mealCashNeededCents<=money,mealShortfallCents:enabled?Math.max(0,wallet.mealCashNeededCents-money):0,
-  earningRole:drinks?'drink_service':isHeroine?'paid_performance':'editorial_work',earningCents:drinks?100:isHeroine?PERFORMANCE_TERMS.cents:e.config.workRewardCents,
-  activeEarning:drinks?(e.services||[]).filter(s=>['inviting','reserved','running'].includes(s.status)).map(s=>({id:s.id,status:s.status,centsPerGuest:100})):contracts.map(c=>({id:c.id,status:c.status,cents:c.cents})),
+  earningRole:combined?'paid_performance_and_service':drinks?'drink_service':isHeroine?'paid_performance':'editorial_work',earningCents:drinks?(serviceVersion===2?50:100):isHeroine?PERFORMANCE_TERMS.cents:e.config.workRewardCents,
+  activeEarning:[...(drinks?(e.services||[]).filter(s=>['inviting','reserved','running'].includes(s.status)).map(s=>({id:s.id,status:s.status,centsPerGuest:s.centsPerGuest,heroineCents:s.version===2?50:100})):[]),...(!drinks||combined?contracts.map(c=>({id:c.id,status:c.status,cents:c.cents})):[])],
+  ...(isHeroine&&serviceVersion===2?{earningOptions:[{activity:'drink_service',incomeCentsPerDeliveredGlass:50},...(combined?[{activity:'paid_performance',incomeCents:PERFORMANCE_TERMS.cents}]:[])],performanceAvailable:combined}:{}),
   availableEarningSteps:ids.filter(a=>isEarningStep(id,a,p,st)),
-  ...(isHeroine&&!drinks&&enabled?{potentialCustomers:Object.keys(st.chars).filter(other=>other!==id).map(other=>({id:other,canAffordPerformance:canPayForPerformance(st,other)}))}:{}),
-  explanation:drinks?'Сейчас выбран режим без танцев. Предложи всем доставку напитков по 1 USD, дождись независимых ответов и посадки согласившихся гостей. Доход появляется только после доставки подноса; ушедшие и отказавшиеся не платят. Готовый поднос остаётся на столе до ухода гостей, затем убирается автоматически.':isHeroine?'Заработок — только согласованное платное выступление. Для заработка выбирай флирт и предложение танца только с potentialCustomers.canAffordPerformance=true: сейчас у него есть свободные 3 USD после резервов. Деньги могут измениться; согласие независимо. Оплата только после полного подтверждённого исполнения. Разговор, флирт и обычные танцы бесплатны; подарок, заём и угощение не заработок.':'Ты зарабатываешь за завершённую редакционную задачу. Работа доступна только со своей незавершённой задачей или свободным сообщением в очереди; если их нет, оплачиваемой работы сейчас нет. Начало работы и ожидание не приносят оплату.',
+  ...(isHeroine&&st.hostessMode!=='drinks'&&enabled?{potentialCustomers:Object.keys(st.chars).filter(other=>other!==id).map(other=>({id:other,canAffordPerformance:canPayForPerformance(st,other)}))}:{}),
+  explanation:drinks&&serviceVersion===2?'Обслуживание: принять заказ коллег или предложить одному/всем виски с доставкой. Каждый самостоятельно отвечает и садится. Бокал стоит 2 USD: 1.50 USD редакции и 0.50 USD тебе. При угощении платит инициатор. Доход только за подтверждённую доставку, не за согласие или подход.':drinks?'Сейчас выбран режим без танцев. Предложи всем доставку напитков по 1 USD, дождись независимых ответов и посадки согласившихся гостей. Доход появляется только после доставки подноса; ушедшие и отказавшиеся не платят. Готовый поднос остаётся на столе до ухода гостей, затем убирается автоматически.':isHeroine?'Заработок — только согласованное платное выступление. Для заработка выбирай флирт и предложение танца только с potentialCustomers.canAffordPerformance=true: сейчас у него есть свободные 3 USD после резервов. Деньги могут измениться; согласие независимо. Оплата только после полного подтверждённого исполнения. Разговор, флирт и обычные танцы бесплатны; подарок, заём и угощение не заработок.':'Ты зарабатываешь за завершённую редакционную задачу. Работа доступна только со своей незавершённой задачей или свободным сообщением в очереди; если их нет, оплачиваемой работы сейчас нет. Начало работы и ожидание не приносят оплату.',
   planning:'Сопоставляй wallet (деньги после резервов, цены/остатки, долги/сроки) с голодом и характером. Нехватка на еду/долги мотивирует заработок. Покупки/подарки/займы/заказ уменьшают деньги; будущий доход/обещания не деньги. Решение свободное с учётом сна, усталости и согласия.',
+  ...(combined?{performanceExplanation:'Также доступны согласованные платные выступления по прежним условиям. Обслуживание не требует отключать танцы.'}:{}),
   romanceIndependent:'Заказ, подарок и голод не означают романтического согласия. Флирт может привлечь клиента без тёплых отношений; ответ и оплата независимы.'};
 }
 function earningPartner(st,id,action){
@@ -27,11 +29,11 @@ export function isEarningStep(id,action,p,st){
   return canPayForPerformance(st,earningPartner(st,id,action));
  }
 
- if(id==='heroine')return (/^social_(invite|join)@|^social_intent@flirt$|^money_(?:performance|drinks)_(offer|start)@/.test(action)||/^money_performance_reply@.*:accept$/.test(action))||action==='continue'&&!!p.entry?.performance&&/^heroine_dance[12]$/.test(p.activity);
+ if(id==='heroine')return (/^social_(invite|join)@|^social_intent@flirt$|^money_(?:performance|drinks)_(offer|start)@/.test(action)||/^money_(?:performance_reply|drinks_performer)@.*:accept$/.test(action))||action==='continue'&&!!p.entry?.performance&&/^heroine_dance[12]$/.test(p.activity);
  return !!st?.tasks?.some(t=>t.by===id||!t.by)&&(/^work_variant@/.test(action)||action==='continue'&&p.activity==='work');
 }
-export function explainEarningActions(st,id,actions,now){
- const context=livelihoodContext(st,id,actions,now);if(!context.enabled)return actions;
+export function explainEarningActions(st,id,actions,now,serviceVersion=1){
+ const context=livelihoodContext(st,id,actions,now,serviceVersion);if(!context.enabled)return actions;
  return actions.map(a=>{
   const spending=context.wallet.spendingChoices.find(x=>x.action===a.id);
   let note=isEarningStep(id,a.id,st.chars[id],st)?` Финансовый смысл: ${id==='heroine'?(a.id==='social_intent@flirt'?'попытка заинтересовать собеседника; флирт бесплатен, заказ и взаимность не гарантированы':'шаг к согласованному заказу; оплата только после исполнения'):'шаг к завершению оплачиваемой редакционной задачи'}. На еду не хватает ${context.mealShortfallCents/100} USD; на еду и долги ближайших суток — ${context.wallet.foodAndDueDebtGapCents/100} USD.`:'';
@@ -63,7 +65,11 @@ function expense(st,id,action,now){
  else if(verb==='money_performance_reply'&&value==='accept'){
   const c=(e.performances||[]).find(c=>c.id===key&&c.payer===id&&c.status==='offered');if(c)cents=c.cents;
  }else if(verb==='money_drinks_reply'&&value==='accept'){
-  const s=(e.services||[]).find(s=>s.id===key&&s.guests[id]?.status==='pending');if(s)cents=100;
+  const s=(e.services||[]).find(s=>s.id===key&&['pending','deferred'].includes(s.guests[id]?.status));if(s)cents=s.version===2?(s.guests[id].payer===id&&!e.reservations[`service:${s.id}:${id}`]?200:0):100;
+ }else if(verb==='money_drinks_offer'&&value==='treat'&&id==='heroine'){
+  cents=200*key.split(',').length;
+ }else if(verb==='money_drinks_start'&&value==='own'&&id==='heroine'){cents=200;}else if(verb==='money_drinks_order'){
+  cents=200*(value==='treat'?key.split(',').length:1);
  }else if(verb==='money_repay'){
   const d=e.debts.find(d=>d.id===key&&d.borrower===id&&d.remaining>0);if(d)cents=Math.min(d.remaining,available(st,id));
  }

@@ -1,4 +1,5 @@
 import {ownerReplyOption} from './owner-dialogue-context.mjs';
+import {ownerObligationProjection} from './owner-obligation-context.mjs';
 import {migrateChronicleFile} from './chronicle-privacy.mjs';
 import {privateParse,privateStringify} from '../privacy-vault.mjs';
 import {privateTurn,protectPublicWorld,migratePhonePrivacy,publicRequestContext,privateChronicleState} from './phone-privacy.mjs';
@@ -95,6 +96,7 @@ const PLACES = {
   window: { kind: 'spot', x: SPOTS.window.x, z: SPOTS.window.z, name: 'у окна' },
   teletype: { kind: 'spot', x: SPOTS.teletype.x, z: SPOTS.teletype.z, name: 'у телетайпа' },
   phoneA: { kind: 'spot', x: -3.0, z: -2.40, name: 'у телефона стола A' },     // the page's SPOTS.phoneA (the aisle beside desk A); only for calls
+  serviceDock:{kind:'spot',x:2.31373016,z:4.44687325,name:'у тумбы после обслуживания'},
   trayTable: {kind:'spot',x:.45,z:2.1,name:'у столика с подносом'},
   bar: { kind: 'spot', x: 2.705, z: 4.650, name: 'у тумбы с баром и проигрывателем' },   // the page's SPOTS.bar: where the approved whisky recording begins (whisky alone, 30.09)
   window2: { kind: 'spot', x: -4.55, z: 1.6, name: 'у окна, рядом' },          // the page's SPOTS.window2: the second place at the window; only for smoking together (invitations)
@@ -625,11 +627,11 @@ const takenBy = (id) => new Set([...sharedDrinkPlaces(st,id),...performancePlace
   ...(st.steps || []).filter((x) => x.id !== id).map((x) => x.place),...Object.entries(st.sleepDeskLeases).filter(([,l])=>l.owner!==id).map(([desk])=>desk),...(st.diningChairLease&&st.diningChairLease.owner!==id?['diningChair']:[])]);   // a place someone was told to go to after an invitation is his   // at the phone: desk A is his too
 function serviceInput(now){
  const a=executionCapabilities?.actors?.heroine,taken=takenBy('heroine');
- return {durations:a?.serviceDurations,capabilities:executionCapabilities,stationFree:!taken.has('bar')&&!taken.has('tv5')&&!taken.has('tv2')&&!taken.has('trayTable'),ready:socialReady('heroine',now)&&a?.serviceReady===true,
+ return {serviceVersion:a?.serviceVersion,names:Object.fromEntries(Object.entries(PEOPLE).map(([id,p])=>[id,p.name])),guestReady:Object.fromEntries(IDS.map(id=>[id,socialReady(id,now)&&executionCapabilities.at<=now&&!busyWith(st.chars[id])&&!st.chars[id].sleep&&!st.chars[id].sleepPending&&!committedPerformance(st,id)&&arrivedForAbort(st.chars[id],executionCapabilities?.actors?.[id])])),durations:a?.serviceDurations,capabilities:executionCapabilities,stationFree:!taken.has('bar')&&!taken.has('tv5')&&!taken.has('tv2')&&!taken.has('trayTable'),ready:socialReady('heroine',now)&&executionCapabilities.at<=now&&!busyWith(st.chars.heroine)&&!committedPerformance(st,'heroine')&&arrivedForAbort(st.chars.heroine,a)&&a?.serviceReady===true,
   benches:Object.fromEntries(IDS.map(id=>{
    const busy=[...takenBy(id)],middle=IDS.find(k=>k!==id&&st.chars[k].place==='benchM'),m=middle&&executionCapabilities?.actors?.[middle];
    const middleEntering=middle&&!(socialReady(middle,now)&&m.mode==='seated'&&m.seat==='benchM');
-   return [id,BENCH_IDS.filter(b=>!busy.includes(b)&&benchPassageTags(b,busy).length>0&&!(middleEntering&&((b==='benchS'&&busy.includes('benchN'))||(b==='benchN'&&busy.includes('benchS')))))];
+   return [id,(a?.serviceVersion===2?[({newspaper_editor:'benchN',columnist:'benchM',reporter:'benchS'})[id]].filter(Boolean):BENCH_IDS).filter(b=>!busy.includes(b)&&benchPassageTags(b,busy).length>0&&!(middleEntering&&((b==='benchS'&&busy.includes('benchN'))||(b==='benchN'&&busy.includes('benchS')))))];
   }))};
 }
 function sharedDrinkInput(now){
@@ -738,7 +740,7 @@ async function snapshot(id, avail) {
       task: task ? { id: task.id,confidential:task.confidential===true, kind: task.ownerDialogueId?'редакционное поручение владельца':'отредактировать сообщение с ленты для утреннего номера', title: task.title,
         arrived: task.arrived, progress_minutes: +task.done_min.toFixed(2), needs_minutes: task.need_min,...(task.ownerDialogueId?{ownerAssignment:true,brief:task.brief,deadlineAt:task.deadlineAt,rewardCents:task.ownerRewardCents}:{}),
         note: 'Работа продвигается только за письменным столом (work_variant); закончится внешним событием work_finished.' } : null,
-      finances:{...moneyContext(st,id),...performanceContext(st,id),...serviceContext(st,id),...sharedDrinkContext(st,id),canWork:supports(id,'work'),livelihood:livelihoodContext(st,id,avail,now)}, pending_tasks: waiting().map((x) => ({ id: x.id, title: x.title, arrived: x.arrived })), memory: structuredClone(p.memory), relationships:publicRelations(st,id), courtship:Object.fromEntries(Object.entries(p.relationships).map(([other,r])=>[other,courtshipStatus(r,id,other)])), ownerTasks:ownerTaskContext(st,id,now),ownerRequests:ownerRequestContext(st,id),currentActivity: publicConversation(st,id), recentEpisodes: structuredClone(p.memory.filter(x=>x.event==='conversation_finished'||x.event==='conversation_cancelled').slice(-3)) },
+      finances:{...moneyContext(st,id),...performanceContext(st,id),...serviceContext(st,id,executionCapabilities?.actors?.heroine?.serviceVersion),...sharedDrinkContext(st,id),canWork:supports(id,'work'),livelihood:livelihoodContext(st,id,avail,now,executionCapabilities?.actors?.heroine?.serviceVersion)}, pending_tasks: waiting().map((x) => ({ id: x.id, title: x.title, arrived: x.arrived })), memory: structuredClone(p.memory), relationships:publicRelations(st,id), courtship:Object.fromEntries(Object.entries(p.relationships).map(([other,r])=>[other,courtshipStatus(r,id,other)])), ownerTasks:ownerTaskContext(st,id,now),ownerRequests:ownerRequestContext(st,id),currentActivity: publicConversation(st,id), recentEpisodes: structuredClone(p.memory.filter(x=>x.event==='conversation_finished'||x.event==='conversation_cancelled').slice(-3)) },
     situation: { television:st.tvMusic&&now>=st.tvMusic.from&&now<st.tvMusic.until?{channel:st.tvMusic.ch,label:TV_CHANNELS[st.tvMusic.ch],until:st.tvMusic.until}:{mode:'scheduled'},pendingTvSwitch:st.pendingTvSwitch?{actor:st.pendingTvSwitch.actor,channel:st.pendingTvSwitch.channel,switched:false}:null,local_time: hhmm(now), room: 'вечерняя редакция нью-йоркской газеты, 1956 год: три письменных стола (A, B, C), скамья у круглого стола, окна на город, телетайп, бар, телевизор',
       music: musicOn(now) ? 'по телевизору играет музыка' : musicPending(now) ? 'кто-то идёт включать музыку, она вот-вот заиграет' : 'музыка не играет',
       others: others(id), ...(inviteNote[id] ? { invitation: inviteNote[id] } : {}), ...(deferredInvite(id, now) ? { deferred_invitation: `${PEOPLE[st.deferredInvites[id].from].name} ещё курит у окна. Ты ответил «не сейчас»; можно присоединиться или выбрать другое занятие.` } : {}), teletype: waiting().length ? `на ленте ждут правки сообщений: ${waiting().length}` : 'новых сообщений на ленте нет', ...ownerNote(now) },
@@ -817,7 +819,7 @@ async function askJev(id, avail, reflection = null, diagnosticId=newTraceId(), o
     try {
       if (!sid) { const s = await session('start'); sid = s.session_id; await pinCharacterRules(s); if (s.state === 'paused') await session('resume'); }
       else { try { await session('resume'); } catch (e) { if (!/session_not_paused/.test(e.message)) throw e; } }
-      const snap=await snapshot(id,structuredClone(avail));
+      let snap=await snapshot(id,structuredClone(avail));
       if(reflection){snap.self.reflection=structuredClone(reflection);snap.limits.push('Appraise only the listed dimension against all current feelings and known events. Keeping it is allowed. Attraction with avoidance needs explanation in reason; if facts give no cause, say unknown. Conversation alone proves no romance; refusal is not misconduct. Invent no topic or others’ thoughts. Physical activity continues.');}
       if(ownerDialogue){
         const physicalOptions=actions(id);
@@ -826,6 +828,7 @@ async function askJev(id, avail, reflection = null, diagnosticId=newTraceId(), o
       }
       else if(ownerInterpretation){snap.self.ownerInterpretation=structuredClone(ownerInterpretation);}
       else if(st.chars[id].ownerDialogue?.length)snap.self.ownerDialogueHistory=dialogueHistory(st.chars[id]).slice(-12);
+      snap=ownerObligationProjection(snap,st,id,Date.now(),{publicOnly:!!explicitPhoneTurn&&!privateTurn(explicitPhoneTurn)});
       if(explicitPhoneTurn&&!privateTurn(explicitPhoneTurn))publicRequestContext(snap);
       if(st.chars[id].privateContext)snap.limits.push('Private owner calls are known only to you and the human owner. Never quote, paraphrase or disclose them to colleagues or public conversations. Observable actions and confirmed balances remain facts.');
       const original=structuredClone(snap);
@@ -972,7 +975,7 @@ function mandatorySleep(now){
 }
 function entryOf(id, now) {                                          // his line in the world: who he is (for the page) + what he does now
   const P = PEOPLE[id], p = st.chars[id];
-  return { ...(id==='heroine'?{wardrobe:wardrobeState(p)}:{}),privateContext:!!p.privateContext,name: P.name, glb: P.glb, chairBack: P.chairBack, home: P.home, ...(P.walkPolicy ? { walkPolicy: P.walkPolicy } : {}), ...(P.mouth ? { mouth: P.mouth } : {}), ...(P.phoneMouth ? { phoneMouth: P.phoneMouth } : {}), seq: p.seq, social: publicConversation(st,id) ? {...publicConversation(st,id,true), style:p.socialStyle||'neutral', styleRevision:p.socialStyleRevision||0} : null, sleep:p.sleep||null,sleepPending:p.sleepPending||null,finances:{...moneyContext(st,id),...performanceContext(st,id),...serviceContext(st,id),...sharedDrinkContext(st,id),canWork:supports(id,'work'),livelihood:livelihoodContext(st,id,[],now)},ownerDialogue:publicDialogue(p),ownerActions:actions(id),ownerTasks:ownerTaskContext(st,id,now),ownerCommands:publicOwnerCommands(st,id),relationships:publicRelations(st,id),reflection:st.reflection?.last?.actor===id?st.reflection.last:null,memory:p.memory.filter(x=>x.event==='conversation_finished'||x.event==='conversation_cancelled'||x.event==='sleep_started'||x.event==='sleep_finished').slice(-6), ...(p.entry || { from: target(p.place), cmd: null, at: now, label: labelOf(id, p.activity, p.place), activity: p.activity, source: 'start' }), state: stateNow(id, now) };
+  return { ...(id==='heroine'?{wardrobe:wardrobeState(p)}:{}),privateContext:!!p.privateContext,name: P.name, glb: P.glb, chairBack: P.chairBack, home: P.home, ...(P.walkPolicy ? { walkPolicy: P.walkPolicy } : {}), ...(P.mouth ? { mouth: P.mouth } : {}), ...(P.phoneMouth ? { phoneMouth: P.phoneMouth } : {}), seq: p.seq, social: publicConversation(st,id) ? {...publicConversation(st,id,true), style:p.socialStyle||'neutral', styleRevision:p.socialStyleRevision||0} : null, sleep:p.sleep||null,sleepPending:p.sleepPending||null,finances:{...moneyContext(st,id),...performanceContext(st,id),...serviceContext(st,id,executionCapabilities?.actors?.heroine?.serviceVersion),...sharedDrinkContext(st,id),canWork:supports(id,'work'),livelihood:livelihoodContext(st,id,[],now,executionCapabilities?.actors?.heroine?.serviceVersion)},ownerDialogue:publicDialogue(p),ownerActions:actions(id),ownerTasks:ownerTaskContext(st,id,now),ownerCommands:publicOwnerCommands(st,id),relationships:publicRelations(st,id),reflection:st.reflection?.last?.actor===id?st.reflection.last:null,memory:p.memory.filter(x=>x.event==='conversation_finished'||x.event==='conversation_cancelled'||x.event==='sleep_started'||x.event==='sleep_finished').slice(-6), ...(p.entry || { from: target(p.place), cmd: null, at: now, label: labelOf(id, p.activity, p.place), activity: p.activity, source: 'start' }), state: stateNow(id, now) };
 }
 function composeWorld(now) {
   const chars = {}, chairs = { ...st.chairs };
@@ -1043,7 +1046,7 @@ function applyDecision(id, action, source, confidence, expected=null, performanc
     st.seq++;st.world=composeWorld(now);persist();return true;
   }
   if(verb.startsWith('drink_')){const ok=chooseSharedDrink(st,id,action,now,source,sharedDrinkInput(now),(actor,a)=>applyDecision(actor,a,source,confidence,null,false,false,false,true,onAccepted));if(!ok)return false;st.seq++;st.world=composeWorld(now);persist();return true;}
-  if(verb.startsWith('money_drinks_')){const ok=chooseService(st,id,action,now,source,serviceInput(now),a=>applyDecision(id,a,source,confidence,null,false,false,verb==='money_drinks_start',false,onAccepted));if(!ok)return false;st.seq++;st.world=composeWorld(now);persist();return true;}
+  if(verb.startsWith('money_drinks_')){const ok=chooseService(st,id,action,now,source,serviceInput(now),a=>applyDecision(id,a,source,confidence,null,false,false,true,false,onAccepted));if(!ok)return false;st.seq++;st.world=composeWorld(now);persist();return true;}
   if(verb.startsWith('money_performance_')){
     const input=performanceInput(now);
     const ok=['money_performance_start','money_performance_watch'].includes(verb)?startPerformance(st,id,action,pair,now,source,input,a=>applyDecision(id,a,source,confidence,null,verb==='money_performance_start',false,false,false,onAccepted)):choosePerformance(st,id,action,pair,now,source,input);
@@ -1123,7 +1126,7 @@ function applyDecision(id, action, source, confidence, expected=null, performanc
   if (verb === 'invite' && PEOPLE[variant]) { p.entry.talk = { at: now, to: variant, icon: 'smoke', mark: 'q' }; p.busyUntil = now + 60000; }   // his next step comes from the answer
   if(!sharedDrinkDispatch)sharedDrinkCommandChanged(st,id,selectedAction,now);
   serviceCommandChanged(st,id,selectedAction,now);
-  if(!sharedDrinkDispatch){st.world = composeWorld(now);persist();}
+  if(!sharedDrinkDispatch&&!serviceDispatch){st.world = composeWorld(now);persist();}
   log(`${PEOPLE[id].name} #${p.seq} ${action} (${source}${confidence != null ? ' ' + Math.round(confidence * 100) + '%' : ''}) → ${p.entry.label}; fatigue ${before}; next in ${Math.round(travel + decisionDwell)} s`);
 }
 
@@ -1390,7 +1393,7 @@ async function pollParticipation(now,status,performanceOnly=false) {
     if(st.economy.config.enabled){const revision=st.economy.revision;observePerformances(st,executionCapabilities,now);observeServices(st,executionCapabilities,now);confirmPurchases(st,executionCapabilities,now);for(const id of IDS)updatePersonNeeds(id,now,workInterval(st,id,executionCapabilities,now));gateChanged=gateChanged||revision!==st.economy.revision;}
     for(const [id,p]of Object.entries(st.chars)){const a=executionCapabilities?.actors?.[id];if((id==='heroine'||['smoke','smoke_coffee'].includes(p.activity)||p.activity==='lunch')&&a?.loaded&&a.seq===p.seq&&a.activity===p.activity&&executionCapabilities&&now-executionCapabilities.at<3500&&a.executionEnd?.seq===p.seq&&a.executionEnd.outcome==='completed'&&(p.activity!=='heroine_serve'||!st.economy.services.some(s=>s.id===p.entry?.service?.id&&s.status==='running'))&&(['smoke','smoke_coffee'].includes(p.activity)||p.activity==='lunch'||p.activity.startsWith('heroine_')||usesConsumption(id,p.activity))&&['idle','seated'].includes(a.mode)&&(!p.place.startsWith('bench')||a.seat===p.place)){
       updatePersonNeeds(id,now);p.lastExecution={seq:p.seq,activity:p.activity,outcome:'completed',replayed:a.executionEnd.replayed===true,receivedAt:now};
-      if(p.activity==='heroine_serve'&&a.serviceWitness?.trayOnTable===true){p.place='trayTable';st.trayDelivery={id:p.entry.service.id,recipients:p.entry.service.recipients,poured:a.serviceWitness.poured,at:now};}
+      if(p.activity==='heroine_serve'&&a.serviceWitness?.trayOnTable===true){p.place=p.entry.service.version===2?'serviceDock':'trayTable';st.trayDelivery={version:p.entry.service.version||1,ownDrink:p.entry.service.ownDrink===true,id:p.entry.service.id,recipients:p.entry.service.recipients,poured:a.serviceWitness.poured,at:now};}
       p.activity='wait';p.since=p.arriveAt=p.activityUntil=p.busyUntil=now;delete p.executionGate;p.seq++;
       p.entry={from:target(p.place),cmd:null,at:now,label:labelOf(id,'wait',p.place),activity:'wait',source:'executor_completion',fatigue:p.fatigue};gateChanged=true;
     }else if(p.executionGate && a?.loaded===true && a.seq===p.seq && a.seq===p.executionGate.seq && a.activity===p.activity && executionCapabilities.at<=now && now-executionCapabilities.at<3500 && (a.executing===true||(p.activity==='conversation'&&a.conversationReady&&a.conversationId===pairOf(st,id)?.id))){updatePersonNeeds(id,now);const delay=Math.max(0,now-p.executionGate.expectedStart);p.activityUntil+=delay;p.busyUntil=p.activityUntil;p.arriveAt=now;delete p.executionGate;gateChanged=true;}else if(gateStuck(p,a,now)){abortExecution(id,p,'page_not_executing',now);gateChanged=true;}}

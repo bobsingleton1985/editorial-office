@@ -1,0 +1,24 @@
+{
+  "source": "/Users/alex_ai/Documents/CinemastudioStudio/project-handoffs/tray-blender-20261005/reporter-nose-clearance-v46/tray-reporter-nose-clearance-v46.blend",
+  "sha256": "fc6176a3687588f7b14db51a4f71d4b47ce4be1e4aa9f0d350844c756a24c5a2",
+  "frames": [
+    -98,
+    780
+  ],
+  "fps": 30,
+  "authorization": "Owner: animation ready, launch; no joint drinking at different tables. Own drink only by heroine choice and at her expense.",
+  "stage": "remote_and_director_activated_pages_pending",
+  "checks": {
+    "mechanics": "29/29",
+    "runtimeVariants": "6/6",
+    "actualBackendBrowser": true,
+    "review": "review-receipt.json",
+    "historicalGates": "Blocked by deliberately deleted historical library assets; no restore or reset bypass."
+  },
+  "runtime": "office-service-v46-20261006",
+  "assets": {
+    "motions.glb": "018452d86e107e8e2a2bc29c90c28bcc3c83572085c201e905bffcfe231e69af",
+    "props.glb": "9cbcf6747c00bc23a83ee3cfdc6ded74b90d53235542bb311ad72d29e9ab4108",
+    "bindings.json": "80b366204ef2361f2fa508e4fe5f901a7117b62a505290a638e25df84c8c9bce"
+  }
+}

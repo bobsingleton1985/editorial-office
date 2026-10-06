@@ -1,0 +1,134 @@
+{
+  "beforeSHA": "09940b247b6e3b2c23708f3b749217db775134089fdf407bb9204d26a2d4d70f",
+  "afterSHA": "a51812136c302c0a7b7f4f8f3369f72b5c9ea4a3507c8afec5296a9c60ec6672",
+  "byteDelta": 26159,
+  "scope": "Only service modules and explicit runtime hooks changed; every untouched interval preserved byte-for-byte",
+  "patches": [
+    {
+      "start": 1476978,
+      "end": 1476978,
+      "name": "bounded-helper",
+      "bytes": 34953
+    },
+    {
+      "start": 1476978,
+      "end": 1480257,
+      "name": "R8",
+      "beforeSHA": "3f0b3aca30d5d0de8e60f5ea570547ad1ab0c73f142f1af6ab7e1f836b72d72d",
+      "afterSHA": "2e2122129e4d7d4b879b5bb7edf42eac8efef9492c07d2101aac9ccc4fd12392",
+      "bytes": 69
+    },
+    {
+      "start": 1480257,
+      "end": 1481683,
+      "name": "M8",
+      "beforeSHA": "da920d5f5dbc421fd8da09922f1d7685f0d38c40ae7e369c2daa9376c9f01278",
+      "afterSHA": "bdecb329bcbb7256968c5352aad6e585552819fe813930711040acb364e76094",
+      "bytes": 72
+    },
+    {
+      "start": 1495098,
+      "end": 1496900,
+      "name": "V8",
+      "beforeSHA": "49826e3fd36a8da1bcba2ac39d2c35dadfea5a02765a58ba35f7416c25d4b4dd",
+      "afterSHA": "0521b08508dcafa0afe39d6471cf166ee98ec31cae567a7862267157f4333efc",
+      "bytes": 1956
+    },
+    {
+      "start": 1914330,
+      "end": 1914344,
+      "name": "source-end",
+      "beforeSHA": "03b266bbf00f0286cc7bae131e4b69829b3d3e0d6bf3f0643ce63bd0a1607a83",
+      "afterSHA": "1b47d6da31e2ef3de705fd800736f978273c184c8923021bd44e6408e37fe6bb",
+      "bytes": 67
+    },
+    {
+      "start": 1989954,
+      "end": 2067834,
+      "name": "dy",
+      "beforeSHA": "44a4fe15ab5d876cef38f55edcd7e862cdd5d162061a6320c46a937ce3eebb89",
+      "afterSHA": "cacd091aeb583df7bbd1ee1db50739a2ccdffd27e7990ed3055bd34ba04398fa",
+      "bytes": 79358
+    },
+    {
+      "start": 2100052,
+      "end": 2100074,
+      "name": "runtime-version",
+      "beforeSHA": "55d9734b02b91ee878a10deebec66bed4e9988c129e579e1057b291843376131",
+      "afterSHA": "ec1afa897fc7503e794c95bb765ad3cba8d1a2783008e6b535372c71cfd3a821",
+      "bytes": 27
+    },
+    {
+      "start": 2222036,
+      "end": 2228896,
+      "name": "lJ",
+      "beforeSHA": "93d229435f63bbf934ce2864e6405d5bcc343cbebdc0033dbc6dbfd4911d2164",
+      "afterSHA": "f6fa1236c9c62598450cd7544fc8101089954eac1adec13fdc9a867bfe6278d0",
+      "bytes": 62
+    },
+    {
+      "start": 2246650,
+      "end": 2248722,
+      "name": "U7",
+      "beforeSHA": "e854641bf98d485530e172c2497ecf3295969a0f7edd4e7467ae5a1ab9ee6e43",
+      "afterSHA": "0c34c33bc5eb9e09f16d6b2aac67f4d3aa3aebf08ac3dbaeeb5c7102b9f4f9b2",
+      "bytes": 2452
+    },
+    {
+      "start": 2248833,
+      "end": 2253207,
+      "name": "H7",
+      "beforeSHA": "e7db0a068c9bd06be5ca4224e61fb33a5ed372937fdd0ba53146a4a3dc025e75",
+      "afterSHA": "a38f5f40a8b216626e93e99e791fc2416d5913dec69de9144c5fbdb8436e15a0",
+      "bytes": 4586
+    },
+    {
+      "start": 2253235,
+      "end": 2254533,
+      "name": "KJ",
+      "beforeSHA": "2220e3055e6382a342d170d320e22649b064121661c780a67b15e36b4c481321",
+      "afterSHA": "6a6fedfeae5d56b43e35cedc2e6258d1d7a4a3ff57d24744f1229abf1f40542d",
+      "bytes": 1330
+    },
+    {
+      "start": 2265372,
+      "end": 2267345,
+      "name": "jJ",
+      "beforeSHA": "37a1f08031970b6dc11b1558cf4c16f0a1060b377a5c99a1fa1308f337527fa2",
+      "afterSHA": "78374dfdc965e4b63037e65afd9150d0cff6d173f00e741808218e83cc13c1f8",
+      "bytes": 2034
+    },
+    {
+      "start": 2272942,
+      "end": 2273939,
+      "name": "j7",
+      "beforeSHA": "15e996749af148e87eef30e90f91426d8b95765b8d19f52f311de4a6d415e3b5",
+      "afterSHA": "d2b666eab05041a70817073fb6316567b22c98b5ff23d56377bbb729c86a817c",
+      "bytes": 1045
+    },
+    {
+      "start": 2273959,
+      "end": 2276031,
+      "name": "W7",
+      "beforeSHA": "85d4f10f22677c0fa29613d09101df69aa78e2e51e1b03cab79e94bf3636a8dd",
+      "afterSHA": "e182758079659abd07e98b3257b197bbf5f2bf9c5700ef413b8c3817e899c937",
+      "bytes": 2148
+    },
+    {
+      "start": 2276229,
+      "end": 2276295,
+      "name": "authoritative-flush",
+      "beforeSHA": "e6ebfefb312a82c7394d97c8cc4ef658af29f10d5864dc3501079beb5a9a8b3b",
+      "afterSHA": "d0776b3eaec4e75c6e2f5060b86e65693d38f8c1259f17c808d962362516002b",
+      "bytes": 100
+    },
+    {
+      "start": 2276360,
+      "end": 2276407,
+      "name": "capture-binding",
+      "beforeSHA": "c5e76f5b2dac92c89b885dc004aa93241ab46a5cd1d3c3feb65a09ee295e8835",
+      "afterSHA": "ed59f1ef0fc87a9478b072fb53acc371b25a9bc056c6655f54851c6f9228af5f",
+      "bytes": 82
+    }
+  ]
+}

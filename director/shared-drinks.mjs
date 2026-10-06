@@ -38,32 +38,8 @@ function affordable(st,entries) {
   const totals={};for(const x of Object.values(entries))totals[x.payer]=(totals[x.payer]||0)+x.cents;
   return Object.entries(totals).every(([id,cents])=>available(st,id)>=cents);
 }
-export function sharedDrinkActions(st,id,now,input) {
-  if(!st.economy.config.enabled)return [];
-  ensureSharedDrinks(st);
-  const v=sharedDrinkFor(st,id),out=[];
-  if(v) {
-    out.push({id:`drink_cancel@${v.id}`,description:'Отменить совместное питьё или уйти. Неиспользованный резерв освобождается; уже выпитое и оплаченные покупки сохраняются.'});
-    if(v.to===id&&v.status==='pending'&&v.expiresAt>now) {
-      const text=`${name(input,v.from)} предлагает ${v.kind==='whisky'?'выпить виски':'выпить кофе'} вместе. ${v.payment==='treat'?name(input,v.sponsor)+' оплачивает оба напитка; это не создаёт долга.':'Каждый оплачивает свой напиток: '+price(st,v.kind)/100+' USD.'}`;
-      out.push({id:`drink_reply@${v.id}:decline`,description:text+' Отказаться.'},
-        {id:`drink_reply@${v.id}:defer`,description:text+' Ответить «позже»; никто не начинает пить и деньги не резервируются.'});
-      if(plan(st,v.from,v.to,v.kind,input)&&affordable(st,costs(st,v.from,v.to,v.kind,v.payment,v.sponsor)))out.push({id:`drink_reply@${v.id}:accept`,description:text+' Согласиться. Вы оба подойдёте к совместимым свободным местам; питьё начнётся после фактического прибытия обоих. Можно отменить или уйти.'});
-    }
-    if(v.to===id&&v.status==='deferred'&&v.expiresAt>now&&plan(st,id,v.from,v.kind,input))out.push({id:`drink_join@${v.id}`,description:'Вернуться к отложенному предложению выпить; коллега заново решит, согласиться ли. Ранее предложивший угощение остаётся плательщиком только после нового согласия.'});
-    return out;
-  }
-  for(const other of Object.keys(st.chars)) {
-    if(other===id||sharedDrinkFor(st,other))continue;
-    for(const kind of ['whisky'])if(plan(st,id,other,kind,input))for(const payment of ['each','treat']) {
-      // Never hide an invitation because of the other person's private wallet.
-      const ownCost=price(st,kind)*(payment==='treat'?2:1);
-      if(available(st,id)<ownCost)continue;
-      out.push({id:`drink_invite@${other}:${kind}:${payment}`,description:`Предложить ${name(input,other)} ${kind==='whisky'?'выпить виски':'выпить кофе'} вместе: ${payment==='treat'?'«я угощаю», оплатить оба напитка — '+ownCost/100+' USD':'каждый платит за себя — '+ownCost/100+' USD с тебя'}. Коллега самостоятельно согласится, откажется или отложит. Используются существующие места ${input.placeNames?.[plan(st,id,other,kind,input)[id].place]||plan(st,id,other,kind,input)[id].place} и ${input.placeNames?.[plan(st,id,other,kind,input)[other].place]||plan(st,id,other,kind,input)[other].place}; это не питьё из принесённого подноса. Оплата при фактическом исполнении.`});
-    }
-  }
-  return out;
-}
+// Owner 2026-10-06: joint drinks use heroine service at the common table.
+export function sharedDrinkActions(){return [];}
 export function sharedDrinkReplyDue(st,id,now) {
   const v=sharedDrinkFor(st,id);return !!v&&v.to===id&&v.status==='pending'&&v.expiresAt>now&&v.considered!==true;
 }
@@ -119,36 +95,12 @@ function atPlace(st,id,p,cap,now) {
   const a=cap?.actors?.[id];return fresh(cap,now)&&a?.loaded&&a.moneyWitness===1&&a.seq===st.chars[id].seq&&a.seq===p.seq&&a.activity===st.chars[id].activity&&st.chars[id].place===p.place&&['idle','seated'].includes(a.mode)&&
     (p.place.startsWith('desk')?a.seat===p.place:a.seat===null&&Number.isFinite(a.x)&&Number.isFinite(a.z)&&Math.hypot(a.x-p.x,a.z-p.z)<.35);
 }
-export function observeSharedDrinks(st,cap,now,dispatch,input=null) {
-  let changed=false;
-  for(const v of st.economy.drinkInvitations.filter(live)) {
-    if(v.expiresAt<=now){changed=cancelSharedDrink(st,v,'expired',now)||changed;continue;}
-    if(!drinking(v))continue;
-    if(members(v).some(id=>!v.plan[id].done&&st.chars[id].seq!==v.plan[id].seq||st.chars[id].sleep||st.chars[id].sleepPending)) {changed=cancelSharedDrink(st,v,'partner_left_or_interrupted',now)||changed;continue;}
-    if(v.status==='gathering'&&members(v).every(id=>atPlace(st,id,v.plan[id],cap,now))) {
-      changed=true;
-      const valid=members(v).every(id=>{const r=st.economy.reservations[`joint:${v.id}:${id}`],c=v.charges[id];return r?.credit&&r.actor===id&&r.payer===c.payer&&r.cents===c.cents&&c.cents===price(st,v.kind)&&available(st,c.payer)>=0&&(!input||input.ready?.[id]&&(input.destinations?.[id]?.[v.kind]||[]).some(p=>p.action===v.plan[id].action&&p.place===v.plan[id].place));});
-      if(!valid){cancelSharedDrink(st,v,'drink_executor_or_reserve_unavailable',now);continue;}
-      for(const id of members(v)) {
-        if(dispatch(id,v.plan[id].action)===false){cancelSharedDrink(st,v,'drink_start_failed',now);break;}
-        v.plan[id].seq=st.chars[id].seq;
-      }
-      if(v.status==='cancelled')continue;
-      v.status='drinking';v.startedAt=now;v.lastObservation=null;note(st,v,'shared_drink_started','Оба прибыли; запущены команды питья. Фактическое исполнение проверяется отдельно.',now);st.economy.revision++;changed=true;continue;
-    }
-    if(v.status!=='drinking'||!fresh(cap,now)){v.lastObservation=null;continue;}
-    const observed=members(v).every(id=>{const a=cap.actors?.[id];return a?.loaded&&a.seq===v.plan[id].seq&&a.activity===v.plan[id].action.split('@')[0]&&a.executing===true;});
-    if(observed&&v.lastObservation!==null&&cap.at>v.lastObservation&&cap.at-v.lastObservation<3500)v.observedTogetherMs+=Math.min(2000,cap.at-v.lastObservation);
-    v.lastObservation=observed?cap.at:null;
-    for(const id of members(v)) {
-      const a=cap.actors?.[id],p=v.plan[id];if(a?.seq===p.seq&&a.activity===p.action.split('@')[0]&&a.executing===true)p.observed=true;
-      if(p.observed&&a?.loaded&&a.seq===p.seq&&a.activity===p.action.split('@')[0]&&a.executing===false&&['idle','seated'].includes(a.mode)&&st.economy.receipts[`purchase:${id}:${p.seq}`])p.done=true;
-    }
-    if(members(v).every(id=>v.plan[id].done)) {
-      v.status='completed';v.closedAt=now;
-      for(const id of members(v))if(st.chars[id].seq===v.plan[id].seq&&st.chars[id].activity===v.plan[id].action.split('@')[0])dispatch(id,'wait@'+st.chars[id].place);
-      note(st,v,'shared_drink_finished','Оба исполняли питьё, обе покупки подтверждены. Наблюдаемое одновременное исполнение: '+(v.observedTogetherMs/1000).toFixed(1)+' с.',now,{observedTogetherMs:v.observedTogetherMs});st.economy.revision++;changed=true;
-    }
-  }
-  return changed;
+export function observeSharedDrinks(st,cap,now,dispatch){
+ let changed=false;
+ for(const v of st.economy.drinkInvitations.filter(live)){
+  const actors=members(v).filter(id=>st.chars[id]?.entry?.sharedDrinkId===v.id);
+  changed=cancelSharedDrink(st,v,'separate_tables_removed_by_owner',now)||changed;
+  for(const id of actors)dispatch(id,'wait@'+st.chars[id].place);
+ }
+ return changed;
 }

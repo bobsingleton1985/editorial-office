@@ -1,3 +1,4 @@
+import {createAcceptedServiceAssets} from './accepted-service-v46.mjs';
 import {createOwnerReplyBubbles} from './owner-reply-bubbles.js';
 import {attachHeroinePhone} from './heroine-phone.mjs';
 import {attachTrayService} from './heroine-tray.mjs';
@@ -370,6 +371,9 @@ async function loadShared(office) {                                   // once: t
   let phones = null;
   if (pbuf && pcbuf) { phones = createPhones(sc, phoneG, DESKS, PACK_S, sound);     // phones on every desk; without the clips no phones
     for (const g of phones.groups) L.attach(g); for (const g of phones.groups) SC.addDynamic(g); window.__phones = phones; B.phoneClips = phoneClips; await warmGroups(phones.groups); }
+  const serviceBase=CHAR_BASE+'assets/service-v46-20261006/';
+  const [serviceMotions,serviceProps]=await Promise.all(['motions.glb','props.glb'].map(n=>get(serviceBase+n).then(b=>ld().parseAsync(b,''))));
+  sharedAcceptedService=createAcceptedServiceAssets(serviceMotions,serviceProps,await fetch(serviceBase+'bindings.json').then(r=>{if(!r.ok)throw Error('Service binding unavailable');return r.json();}));
   let crowd = null;                                                              // walking together (Recast crowd); ?crowd=0 — the old one-person paths
   if (!REMOTE && Q.get('crowd') !== '0') { try { crowd = await createCrowd(GRID, CHAIR_KEYS.map((k) => k==='D'?diningChairAvoidanceBox():chairBox(k, CHAIR_REST)), RADIUS); window.__crowd = crowd; } catch (e) { console.warn('crowd unavailable:', e); } }
   shared = createShared({ scene: sc, office, typewriters, phones, coffeeAddon, drinkLAddon, crowd,
@@ -383,6 +387,7 @@ async function loadShared(office) {                                   // once: t
   base = B; setInterval(showWho, 1000);
   if (pending) { const w = pending; pending = null; onWorld(w); }
 }
+let sharedAcceptedService;
 const B3 = (x, y, z) => new THREE.Vector3(x, z, -y);
 const glbOf = (e) => (typeof e.glb === 'string' && /^assets\/[\w.-]+\.glb$/.test(e.glb) ? CHAR_BASE + e.glb : null);
 async function loadPerson(id, e) {
@@ -397,7 +402,7 @@ async function loadPerson(id, e) {
       attachAcceptedHeroineWhisky(her.extra,{clip:barClip.animations[0],record:shared.whiskyRec,props:shared.whisky,contacts:barCfg});
       const trayBase=CHAR_BASE+'assets/tray-service-v01/';
       const [pick,put,propsPick,propsPut]=await Promise.all(['pick.glb','put.glb','props-pick.glb','props-put.glb'].map(n=>get(trayBase+n).then(b=>ld().parseAsync(b,''))));
-      attachTrayService(her.extra,{pick,put,propsPick,propsPut});
+      attachTrayService(her.extra,{pick,put,propsPick,propsPut,accepted:sharedAcceptedService});
       const [smokeBank,smokeProps]=await Promise.all([get(CHAR_BASE+'assets/heroine-smoking-20261004-v01/heroine-smoking-v01.glb').then(b=>ld().parseAsync(b,'')),get(SMOKE).then(b=>ld().parseAsync(b,''))]);
       attachHeroineSmoking(her.extra,smokeBank,smokeProps);
       const phoneBase=CHAR_BASE+'assets/heroine-phone-20261004-v01/';
@@ -405,6 +410,7 @@ async function loadPerson(id, e) {
       attachHeroinePhone(her.extra,herPhone,herPhoneProfile);
       her.extra.tvswitch=await get(CHAR_BASE+'assets/heroine-tv-20261004-v01/heroine-tv-v01.glb').then(b=>ld().parseAsync(b,''));
       const km=new THREE.AnimationMixer(her.gltf.scene),kc=(await get(CHAR_BASE+'assets/heroine-v77/heroine/clip-HER-STIR-owner-v02.glb').then(b=>ld().parseAsync(b,''))).animations[0],ka=km.clipAction(kc).play();ka.time=kc.duration*.5;km.update(0);her.extra.knobGrip={};her.gltf.scene.traverse(o=>{if(/^(thumb|index|middle|ring|pinky)_0[123]_r$/.test(o.name))her.extra.knobGrip[o.name]=o.quaternion.toArray();});km.stopAllAction();
+      her.extra.acceptedService=sharedAcceptedService;her.extra.serviceWorld=()=>charsOf(latest);
       her.extra.camera=cam;her.extra.renderer=r;
       her.extra.socialOccupancy=id=>socialSeatOccupancy(charsOf(latest),people,id);
       her.extra.socialWorld=()=>charsOf(latest);her.extra.talk=talk;her.extra.gaze=gaze;her.extra.musicPlaying=()=>sched?.current==='jazz';
@@ -414,7 +420,7 @@ async function loadPerson(id, e) {
     const url = glbOf(e), parse = (b) => (b ? ld().parseAsync(b.slice(0), '').catch(() => null) : null);
     const [clips,loadedBody,smoke,lunch,walks,write]=await Promise.all([ld().parseAsync(base.buf.slice(0),''),url&&url!==CHAR?get(url).then(b=>ld().parseAsync(b,'')):null,parse(base.sbuf),parse(base.lbuf),parse(base.wkbuf),parse(base.wrbuf)]);                       // his own copy of the shared clips (the page edits clips in place)
     const bodyG=loadedBody||clips;
-    const extra = { shared, id, chairBack: Number.isFinite(e.chairBack) ? Math.max(-0.2, Math.min(0.2, e.chairBack)) : 0, home: e.home, mouth: e.mouth, phoneMouth: e.phoneMouth,
+    const extra = { acceptedService:sharedAcceptedService,serviceWorld:()=>charsOf(latest),readService:()=>people.heroine?.ed?.acceptedServicePose?.(), shared, id, chairBack: Number.isFinite(e.chairBack) ? Math.max(-0.2, Math.min(0.2, e.chairBack)) : 0, home: e.home, mouth: e.mouth, phoneMouth: e.phoneMouth,
       social:base.social,socialPartner:(id)=>{const ed=people[id]?.ed,h=ed?.holder;if(!h)return null;h.updateMatrixWorld(true);const head=ed.root.getObjectByName('head'),face=head?.getWorldPosition(new THREE.Vector3());return {x:h.position.x,z:h.position.z,face:face?{x:face.x,y:face.y,z:face.z}:null};},
       socialOccupancy:id=>socialSeatOccupancy(charsOf(latest),people,id),socialWorld:()=>charsOf(latest),talk,gaze, typeClip: base.typeClip, gestures: base.gestures, smoke, lunch, walks, feetup: base.feetup, write, jazz: base.jazz, tvswitch: base.tvswitch, dance: base.dance, camera: cam, renderer: r,
       ...(e.walkPolicy === 'mixamo-only' ? { drunk: false } : {}),
@@ -442,7 +448,7 @@ function reportExecution(dt) {
   const active=pairs.length>0&&pairs.every(p=>Object.values(p.actors).every(a=>a.ready));
   reportElapsed=active&&signature===reportPrevious&&dt<0.25?Math.min(2000,reportElapsed+dt*1000):0;reportPrevious=signature;
   if(now-reportSend<1000)return;reportSend=now;
-  const actors={};eachPerson((ed,id)=>{const s=ed.socialStatus();actors[id]={tvSwitchAvailable:s.tvSwitchAvailable,tvSwitch:s.tvSwitch,phone:s.phone,smokingAvailable:s.smokingAvailable,smoking:s.smoking,serviceReady:s.serviceReady,serviceDurations:s.serviceDurations,serviceWitness:s.serviceWitness,serviceDelivery:s.serviceDelivery,consumptionAvailable:s.consumptionAvailable,consumption:s.consumption,performanceDurations:s.performanceDurations,performanceWitness:s.performanceWitness,meals:s.meals,mealDurations:s.mealDurations,moneyWitness:s.moneyWitness,moneyWorkMs:s.moneyWorkMs,loaded:s.loaded,seq:s.seq,activity:s.activity,executing:s.executing,executionEnd:s.executionEnd,mode:s.mode,seat:s.seat,x:s.x,z:s.z,profiles:s.profiles,styles:s.styles,conversationReady:s.ready,conversationId:s.conversationId,sleepAvailable:s.sleepAvailable,sleep:s.sleep,diningChairClear:s.diningChairClear,readingAvailable:s.readingAvailable};});
+  const actors={};eachPerson((ed,id)=>{const s=ed.socialStatus();actors[id]={tvSwitchAvailable:s.tvSwitchAvailable,tvSwitch:s.tvSwitch,phone:s.phone,smokingAvailable:s.smokingAvailable,smoking:s.smoking,serviceVersion:s.serviceVersion,serviceReady:s.serviceReady,serviceDurations:s.serviceDurations,serviceWitness:s.serviceWitness,serviceDelivery:s.serviceDelivery,consumptionAvailable:s.consumptionAvailable,consumption:s.consumption,performanceDurations:s.performanceDurations,performanceWitness:s.performanceWitness,meals:s.meals,mealDurations:s.mealDurations,moneyWitness:s.moneyWitness,moneyWorkMs:s.moneyWorkMs,loaded:s.loaded,seq:s.seq,activity:s.activity,executing:s.executing,executionEnd:s.executionEnd,mode:s.mode,seat:s.seat,x:s.x,z:s.z,profiles:s.profiles,styles:s.styles,conversationReady:s.ready,conversationId:s.conversationId,sleepAvailable:s.sleepAvailable,sleep:s.sleep,diningChairClear:s.diningChairClear,readingAvailable:s.readingAvailable};});
   const styles=[...new Set(Object.values(actors).flatMap(a=>a.styles||[]))];
   live.execution({pairs:pairs.map(p=>({...p,elapsedMs:reportElapsed})),capabilities:{actors,styles}});reportElapsed=0;
 }
@@ -644,8 +650,8 @@ function step(dt, draw = true) {
     if (tvMat) tvMat.emissiveIntensity = 1 + tv.uniforms.flicker.value - 0.5 * tv.uniforms.snow.value;
   }
   if(REMOTE){displaySimulation(dt);tvMusic(live.now());}
-  else { const now = window.__simNow ?? live.now(); gaze?.beginFrame(); talk?.beginFrame(); eachPerson((ed) => ed.update(dt, now, draw)); talk?.flush(); gaze?.flush(); shared?.applyProps(); tvMusic(now); eachPerson(ed=>animationAudio.update(ed.audioState(),dt)); }
-  talk?.update((cam.top - cam.bottom) / cam.zoom);                  // bubbles over the heads (invitations)   // __simNow: automated checks run on their own clock
+  else { const now = window.__simNow ?? live.now(); gaze?.beginFrame(); talk?.beginFrame(); eachPerson((ed) => ed.update(dt, now, draw)); talk?.flush(); gaze?.flush(); eachPerson(ed=>ed.flushAcceptedService()); shared?.applyProps(); tvMusic(now); eachPerson(ed=>animationAudio.update(ed.audioState(),dt)); }
+  talk?.update((cam.top - cam.bottom) / cam.zoom,r.domElement.clientHeight);                  // bubbles over the heads (invitations)   // __simNow: automated checks run on their own clock
   if(!REMOTE)typewriters?.update(dt);                                      // paper feed of the desk typewriters
   animationAudio.end();
   if (!draw) return;
@@ -728,7 +734,7 @@ if (DEMO === 'invite') {   // review stand (owner 30.09): one calls the other fo
 function initSimulationGraph(){
   const roots={};
   for(const [id,p]of Object.entries(people).sort(([a],[b])=>a.localeCompare(b))){
-    const ed=p.ed;if(!ed)continue; roots['actor:'+id]=ed.holder;
+    const ed=p.ed;if(!ed)continue; roots['actor:'+id]=ed.holder;ed.holder.traverse(o=>o.userData.serviceActor=id);
     if(ed.lunchGroup)roots['lunch:'+id]=ed.lunchGroup;
     if(ed.fx)roots['fx:'+id]=ed.fx;
     ed.writeGroups?.forEach((g,i)=>roots['write:'+id+':'+i]=g);
@@ -754,7 +760,7 @@ function displaySimulation(dt){
   let frame=poseBuffer.sample(live.now());
   if(frame){if(presentationEpoch!==frame.epoch||presentationClock===null){animationAudio.reset();sound.hushEvents();presentationEpoch=frame.epoch;presentationClock=Math.min(live.now(),frame.latestAt+250);}else presentationClock=Math.min(presentationClock+dt*1000,frame.latestAt+250);if(presentationClock-250<frame.oldestAt)presentationClock=Math.min(live.now(),frame.latestAt+250);const stale=frame.stale;frame=poseBuffer.sample(presentationClock);frame.stale=stale;}
   if(!frame){window.__simulationStatus='waiting';simulationNotice.hidden=false;simulationNotice.textContent='Получаем состояние редакции…';return;}
-  try{simulationMeta=applySimulation(simulationGraph,frame);window.__simulationStatus=frame.stale?'stale':'live';simulationNotice.hidden=!frame.stale;simulationNotice.textContent='Связь с редакцией задерживается';}
+  try{simulationMeta=applySimulation(simulationGraph,frame);eachPerson((ed,id)=>ed.applyAcceptedBinding(simulationMeta?.actors?.[id]?.serviceBinding===true));window.__simulationStatus=frame.stale?'stale':'live';simulationNotice.hidden=!frame.stale;simulationNotice.textContent='Связь с редакцией задерживается';}
   catch(e){window.__simulationStatus='incompatible';simulationNotice.hidden=false;simulationNotice.textContent='Версия сцены изменилась. Обновите страницу.';window.__err=String(e);return;}
   for(const k of Object.keys(DESKS)){const cue=simulationMeta?.audio?.[k];sound.phone(k,frame.stale?-1:(cue?.t??-1),cue?.onFor??2,cue?.cycle??6);}
   if(frame.stale)animationAudio.reset();
@@ -771,12 +777,12 @@ window.__simulationTick=(dt,at)=>{
   if(!AUTHORITY)throw Error('Only the server worker may simulate');
   window.__simNow=at;
   if(!simulationGraph)return null;
-  sched?.update();gaze?.beginFrame();talk?.beginFrame();eachPerson(ed=>ed.update(dt,at,false));talk?.flush();gaze?.flush();shared?.applyProps();typewriters?.update(dt);tvMusic(at);
+  sched?.update();gaze?.beginFrame();talk?.beginFrame();eachPerson(ed=>ed.update(dt,at,false));talk?.flush();gaze?.flush();eachPerson(ed=>ed.flushAcceptedService());shared?.applyProps();typewriters?.update(dt);tvMusic(at);
   reportExecution(dt);
 };
 let capturePrevious=null;
 window.__simulationCapture=()=>{
-  const actors={};eachPerson((ed,id)=>actors[id]={status:ed.status(),social:ed.socialStatus(),smokeFx:ed.fx?.userData.smokeCue?.(),sound:ed.audioState(),performancePose:ed.performancePose(),conversation:ed.conversationStatus(),moving:ed.moving(),knob:ed.knobTurn()});
+  const actors={};eachPerson((ed,id)=>actors[id]={serviceBinding:ed.acceptedBinding(),status:ed.status(),social:ed.socialStatus(),smokeFx:ed.fx?.userData.smokeCue?.(),sound:ed.audioState(),performancePose:ed.performancePose(),conversation:ed.conversationStatus(),moving:ed.moving(),knob:ed.knobTurn()});
   const snapshot=captureSimulation(simulationGraph,{actors,smokeFxVersion:1,soundVersion:1,audio:simulationAudio,worldSeq:latest?.seq,gaze:gaze?.status()});
   const next=snapshot.states.map(s=>JSON.stringify(s));
   const out=capturePrevious?{protocol:snapshot.protocol,changes:snapshot.states.flatMap((s,i)=>next[i]===capturePrevious[i]?[]:[[i,s]]),meta:snapshot.meta}:snapshot;

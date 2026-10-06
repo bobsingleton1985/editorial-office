@@ -1,0 +1,125 @@
+{
+  "schema": "cinemastudio-independent-review-v1",
+  "reviewer": "review_service_v2",
+  "reviewedAt": "2026-10-06T15:13:59Z",
+  "result": "no_remaining_blockers_in_reviewed_scope",
+  "candidatePublishedByReviewer": false,
+  "liveStateReadByReviewer": false,
+  "privatePlaintextReadOrRecordedByReviewer": false,
+  "authorizationContext": "Owner authorized accepted v46 publication and safe director restart; provider and canonical AES state must be preserved.",
+  "scope": [
+    "service-v2 decisions, payment and consumption",
+    "accepted-v46 player and props",
+    "remote skin-binding pose stream",
+    "scoped production bundle graft",
+    "activation, remote activation, rollback and maintenance scripts"
+  ],
+  "candidate": {
+    "backendAppSHA256": "d1184b93d105c07e104ecf5093f6fbbfe66a78bb226dc23afcdd8064fdf22d2b",
+    "frontendAppSHA256": "a51812136c302c0a7b7f4f8f3369f72b5c9ea4a3507c8afec5296a9c60ec6672",
+    "helperSHA256": "a22e33aae3fbe337584a1371937e0e6930ffb04b08351cc71ec42817e3fd67dc"
+  },
+  "previousVerification": {
+    "targetedTests": {
+      "command": "node --test test/drink-service-v2.test.mjs test/talk-service.test.mjs",
+      "passed": 29,
+      "failed": 0
+    },
+    "nativePoseRestoration": {
+      "method": "real assets/runtime after service cancellation and subsequent wait command",
+      "guestPositionScaleMaxResidual": 0,
+      "allServiceBindingsReleased": true,
+      "acceptedPropsHiddenAfterReset": true
+    },
+    "cancelledVisualCompletion": {
+      "visualSourceAndPropsStaySynchronizedUntilReset": true,
+      "cancelledWitnessNotVerified": true
+    },
+    "remotePoseRoundtrip": {
+      "method": "captureSimulation -> applySimulation -> accepted binding on SkeletonUtils clones of real actors",
+      "maxSampledVertexErrorWorldUnits": 3.9384720571289615e-05,
+      "inverseRestorationMaxError": 0,
+      "crossBasisInterpolationHoldsPreviousActorTRSAndBindings": true
+    },
+    "paidDeparture": {
+      "directorObligationsRemainRunningThenComplete": true,
+      "accountsUnchangedAfterDeparture": true,
+      "departedGuestGetsNoUnobservedDose": true,
+      "remainingGuestsConsumeOnce": true,
+      "departedGuestPropMovementAtSource379To417": 0
+    },
+    "legacySharedDrinksMigration": {
+      "fixtureStates": [
+        "pending",
+        "deferred",
+        "gathering",
+        "drinking"
+      ],
+      "migrationCancelsOldAgreement": true,
+      "oldCommandReservationsReleased": true,
+      "accountsPreserved": true,
+      "repeatObservationIsNoOp": true
+    },
+    "fourthGlassPrelude": {
+      "fourthGlassClonesLegacyThirdSlotAndShiftsLocalX": -0.1,
+      "incorrectSourceRelativeFourthPlacementFixed": true,
+      "remainingStandalonePourGlassOffsetWorldUnits": 0.063,
+      "remainingOffsetIsInheritedLegacyRegistration": true
+    },
+    "entryTransition": {
+      "separatePreludeSeconds": 0.5,
+      "acceptedSourceRangeUnchanged": "-98..780 at 30 fps",
+      "maxObservedHandStepWorldUnits": 0.03365229289668702,
+      "maxObservedFourthGlassStepWorldUnits": 0.03906747456492106,
+      "entryEndToAcceptedSourceFirstFrameHandAndPropDifference": 0,
+      "residualFirstStepIncludesFinalNavigationHeadingCorrection": true
+    },
+    "scopedBundles": {
+      "unchangedIntervalsByteExactAgainstProductionBaseline": true,
+      "embeddedHelperMatchesFreshCompilationOfCurrentSources": true,
+      "actualBundlePrefixAndHelperInitializationExecutedInIsolatedVM": true,
+      "threeConstructorAliasesValidated": true,
+      "sourceAndGraftHooksReviewed": true,
+      "acceptedSourceFlushRunsAfterTalkAndGaze": true
+    }
+  },
+  "activationScriptReview": {
+    "method": "static source and syntax review; scripts were not executed",
+    "scriptsSHA256": {
+      "activate.py": "95ae7feed32e23c298ab441f15dc860c034bb51a2393ddde69814df4ff9c8fb1",
+      "activate-remote.py": "2148dce770af5d3f5ff3771b7766a1636dba86009b30782133c1ab44df68da45",
+      "rollback-remote.py": "ffb5f0b34007062f877d88996d1f54ea717a8ea41129bf2f5f223767756c76d5",
+      "maintenance.py": "796d5da71afe149d5128f629792d8bfb009d0085708c6973244b88784bf6779e"
+    },
+    "syntaxValid": true,
+    "allManifestPayloadHashesGatedBeforeRemotePointerWrites": true,
+    "localStagedManifestHashesIndependentlyMatched": 10,
+    "providerPIDCheckedAndProviderNeverRestartedByScripts": true,
+    "freezeBoundaryChecksPendingModelRequestsRunningPaidWorkConsumedNudgesAndSynchronizedWorld": true,
+    "encryptedCanonicalStateCopiedAsBytesWithRestrictedCheckpointPermissions": true,
+    "canonicalStateNeverReplacedByCheckpoint": true,
+    "postStartContinuityChecksLedgerAccountsMemoryTailPinnedRulesAndPhoneContentWithoutLoggingText": true,
+    "watchdogResumesFrozenDirectorOnFailure": true,
+    "maintenanceHasTimedAutomaticRecovery": true,
+    "oldPointersRollbackIsIdempotent": true,
+    "rollbackRejectsCurrentCaddyDriftAndInvalidBackupHashesBeforeWrites": true,
+    "rollbackOnlyChangesServiceAndFrontendPointersWithoutRuntimeStateWrites": true
+  },
+  "resolvedReviewFindings": [
+    "stale local bone TRS after source player release",
+    "source props continuing alone after cancellation",
+    "individual departed guest glass retaining sip motion",
+    "fourth glass prelude registered against incompatible tray coordinates",
+    "entry props mixer cache skipping manually blended source channels",
+    "entry losing held carry pose",
+    "source overwrite by late talk/gaze overlays",
+    "partial release payload hash preflight",
+    "rollback overwriting concurrent Caddy drift"
+  ],
+  "limitations": [
+    "No live activation or rollback execution by reviewer.",
+    "Runtime fixtures used forced decisions; they do not establish model choice quality.",
+    "Review covers exact recorded candidate hashes; later changes require scoped recheck.",
+    "Legacy standalone pour registration retains a measured approximate 6.3 cm offset; this was not newly introduced by fourth-slot cloning."
+  ]
+}
