@@ -33,7 +33,7 @@ test('durable inbox validates addresses, restart delivery and id conflicts',()=>
 });
 test('dialogue rejects fabricated/invalid responses and uses a context projection without deleting canonical turns',()=>{
  const p={};receiveDialogue(p,{id:'one',text:'Тест'},1);assert.equal(answerDialogue(p,'one',{action:'owner_reply',source:'rule',reply:'Ответ',reaction:'Реакция'},2),false);
- for(let i=2;i<20;i++){answerDialogue(p,p.ownerDialogue.at(-1).id,{action:'owner_reply',source:'qwen',reply:'Ответ',reaction:'Реакция'},i);receiveDialogue(p,{id:'turn_'+i,text:'Тест'},i);}assert.equal(dialogueContext(p,p.ownerDialogue.at(-1)).history.length,12);assert.equal(p.ownerDialogue.length,19);
+ for(let i=2;i<20;i++){answerDialogue(p,p.ownerDialogue.at(-1).id,{action:'owner_reply',source:'qwen',reply:'Ответ',reaction:'Реакция'},i);receiveDialogue(p,{id:'turn_'+i,text:'Тест'},i);}assert.equal(dialogueContext(p,p.ownerDialogue.at(-1)).history.length,6);assert.equal(p.ownerDialogue.length,19);
 });
 test('failed answer persistence blocks publication and model repetition until saving succeeds',async()=>{
  const h=harness(source);h.run("receiveDialogue(st.chars.reporter,{id:'turn',text:'Привет'},Date.now())");h.setAnswer({action:'owner_reply',reply:'Здравствуйте.',reaction:'Рад звонку.',source:'qwen',model:'qwen/qwen3.7-flash'});

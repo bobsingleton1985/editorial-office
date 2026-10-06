@@ -1043,7 +1043,7 @@ function applyDecision(id, action, source, confidence, expected=null, performanc
   p.chairsAtStart = {}; for (const pl of [from, place]) if (['desk','chair'].includes(PLACES[pl].kind)) {const k=PLACES[pl].desk||PLACES[pl].chair;p.chairsAtStart[k]=st.chairs[k]??CHAIR_REST;};
   if (move) { if (['desk','chair'].includes(PLACES[from].kind)) st.chairs[PLACES[from].desk||PLACES[from].chair] = CHAIR_TUCKED; if (['desk','chair'].includes(PLACES[place].kind)) st.chairs[PLACES[place].desk||PLACES[place].chair] = 0; }
   if (verb !== 'continue') p.since = now;
-  if(activity!=='phone')delete p.ownerPhoneSession;
+  if(activity!=='phone'&&p.ownerPhoneSession){const last=(p.ownerDialogue||[]).findLast(t=>t.source==='phone');if(last)last.conversationClosedAt=now;delete p.ownerPhoneSession;}
   p.place = place; p.activity = activity; p.activityUntil = p.busyUntil = now + (travel + decisionDwell) * 1000; p.seq += 1; p.lastNeeds = now; st.seq += 1;
   if(verb!=='continue'){cancelPurchases(st,id,now);reservePurchase(st,id,activity,p.seq,now,jointPurchase);}
   else {const oldKey=`${id}:${p.seq-1}`,reservation=st.economy.reservations[oldKey];if(reservation){delete st.economy.reservations[oldKey];reservation.seq=p.seq;st.economy.reservations[`${id}:${p.seq}`]=reservation;}}

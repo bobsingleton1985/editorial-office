@@ -1,3 +1,4 @@
+import {protectedConversation,currentMessageLast} from './owner-dialogue-context.mjs';
 import {compactDialogueOptions,compactPerformanceMetadata} from './dialogue-options.mjs';
 // Bound a transport copy only; the canonical relationship history remains intact.
 export function relationProjection(r,decisions=12){
@@ -71,7 +72,7 @@ export function fitRelationshipRequest(input,maxBytes=65000,serverStatus=null){
  while(new TextEncoder().encode(JSON.stringify(out)).length>maxBytes){
   // Prefer old supporting history over current personal memories and episodes.
   const dialogueHistory=s.ownerDialogue?.history||s.ownerInterpretation?.history||s.ownerDialogueHistory;
-  if(dialogueHistory?.length>1){
+  if(!protectedConversation(s.ownerDialogue||s.ownerInterpretation)&&dialogueHistory?.length>1){
    s.contextProjection.omittedDialogueIds??=[];s.contextProjection.omittedDialogueIds.push(dialogueHistory[0].id);
    pop(dialogueHistory,1);continue;
   }
@@ -93,5 +94,7 @@ export function fitRelationshipRequest(input,maxBytes=65000,serverStatus=null){
  }
  // Preserve every remaining contract, including refusals, with shared exact metadata.
  if(s.finances?.performances)s.finances=compactPerformanceMetadata(s.finances);
+ if(s.ownerDialogue)s.ownerDialogue=currentMessageLast(s.ownerDialogue);
+ if(s.ownerInterpretation)s.ownerInterpretation=currentMessageLast(s.ownerInterpretation);
  return out;
 }
