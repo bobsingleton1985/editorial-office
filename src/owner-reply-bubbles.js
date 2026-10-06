@@ -1,8 +1,12 @@
 const NAMES={heroine:'Героиня',columnist:'Колумнист',reporter:'Репортёр',newspaper_editor:'Редактор'};
 export const replyDurationMs=t=>Math.min(90000,Math.max(45000,((t.reply?.length||0)+(t.reaction?.length||0))*90));
 export function recentOwnerReply(person,now){
- const t=[...(person?.ownerDialogue||[])].reverse().find(t=>t.source==='phone'&&t.status==='answered'&&typeof t.reply==='string'&&t.reply.trim()&&Number.isFinite(t.answeredAt));
- if(!t||now<t.answeredAt-3000||now-t.answeredAt>replyDurationMs(t))return null;return t;
+ if(person?.activity!=='phone')return null;
+ const t=[...(person.ownerDialogue||[])].reverse().find(t=>t.source==='phone'&&['answered','closing','closed','cancelled'].includes(t.status));
+ if(t?.status!=='answered'||typeof t.reply!=='string'||!t.reply.trim()||!Number.isFinite(t.answeredAt))return null;
+ // A hangup clears the bubble; the next call must not revive the previous answer.
+ if(Number.isFinite(person.at)&&t.answeredAt<person.at)return null;
+ if(now<t.answeredAt-3000||now-t.answeredAt>replyDurationMs(t))return null;return t;
 }
 // Read-only replies to Telegram phone calls. No message form or chat opener.
 export function createOwnerReplyBubbles({now=()=>Date.now(),people=()=>window.__people,camera=()=>window.__dialogueCamera,enabled=()=>true}={}){

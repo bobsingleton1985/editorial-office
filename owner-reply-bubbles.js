@@ -1,5 +1,44 @@
-const NAMES={heroine:"\u0413\u0435\u0440\u043E\u0438\u043D\u044F",columnist:"\u041A\u043E\u043B\u0443\u043C\u043D\u0438\u0441\u0442",reporter:"\u0420\u0435\u043F\u043E\u0440\u0442\u0451\u0440",newspaper_editor:"\u0420\u0435\u0434\u0430\u043A\u0442\u043E\u0440"},replyDurationMs=o=>Math.min(9e4,Math.max(45e3,((o.reply?.length||0)+(o.reaction?.length||0))*90));function recentOwnerReply(o,i){const d=[...o?.ownerDialogue||[]].reverse().find(a=>a.source==="phone"&&a.status==="answered"&&typeof a.reply=="string"&&a.reply.trim()&&Number.isFinite(a.answeredAt));return!d||i<d.answeredAt-3e3||i-d.answeredAt>replyDurationMs(d)?null:d}function createOwnerReplyBubbles({now:o=()=>Date.now(),people:i=()=>window.__people,camera:d=()=>window.__dialogueCamera,enabled:a=()=>!0}={}){const l=(e,c,n)=>{const t=document.createElement(e);return t.className=c,n&&(t.textContent=n),t},y=l("style","");y.textContent=`
+const NAMES={heroine:'Героиня',columnist:'Колумнист',reporter:'Репортёр',newspaper_editor:'Редактор'};
+export const replyDurationMs=t=>Math.min(90000,Math.max(45000,((t.reply?.length||0)+(t.reaction?.length||0))*90));
+export function recentOwnerReply(person,now){
+ if(person?.activity!=='phone')return null;
+ const t=[...(person.ownerDialogue||[])].reverse().find(t=>t.source==='phone'&&['answered','closing','closed','cancelled'].includes(t.status));
+ if(t?.status!=='answered'||typeof t.reply!=='string'||!t.reply.trim()||!Number.isFinite(t.answeredAt))return null;
+ // A hangup clears the bubble; the next call must not revive the previous answer.
+ if(Number.isFinite(person.at)&&t.answeredAt<person.at)return null;
+ if(now<t.answeredAt-3000||now-t.answeredAt>replyDurationMs(t))return null;return t;
+}
+// Read-only replies to Telegram phone calls. No message form or chat opener.
+export function createOwnerReplyBubbles({now=()=>Date.now(),people=()=>window.__people,camera=()=>window.__dialogueCamera,enabled=()=>true}={}){
+ const make=(tag,className,text)=>{const e=document.createElement(tag);e.className=className;if(text)e.textContent=text;return e;};
+ const style=make('style','');style.textContent=`
  .owner-phone-reply{position:fixed;z-index:9000;width:max-content;max-width:min(310px,calc(100vw - 24px));box-sizing:border-box;background:rgba(255,249,237,.94);color:#2b241e;border:1px solid #8a7659;border-radius:18px;padding:10px 13px;font:14px/1.4 system-ui;box-shadow:0 3px 12px #0003;white-space:pre-wrap;pointer-events:none}
  .owner-phone-reply[hidden]{display:none}.owner-phone-reply strong{display:block;font-size:12px;color:#66543e}.owner-phone-reply p{margin:5px 0}.owner-phone-reaction{font-size:12px;color:#66543e}
  .owner-phone-reply::after{content:'';position:absolute;bottom:-7px;left:var(--tail,50%);width:12px;height:12px;background:#fff9ed;border-bottom:1px solid #8a7659;border-right:1px solid #8a7659;transform:rotate(45deg)}
- `,document.head.append(y);let g=null,_=0,h=!1;const w=new Map,x=()=>{for(const[e,c]of Object.entries(g?.chars||{})){let n=w.get(e);if(!n){const p=l("aside","owner-phone-reply"),S=l("strong","",NAMES[e]||c.name||e),E=l("p",""),N=l("p","owner-phone-reaction");p.hidden=!0,p.setAttribute("aria-label","\u041E\u0442\u0432\u0435\u0442 "+(NAMES[e]||c.name||e)+" \u043D\u0430 \u0437\u0432\u043E\u043D\u043E\u043A"),p.setAttribute("role","status"),p.setAttribute("aria-live","polite"),p.append(S,E,N),document.body.append(p),n={box:p,words:E,reaction:N,key:null},w.set(e,n)}const{box:t}=n,r=recentOwnerReply(c,o()+_),u=i()?.[e]?.ed,b=d(),f=window.__THREE?.Vector3;if(t.dataset.displayReason=h?a()?r?!u||!b||!f?"scene_loading":"anchor_pending":"no_recent_reply":"disabled":"disconnected",!h||!a()||!r||!u||!b||!f){t.hidden=!0;continue}const M=u.root?.getObjectByName("head");if(!M){t.dataset.displayReason="head_missing",t.hidden=!0;continue}u.holder.updateMatrixWorld(!0);const s=M.getWorldPosition(new f);if(s.y+=.28,s.project(b),s.z<-1||s.z>1||Math.abs(s.x)>1||Math.abs(s.y)>1){t.dataset.displayReason="offscreen",t.hidden=!0;continue}const v=JSON.stringify([r.id,r.reply,r.reaction]);n.key!==v&&(n.key=v,n.words.textContent=r.reply,n.reaction.textContent=r.reaction?"\u0420\u0435\u0430\u043A\u0446\u0438\u044F: "+r.reaction:"",n.reaction.hidden=!r.reaction),t.hidden=!1,t.dataset.displayReason="shown";const R=(s.x*.5+.5)*innerWidth,O=(-s.y*.5+.5)*innerHeight,m=t.offsetWidth,k=t.offsetHeight,A=Math.max(12,Math.min(innerWidth-m-12,R-m/2)),C=Math.max(12,Math.min(innerHeight-k-12,O-k-12));t.style.left=A+"px",t.style.top=C+"px",t.style.setProperty("--tail",Math.max(12,Math.min(m-24,R-A))+"px")}},z=setInterval(x,100);return{update(e){g=e,_=Number.isFinite(e.now)?e.now-Date.now():0,h=!0,x()},connection(e){h=e,x()},destroy(){clearInterval(z),y.remove();for(const e of w.values())e.box.remove();w.clear()}}}if(!window.__SERVER_SIMULATION&&!new URLSearchParams(location.search).get("demo")&&!window.__ownerReplyBubbles){const o=createOwnerReplyBubbles();window.__ownerReplyBubbles=o,window.addEventListener("editorial-world",i=>o.update(i.detail)),window.addEventListener("editorial-connection",i=>o.connection(i.detail))}
+ `;document.head.append(style);
+ let world=null,offset=0,connected=false;const bubbles=new Map();
+ const updatePositions=()=>{
+  for(const [id,p]of Object.entries(world?.chars||{})){
+   let item=bubbles.get(id);if(!item){const box=make('aside','owner-phone-reply'),name=make('strong','',NAMES[id]||p.name||id),words=make('p',''),reaction=make('p','owner-phone-reaction');box.hidden=true;box.setAttribute('aria-label','Ответ '+(NAMES[id]||p.name||id)+' на звонок');box.setAttribute('role','status');box.setAttribute('aria-live','polite');box.append(name,words,reaction);document.body.append(box);item={box,words,reaction,key:null};bubbles.set(id,item);}
+   const {box}=item,t=recentOwnerReply(p,now()+offset),ed=people()?.[id]?.ed,cam=camera(),Vector3=window.__THREE?.Vector3;
+   box.dataset.displayReason=!connected?'disconnected':!enabled()?'disabled':!t?'no_recent_reply':!ed||!cam||!Vector3?'scene_loading':'anchor_pending';
+   if(!connected||!enabled()||!t||!ed||!cam||!Vector3){box.hidden=true;continue;}
+   const head=ed.root?.getObjectByName('head');if(!head){box.dataset.displayReason='head_missing';box.hidden=true;continue;}
+   ed.holder.updateMatrixWorld(true);const pos=head.getWorldPosition(new Vector3());pos.y+=.28;pos.project(cam);
+   if(pos.z < -1||pos.z>1||Math.abs(pos.x)>1||Math.abs(pos.y)>1){box.dataset.displayReason='offscreen';box.hidden=true;continue;}
+   const key=JSON.stringify([t.id,t.reply,t.reaction]);if(item.key!==key){item.key=key;item.words.textContent=t.reply;item.reaction.textContent=t.reaction?'Реакция: '+t.reaction:'';item.reaction.hidden=!t.reaction;}
+   box.hidden=false;box.dataset.displayReason='shown';
+   const x=(pos.x*.5+.5)*innerWidth,y=(-pos.y*.5+.5)*innerHeight,width=box.offsetWidth,height=box.offsetHeight;
+   const left=Math.max(12,Math.min(innerWidth-width-12,x-width/2)),top=Math.max(12,Math.min(innerHeight-height-12,y-height-12));
+   box.style.left=left+'px';box.style.top=top+'px';box.style.setProperty('--tail',Math.max(12,Math.min(width-24,x-left))+'px');
+  }
+ };
+ const timer=setInterval(updatePositions,100);
+ return {update(w){world=w;offset=Number.isFinite(w.now)?w.now-Date.now():0;connected=true;updatePositions();},connection(value){connected=value;updatePositions();},destroy(){clearInterval(timer);style.remove();for(const b of bubbles.values())b.box.remove();bubbles.clear();}};
+}
+
+if(!window.__SERVER_SIMULATION&&!new URLSearchParams(location.search).get('demo')&&!window.__ownerReplyBubbles){
+ const bubbles=createOwnerReplyBubbles();window.__ownerReplyBubbles=bubbles;
+ window.addEventListener('editorial-world',e=>bubbles.update(e.detail));
+ window.addEventListener('editorial-connection',e=>bubbles.connection(e.detail));
+}
