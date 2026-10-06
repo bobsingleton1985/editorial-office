@@ -8,6 +8,22 @@ export function recentOwnerReply(person,now){
  if(Number.isFinite(person.at)&&t.answeredAt<person.at)return null;
  if(now<t.answeredAt-3000||now-t.answeredAt>replyDurationMs(t))return null;return t;
 }
+// Keep the last visible answer for five seconds after observing the call end.
+// Each bubble remembers one deadline; later world updates cannot prolong it.
+export const REPLY_END_GRACE_MS=5000;
+export function replyForBubble(person,now,state){
+ const current=recentOwnerReply(person,now);
+ if(current){state.reply=current;state.endedAt=null;return current;}
+ if(!state.reply)return null;
+ const latest=[...(person?.ownerDialogue||[])].reverse().find(t=>t.source==='phone'&&['answered','closing','closed','cancelled'].includes(t.status));
+ const ended=person?.activity!=='phone'||['closing','closed','cancelled'].includes(latest?.status);
+ const newCall=person?.activity==='phone'&&Number.isFinite(person.at)&&person.at>state.reply.answeredAt;
+ const expiredBeforeEnd=state.endedAt==null&&now-state.reply.answeredAt>replyDurationMs(state.reply);
+ if(!ended||newCall||expiredBeforeEnd){state.reply=null;state.endedAt=null;return null;}
+ state.endedAt??=now;
+ if(now-state.endedAt>=REPLY_END_GRACE_MS){state.reply=null;return null;}
+ return state.reply;
+}
 // Read-only replies to Telegram phone calls. No message form or chat opener.
 export function createOwnerReplyBubbles({now=()=>Date.now(),people=()=>window.__people,camera=()=>window.__dialogueCamera,enabled=()=>true}={}){
  const make=(tag,className,text)=>{const e=document.createElement(tag);e.className=className;if(text)e.textContent=text;return e;};
@@ -19,8 +35,8 @@ export function createOwnerReplyBubbles({now=()=>Date.now(),people=()=>window.__
  let world=null,offset=0,connected=false;const bubbles=new Map();
  const updatePositions=()=>{
   for(const [id,p]of Object.entries(world?.chars||{})){
-   let item=bubbles.get(id);if(!item){const box=make('aside','owner-phone-reply'),name=make('strong','',NAMES[id]||p.name||id),words=make('p',''),reaction=make('p','owner-phone-reaction');box.hidden=true;box.setAttribute('aria-label','Ответ '+(NAMES[id]||p.name||id)+' на звонок');box.setAttribute('role','status');box.setAttribute('aria-live','polite');box.append(name,words,reaction);document.body.append(box);item={box,words,reaction,key:null};bubbles.set(id,item);}
-   const {box}=item,t=recentOwnerReply(p,now()+offset),ed=people()?.[id]?.ed,cam=camera(),Vector3=window.__THREE?.Vector3;
+   let item=bubbles.get(id);if(!item){const box=make('aside','owner-phone-reply'),name=make('strong','',NAMES[id]||p.name||id),words=make('p',''),reaction=make('p','owner-phone-reaction');box.hidden=true;box.setAttribute('aria-label','Ответ '+(NAMES[id]||p.name||id)+' на звонок');box.setAttribute('role','status');box.setAttribute('aria-live','polite');box.append(name,words,reaction);document.body.append(box);item={box,words,reaction,key:null,reply:null,endedAt:null};bubbles.set(id,item);}
+   const {box}=item,t=replyForBubble(p,now()+offset,item),ed=people()?.[id]?.ed,cam=camera(),Vector3=window.__THREE?.Vector3;
    box.dataset.displayReason=!connected?'disconnected':!enabled()?'disabled':!t?'no_recent_reply':!ed||!cam||!Vector3?'scene_loading':'anchor_pending';
    if(!connected||!enabled()||!t||!ed||!cam||!Vector3){box.hidden=true;continue;}
    const head=ed.root?.getObjectByName('head');if(!head){box.dataset.displayReason='head_missing';box.hidden=true;continue;}
