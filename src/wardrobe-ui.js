@@ -7,9 +7,10 @@ const loader=new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
 let world=null,mesh=null,root=null,pending=null,connected=false,commandError=null;
 let section,select,autonomy,message,retry;
 function mount(){
- const host=document.querySelector('#settings-group-people');if(!host)return false;
- section=document.createElement('details');section.className='sec';section.open=true;section.dataset.section='wardrobe';
- const title=document.createElement('summary');title.textContent='Героиня — платья';section.append(title);
+ const host=document.querySelector('#settings-group-people [data-section="director"]');
+ const tabs=host?.querySelector('.ptabs'),card=host?.querySelector('.rep');if(!host||!tabs||!card)return false;
+ section=document.createElement('details');section.className='sec person-wardrobe';section.open=true;section.hidden=true;section.dataset.section='wardrobe';
+ const title=document.createElement('summary');title.textContent='Платья';section.append(title);
  const label=document.createElement('label');label.textContent='Платье ';select=document.createElement('select');select.setAttribute('aria-label','Платье героини');
  for(const o of OUTFITS){const option=document.createElement('option');option.value=o.id;option.textContent=o.label;select.append(option);}label.append(select);section.append(label);
  const autoLabel=document.createElement('label');autoLabel.style.cssText='display:block;margin-top:10px';autonomy=document.createElement('input');autonomy.type='checkbox';autonomy.setAttribute('aria-label','Героиня сама выбирает платье по настроению');autoLabel.append(autonomy,' Сама выбирает по настроению');section.append(autoLabel);
@@ -17,7 +18,9 @@ function mount(){
  const credits=document.createElement('p');credits.style.cssText='font-size:11px;opacity:.7';credits.textContent='№33: MargaretToigo · CC0. №13: Mindfront · CC BY 4.0. №5: Elvaerwyn · CC-BY. Адаптированы к героине. ';const link=document.createElement('a');link.href=assetBase+'assets/heroine-wardrobe-20261006/credits.json';link.textContent='Источники и лицензии';link.target='_blank';link.rel='noopener';credits.append(link);section.append(credits);
  message=document.createElement('p');message.setAttribute('role','status');message.style.fontSize='12px';section.append(message);
  retry=document.createElement('button');retry.textContent='Повторить загрузку платья';retry.hidden=true;retry.onclick=()=>{mesh?.select(wardrobeState(world?.chars?.heroine).selected);};section.append(retry);
- select.onchange=()=>send({selected:select.value});autonomy.onchange=()=>send({autonomous:autonomy.checked});host.prepend(section);return true;
+ select.onchange=()=>send({selected:select.value});autonomy.onchange=()=>send({autonomous:autonomy.checked});host.insertBefore(section,card);
+ const syncCard=()=>{section.hidden=!tabs.querySelector('[data-people-focus="actor:heroine"][aria-pressed="true"]');};
+ new MutationObserver(syncCard).observe(tabs,{subtree:true,attributes:true,childList:true,attributeFilter:['aria-pressed']});syncCard();return true;
 }
 async function send(change){
  const p=world?.chars?.heroine;if(!p||pending)return;
