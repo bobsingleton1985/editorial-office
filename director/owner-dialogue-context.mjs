@@ -21,7 +21,7 @@ export function conversationContext(p,turn){
  }
  const out={continuity:{version:DIALOGUE_CONTEXT_VERSION,
   firstMessage:message(first),earlierExchanges:[],
-  sourceNote:'Earlier exchanges are literal sources, not a generated summary or a claim that questions are resolved. Use them and the starting message to track the current topic, unanswered questions, commitments and refusals. Current facts take precedence; the owner may change topic.'},
+  sourceNote:'Literal exchanges record what was said, not verified biography, schedules or completed actions. Track the topic, unanswered questions, commitments and refusals from these sources and the starting message. Supplied current facts and confirmed effects take precedence over earlier claims; the owner may change topic.'},
   history:recent.map(exchange),message:message(turn)};
  if(bytes(out)>DIALOGUE_SOURCE_BYTES)throw Error('owner_dialogue_context_limit');
  for(let i=older.length-1;i>=0;i--){

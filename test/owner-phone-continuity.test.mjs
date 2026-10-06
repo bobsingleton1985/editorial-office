@@ -26,7 +26,7 @@ test('phone plan continues for hours with bounded segments; explicit wrap still 
   ch.activity='wait';const before=ch.g.T;assert.equal(maintainPhone(ch,duration),false);ch.g={...wrapUp(ch.g,ch.clk),wrapped:true};assert(ch.g.T<before);assert(ch.g.segs.some(s=>/phone_stop$/.test(s.n)));}
 });
 test('emotion labels come from model declaration; selected assets exist and are approved for their actor',()=>{
- assert.equal(parseDeclaredEmotion('Раздражение: не нравится тон'),'irritation');assert.equal(parseDeclaredEmotion('Владелец просит флирт'),'neutral');assert.equal(phoneBone('hand_l'),false);assert.equal(phoneBone('pelvis'),false);assert.equal(phoneBone('spine_02'),false);assert.equal(phoneBone('head'),true);assert.equal(phoneBone('upperarm_r'),true);
+ assert.equal(parseDeclaredEmotion('Раздражение: не нравится тон'),'irritation');assert.equal(parseDeclaredEmotion('Владелец просит флирт'),null);assert.equal(phoneBone('hand_l'),false);assert.equal(phoneBone('pelvis'),false);assert.equal(phoneBone('spine_02'),false);assert.equal(phoneBone('head'),true);assert.equal(phoneBone('upperarm_r'),true);
  const motus=JSON.parse(fs.readFileSync(new URL('../src/social-catalog.json',import.meta.url)));for(const [kind,map]of Object.entries(PHONE_EMOTION_CLIPS))for(const id of Object.values(map))assert((kind==='heroine'?HER_SOCIAL_CATALOG:motus).entries.some(e=>e.id===id&&e.available),id);
 });
 test('phone emotion only modifies allowed quaternion tracks, and respects answer seq/time and hangup',()=>{

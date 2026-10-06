@@ -1,8 +1,8 @@
-// Model-declared affect, using only already loaded, actor-compatible social clips.
-export const EMOTION_INSTRUCTIONS={neutral:'Спокойствие',irritation:'Раздражение',anger:'Злость',surprise:'Удивление',flirt:'Флирт',amusement:'Веселье',joy:'Радость',gratitude:'Благодарность',thoughtful:'Задумчивость',sadness:'Грусть',unease:'Неловкость'};
+// Semantic affect is independent of available actor-compatible gesture clips.
+export const EMOTION_INSTRUCTIONS={neutral:'Спокойствие',irritation:'Раздражение',anger:'Злость',surprise:'Удивление',flirt:'Флирт',amusement:'Веселье',joy:'Радость',gratitude:'Благодарность',thoughtful:'Задумчивость',sadness:'Грусть',unease:'Неловкость',fear:'Страх',respect:'Уважение'};
 export function parseDeclaredEmotion(reaction){
  const label=typeof reaction==='string'?reaction.split(':',1)[0].trim():'';
- return Object.keys(EMOTION_INSTRUCTIONS).find(k=>EMOTION_INSTRUCTIONS[k]===label)||'neutral';
+ return Object.keys(EMOTION_INSTRUCTIONS).find(k=>EMOTION_INSTRUCTIONS[k]===label)||null;
 }
 export const PHONE_EMOTION_CLIPS={
  motus:{irritation:'mixamo-gap/mxg_annoyed_shake',anger:'mixamo-gap/mxg_angry_gesture',surprise:'mixamo-gap/mxg_surprised',amusement:'mixamo-gap/mxg_laughing',joy:'mixamo-gap/mxg_victory_idle',gratitude:'mixamo-gap/mxg_thoughtful_nod',thoughtful:'mixamo-gap/mxg_thinking',sadness:'mixamo-gap/mxg_disappointed',unease:'mixamo-gap/mxg_look_away'},
@@ -30,7 +30,8 @@ export function samplePhoneEmotion({id,bones,gestures,ch,command,turn,now}){
  if(ch.activity!=='phone'||!ch.g?.phone||ch.g.wrapped||!command||turn?.replyActorSeq!==command.seq||turn.status!=='answered')return null;
  const u=ch.clk-ch.g.t0,start=ch.g.segs.find(s=>/phone_start$/.test(s.n));
  if(start&&u<start.s+start.d)return null;
- const emotion=turn.emotion||parseDeclaredEmotion(turn.reaction),clipId=PHONE_EMOTION_CLIPS[id==='heroine'?'heroine':'motus'][emotion];
+ // Parse the source declaration, including legacy turns misclassified as neutral.
+ const emotion=parseDeclaredEmotion(turn.reaction),clipId=PHONE_EMOTION_CLIPS[id==='heroine'?'heroine':'motus'][emotion];
  const clip=clipId&&gestures['social_'+clipId.replace(/[^a-zA-Z0-9]/g,'_')]?.clip;
  if(!clip)return null;
  const elapsed=(now-turn.answeredAt)/1000,span=Math.min(18,Math.max(5,(turn.reply?.length||0)/14));
