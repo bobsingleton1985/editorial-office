@@ -1,6 +1,7 @@
 // Shared bubble metadata describes actual decisions, never inferred consent.
 export function serviceBubbleLines(t) {
   const s=t?.service;
+  if(t?.orderQueue?.type==='performance'&&Number.isInteger(t.orderQueue.position)&&t.orderQueue.position>0)return ['Танец · заказ принят',`Очередь: №${t.orderQueue.position}`];
   if(s?.version!==2||!Number.isInteger(s.count)||s.count<1||s.count>3||!['each','treat'].includes(s.payment))return null;
   let title={order:'Заказ',offer:'Выпьем?',performer:'Обслуживание',reply:'Напиток',start:'Подаю',cancel:'Отмена'}[s.kind];
   if(!title)return null;
@@ -11,6 +12,7 @@ export function serviceBubbleLines(t) {
   const lines=[`${title} · ${s.count} ${s.count===1?'бокал':'бокала'}`,payment];
   if(['offer','order'].includes(s.kind)&&Array.isArray(s.guestNames)&&s.guestNames.length)lines.push(...(s.count===3?['Всем троим']:s.guestNames.map(n=>`Для: ${String(n).slice(0,24)}`)));
   if(s.kind==='start')lines.push(s.ownDrink?'Себе — за свой счёт':'Я не пью');
+  if(Number.isInteger(s.queuePosition)&&s.queuePosition>0&&['reply','performer'].includes(s.kind)&&t.mark==='yes')lines.push(`Очередь: №${s.queuePosition}`);
   return lines;
 }
 export function talkBubbleScale(camH,pixelHeight,imageHeight,service=false) {

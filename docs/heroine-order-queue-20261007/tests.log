@@ -1,0 +1,316 @@
+TAP version 13
+# Subtest: version gate keeps new orders unavailable before the new executor is connected
+ok 1 - version gate keeps new orders unavailable before the new executor is connected
+  ---
+  duration_ms: 1.182958
+  type: 'test'
+  ...
+# Subtest: each worker has all self-including groups of 1/2/3; heroine offers one or all independently of private wallets
+ok 2 - each worker has all self-including groups of 1/2/3; heroine offers one or all independently of private wallets
+  ---
+  duration_ms: 0.442833
+  type: 'test'
+  ...
+# Subtest: ordering reserves only the explicitly promised costs without moving anyone or charging
+ok 3 - ordering reserves only the explicitly promised costs without moving anyone or charging
+  ---
+  duration_ms: 1.051667
+  type: 'test'
+  ...
+# Subtest: sponsor pays for penniless colleagues; each refusal frees exactly one sponsored share
+ok 4 - sponsor pays for penniless colleagues; each refusal frees exactly one sponsored share
+  ---
+  duration_ms: 0.294208
+  type: 'test'
+  ...
+# Subtest: self payment does not consult other private balances and recipient cannot accept without funds
+ok 5 - self payment does not consult other private balances and recipient cannot accept without funds
+  ---
+  duration_ms: 0.246875
+  type: 'test'
+  ...
+# Subtest: deferred guests hold no self-paid money and can independently return before expiry
+ok 6 - deferred guests hold no self-paid money and can independently return before expiry
+  ---
+  duration_ms: 0.343791
+  type: 'test'
+  ...
+# Subtest: partial group expiry releases unanswered costs; accepted guests remain for delivery
+ok 7 - partial group expiry releases unanswered costs; accepted guests remain for delivery
+  ---
+  duration_ms: 0.226209
+  type: 'test'
+  ...
+# Subtest: no acceptance or unaccepted performer expires without any payment
+ok 8 - no acceptance or unaccepted performer expires without any payment
+  ---
+  duration_ms: 0.076167
+  type: 'test'
+  ...
+# Subtest: v2 orders remain available in dance mode and performer income includes both existing jobs
+ok 9 - v2 orders remain available in dance mode and performer income includes both existing jobs
+  ---
+  duration_ms: 0.568458
+  type: 'test'
+  ...
+# Subtest: delivery pays 150 cents to newsroom and 50 to heroine for each of 1/2/3 glasses, exactly once after reload
+ok 10 - delivery pays 150 cents to newsroom and 50 to heroine for each of 1/2/3 glasses, exactly once after reload
+  ---
+  duration_ms: 1.362208
+  type: 'test'
+  ...
+# Subtest: self-paid delivery charges each recipient with the same split
+ok 11 - self-paid delivery charges each recipient with the same split
+  ---
+  duration_ms: 0.509875
+  type: 'test'
+  ...
+# Subtest: stale, replayed, mismatched or unverified delivery never charges
+ok 12 - stale, replayed, mismatched or unverified delivery never charges
+  ---
+  duration_ms: 1.251375
+  type: 'test'
+  ...
+# Subtest: cancellation and executor disappearance free all unpaid reserves
+ok 13 - cancellation and executor disappearance free all unpaid reserves
+  ---
+  duration_ms: 0.328333
+  type: 'test'
+  ...
+# Subtest: settlement preflight rejects missing reserve, insolvency, invalid split and overflow without partial posting
+ok 14 - settlement preflight rejects missing reserve, insolvency, invalid split and overflow without partial posting
+  ---
+  duration_ms: 1.789333
+  type: 'test'
+  ...
+# Subtest: authoritative capability sanitizer preserves v2 only with ready measured motions
+ok 15 - authoritative capability sanitizer preserves v2 only with ready measured motions
+  ---
+  duration_ms: 0.198583
+  type: 'test'
+  ...
+# Subtest: actual obligations and exact sponsor survive compact request projection; wallet distinguishes reserved money from new expenses
+ok 16 - actual obligations and exact sponsor survive compact request projection; wallet distinguishes reserved money from new expenses
+  ---
+  duration_ms: 0.39475
+  type: 'test'
+  ...
+# Subtest: production director dispatches v2 worker orders and guest consent through its existing whitelist and snapshot
+ok 17 - production director dispatches v2 worker orders and guest consent through its existing whitelist and snapshot
+  ---
+  duration_ms: 20.609083
+  type: 'test'
+  ...
+# Subtest: heroine can treat one or all, retaining gross split and exactly-once self commission
+ok 18 - heroine can treat one or all, retaining gross split and exactly-once self commission
+  ---
+  duration_ms: 0.478917
+  type: 'test'
+  ...
+# Subtest: heroine treat affordability, rejection and cancellation use her own reserves
+ok 19 - heroine treat affordability, rejection and cancellation use her own reserves
+  ---
+  duration_ms: 0.138167
+  type: 'test'
+  ...
+# Subtest: all service decisions carry bubble metadata without fabricating other answers
+ok 20 - all service decisions carry bubble metadata without fabricating other answers
+  ---
+  duration_ms: 0.172291
+  type: 'test'
+  ...
+# Subtest: wallet exposes heroine full treat commitment instead of labeling it free income
+ok 21 - wallet exposes heroine full treat commitment instead of labeling it free income
+  ---
+  duration_ms: 0.064166
+  type: 'test'
+  ...
+# Subtest: heroine chooses own glass independently, pays herself only after verified sip, dose and split exactly once
+ok 22 - heroine chooses own glass independently, pays herself only after verified sip, dose and split exactly once
+  ---
+  duration_ms: 0.249583
+  type: 'test'
+  ...
+# Subtest: without own drink there is no own reserve, charge or dose even if a raw flag is present
+ok 23 - without own drink there is no own reserve, charge or dose even if a raw flag is present
+  ---
+  duration_ms: 0.097042
+  type: 'test'
+  ...
+# Subtest: missing recipient confirmation releases unpaid share on completion; paid departure does not cancel other drinkers
+ok 24 - missing recipient confirmation releases unpaid share on completion; paid departure does not cancel other drinkers
+  ---
+  duration_ms: 0.108584
+  type: 'test'
+  ...
+# Subtest: accepted drink remains head and later dance never displaces it or expires while waiting
+ok 25 - accepted drink remains head and later dance never displaces it or expires while waiting
+  ---
+  duration_ms: 24.561208
+  type: 'test'
+  ...
+# Subtest: later drink agrees without moving while dance is first; promotion dispatches guest only once
+ok 26 - later drink agrees without moving while dance is first; promotion dispatches guest only once
+  ---
+  duration_ms: 11.021958
+  type: 'test'
+  ...
+# Subtest: queue stamp is first mutual agreement; partial invitations expire without losing agreed order
+ok 27 - queue stamp is first mutual agreement; partial invitations expire without losing agreed order
+  ---
+  duration_ms: 8.10075
+  type: 'test'
+  ...
+# Subtest: queued guest can continue work without releasing promised money; explicit decline releases it
+ok 28 - queued guest can continue work without releasing promised money; explicit decline releases it
+  ---
+  duration_ms: 11.410875
+  type: 'test'
+  ...
+# Subtest: queue and reservations survive encrypted-state-equivalent reload, without backdating order
+ok 29 - queue and reservations survive encrypted-state-equivalent reload, without backdating order
+  ---
+  duration_ms: 11.403542
+  type: 'test'
+  ...
+# Subtest: no viewers does not promote or seat a queued guest
+ok 30 - no viewers does not promote or seat a queued guest
+  ---
+  duration_ms: 11.749459
+  type: 'test'
+  ...
+# Subtest: declined guest sleep does not cancel surviving agreed group; accepted sleep releases only own share
+ok 31 - declined guest sleep does not cancel surviving agreed group; accepted sleep releases only own share
+  ---
+  duration_ms: 8.94725
+  type: 'test'
+  ...
+# Subtest: phone priority cancels every queued dance of its payer and never displaces a phone guest
+ok 32 - phone priority cancels every queued dance of its payer and never displaces a phone guest
+  ---
+  duration_ms: 15.046667
+  type: 'test'
+  ...
+# Subtest: confirmed service pays split once, finishes and promotes dance without changing its stamp
+ok 33 - confirmed service pays split once, finishes and promotes dance without changing its stamp
+  ---
+  duration_ms: 10.057583
+  type: 'test'
+  ...
+# Subtest: failed and stale guest preparation never consumes reserve or marks seat complete
+ok 34 - failed and stale guest preparation never consumes reserve or marks seat complete
+  ---
+  duration_ms: 8.26775
+  type: 'test'
+  ...
+# Subtest: completed dance settles once then next service approaches; later payer can reserve behind occupied seat
+ok 35 - completed dance settles once then next service approaches; later payer can reserve behind occupied seat
+  ---
+  duration_ms: 11.123666
+  type: 'test'
+  ...
+# Subtest: group promotion dispatches only one guest before recomputing passage occupancy
+ok 36 - group promotion dispatches only one guest before recomputing passage occupancy
+  ---
+  duration_ms: 9.917084
+  type: 'test'
+  ...
+# Subtest: a current seated report resumes observation after a director polling delay
+ok 37 - a current seated report resumes observation after a director polling delay
+  ---
+  duration_ms: 0.64025
+  type: 'test'
+  ...
+# Subtest: a seated audience remains present when the unrelated execution flag is false or missing
+ok 38 - a seated audience remains present when the unrelated execution flag is false or missing
+  ---
+  duration_ms: 0.0735
+  type: 'test'
+  ...
+# Subtest: a fresh matching physical departure preserves the running program and reserved fee
+ok 39 - a fresh matching physical departure preserves the running program and reserved fee
+  ---
+  duration_ms: 0.175208
+  type: 'test'
+  ...
+# Subtest: unknown posture is not a witnessed departure and cannot refresh the seated timestamp
+ok 40 - unknown posture is not a witnessed departure and cannot refresh the seated timestamp
+  ---
+  duration_ms: 0.053833
+  type: 'test'
+  ...
+# Subtest: missing, stale, future or mismatched receipts never pay or extend audience observation
+ok 41 - missing, stale, future or mismatched receipts never pay or extend audience observation
+  ---
+  duration_ms: 0.131541
+  type: 'test'
+  ...
+# Subtest: reporter watches until actual completion, preserving seat and command
+ok 42 - reporter watches until actual completion, preserving seat and command
+  ---
+  duration_ms: 11.23875
+  type: 'test'
+  ...
+# Subtest: columnist watches until actual completion, preserving seat and command
+ok 43 - columnist watches until actual completion, preserving seat and command
+  ---
+  duration_ms: 3.220333
+  type: 'test'
+  ...
+# Subtest: newspaper_editor watches until actual completion, preserving seat and command
+ok 44 - newspaper_editor watches until actual completion, preserving seat and command
+  ---
+  duration_ms: 2.835917
+  type: 'test'
+  ...
+# Subtest: cancellation releases viewer; pre-start cancellation and performer interruption stay available
+ok 45 - cancellation releases viewer; pre-start cancellation and performer interruption stay available
+  ---
+  duration_ms: 2.806167
+  type: 'test'
+  ...
+# Subtest: legacy departures and forced sleep do not trap the customer at an unrelated destination
+ok 46 - legacy departures and forced sleep do not trap the customer at an unrelated destination
+  ---
+  duration_ms: 9.598
+  type: 'test'
+  ...
+# Subtest: server completed work pays once even with no viewer proof or viewer-delayed generic completion
+ok 47 - server completed work pays once even with no viewer proof or viewer-delayed generic completion
+  ---
+  duration_ms: 2.192666
+  type: 'test'
+  ...
+# Subtest: a missing server completion never falls back to viewer complete evidence
+ok 48 - a missing server completion never falls back to viewer complete evidence
+  ---
+  duration_ms: 0.334833
+  type: 'test'
+  ...
+# Subtest: stale, future, previous-command, replayed or prematurely completed work cannot earn the fee
+ok 49 - stale, future, previous-command, replayed or prematurely completed work cannot earn the fee
+  ---
+  duration_ms: 1.264208
+  type: 'test'
+  ...
+# Subtest: running work survives expiry and a late fresh server completion still pays exactly once
+ok 50 - running work survives expiry and a late fresh server completion still pays exactly once
+  ---
+  duration_ms: 0.425917
+  type: 'test'
+  ...
+# Subtest: unanswered offers expire; mutually agreed queued work persists; changed performer commands still cancel running work
+ok 51 - unanswered offers expire; mutually agreed queued work persists; changed performer commands still cancel running work
+  ---
+  duration_ms: 0.259083
+  type: 'test'
+  ...
+1..51
+# tests 51
+# suites 0
+# pass 51
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 300.71425

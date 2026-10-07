@@ -1,0 +1,82 @@
+TAP version 13
+# Subtest: accepted drink remains head and later dance never displaces it or expires while waiting
+ok 1 - accepted drink remains head and later dance never displaces it or expires while waiting
+  ---
+  duration_ms: 29.341917
+  type: 'test'
+  ...
+# Subtest: later drink agrees without moving while dance is first; promotion dispatches guest only once
+ok 2 - later drink agrees without moving while dance is first; promotion dispatches guest only once
+  ---
+  duration_ms: 18.025667
+  type: 'test'
+  ...
+# Subtest: queue stamp is first mutual agreement; partial invitations expire without losing agreed order
+ok 3 - queue stamp is first mutual agreement; partial invitations expire without losing agreed order
+  ---
+  duration_ms: 7.437291
+  type: 'test'
+  ...
+# Subtest: queued guest can continue work without releasing promised money; explicit decline releases it
+ok 4 - queued guest can continue work without releasing promised money; explicit decline releases it
+  ---
+  duration_ms: 11.866583
+  type: 'test'
+  ...
+# Subtest: queue and reservations survive encrypted-state-equivalent reload, without backdating order
+ok 5 - queue and reservations survive encrypted-state-equivalent reload, without backdating order
+  ---
+  duration_ms: 12.104958
+  type: 'test'
+  ...
+# Subtest: no viewers does not promote or seat a queued guest
+ok 6 - no viewers does not promote or seat a queued guest
+  ---
+  duration_ms: 13.297166
+  type: 'test'
+  ...
+# Subtest: declined guest sleep does not cancel surviving agreed group; accepted sleep releases only own share
+ok 7 - declined guest sleep does not cancel surviving agreed group; accepted sleep releases only own share
+  ---
+  duration_ms: 9.502417
+  type: 'test'
+  ...
+# Subtest: phone priority cancels every queued dance of its payer and never displaces a phone guest
+ok 8 - phone priority cancels every queued dance of its payer and never displaces a phone guest
+  ---
+  duration_ms: 15.1455
+  type: 'test'
+  ...
+# Subtest: confirmed service pays split once, finishes and promotes dance without changing its stamp
+ok 9 - confirmed service pays split once, finishes and promotes dance without changing its stamp
+  ---
+  duration_ms: 9.993208
+  type: 'test'
+  ...
+# Subtest: failed and stale guest preparation never consumes reserve or marks seat complete
+ok 10 - failed and stale guest preparation never consumes reserve or marks seat complete
+  ---
+  duration_ms: 8.053083
+  type: 'test'
+  ...
+# Subtest: completed dance settles once then next service approaches; later payer can reserve behind occupied seat
+ok 11 - completed dance settles once then next service approaches; later payer can reserve behind occupied seat
+  ---
+  duration_ms: 11.003834
+  type: 'test'
+  ...
+# Subtest: group promotion dispatches only one guest before recomputing passage occupancy
+ok 12 - group promotion dispatches only one guest before recomputing passage occupancy
+  ---
+  duration_ms: 9.826792
+  type: 'test'
+  ...
+1..12
+# tests 12
+# suites 0
+# pass 12
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 288.293333

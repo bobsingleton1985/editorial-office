@@ -1,0 +1,11 @@
+// One queue projected from the canonical contracts; no duplicated money or statuses.
+const acceptedService=s=>['inviting','reserved','running'].includes(s.status)&&s.consent&&Object.values(s.guests||{}).some(g=>['accepted','paid'].includes(g.status));
+const acceptedPerformance=c=>['reserved','running'].includes(c.status);
+const mutualAt=c=>{if(Number.isFinite(c.acceptedOrderAt))return c.acceptedOrderAt;if(Number.isFinite(c.acceptedAt))return c.acceptedAt;const times=Object.values(c.guests||{}).filter(g=>g.consent).map(g=>g.consent.at).filter(Number.isFinite);return times.length?Math.max(c.consent?.at||0,Math.min(...times)):(c.startedAt??c.at??0);};
+export function acceptedOrder(st,c,now){if(Number.isFinite(c.acceptedOrderAt))return false;c.acceptedOrderAt=now;c.acceptedOrderSeq=st.economy.orderQueueNext=(st.economy.orderQueueNext||0)+1;return true;}
+export function heroineOrders(st){const e=st.economy||{};return [...(e.services||[]).filter(acceptedService).map(contract=>({type:'service',contract})),...(e.performances||[]).filter(acceptedPerformance).map(contract=>({type:'performance',contract}))].sort((a,b)=>(b.contract.status==='running')-(a.contract.status==='running')||mutualAt(a.contract)-mutualAt(b.contract)||(a.contract.acceptedOrderSeq??Infinity)-(b.contract.acceptedOrderSeq??Infinity)||a.contract.id.localeCompare(b.contract.id));}
+export function ensureOrderQueue(st){let changed=false;for(const {contract:c}of heroineOrders(st))changed=acceptedOrder(st,c,mutualAt(c))||changed;return changed;}
+export function orderHead(st){return heroineOrders(st)[0]||null;}
+export function isOrderHead(st,c){return orderHead(st)?.contract.id===c.id;}
+export function orderPosition(st,c){return heroineOrders(st).findIndex(x=>x.contract.id===c.id)+1;}
+export function orderQueueContext(st,id){const queue=heroineOrders(st);return {heroineOrderQueue:{version:1,discipline:'FIFO_by_mutual_consent',waitingDoesNotExpire:true,head:queue[0]?.contract.id||null,orders:queue.flatMap(({type,contract:c},i)=>id==='heroine'||c.payer===id||c.guests?.[id]?[{id:c.id,type,position:i+1,status:c.status,acceptedAt:mutualAt(c),stage:c.status==='running'?'executing':i?'waiting':'preparing'}]:[])}};}

@@ -1,3 +1,4 @@
+import {orderHead,isOrderHead,orderQueueContext} from './heroine-order-queue.mjs';
 export {serviceReplyDue} from './drink-service-v2.mjs';
 import {available,settleService} from './economy.mjs';
 import {remember} from './economy-events.mjs';
@@ -8,7 +9,7 @@ const fresh=(cap,now)=>Number.isFinite(cap?.at)&&cap.at<=now&&now-cap.at<=3500;
 export function ensureServices(st){st.economy.services??=[];}
 function seated(st,id,g,cap,now){const p=st.chars[id],a=cap?.actors?.[id];return fresh(cap,now)&&a?.loaded&&g.seq===p?.seq&&Number.isInteger(a.seq)&&a.seq>=g.originSeq&&a.seq<=g.seq&&p.place===g.seat&&a.seat===g.seat&&a.mode==='seated'&&a.executing===true&&['rest_lounge','wait'].includes(p.activity);}
 function note(st,s,id,event,summary,now){remember(st,id,{id:`${s.id}:${event}:${id}`,event,partner:id==='heroine'?null:'heroine',summary},now);}
-export function serviceContext(st,id,version=1){return {drinkServicePriceCents:version===2?200:100,...(version===2?{drinkServiceTerms:SERVICE_TERMS,newsroomServiceRevenueCents:st.economy.accounts.newsroom||0}:{}),services:st.economy.services.filter(s=>id==='heroine'||s.guests[id]).slice(-10)};}
+export function serviceContext(st,id,version=1){return {...orderQueueContext(st,id),drinkServicePriceCents:version===2?200:100,...(version===2?{drinkServiceTerms:SERVICE_TERMS,newsroomServiceRevenueCents:st.economy.accounts.newsroom||0}:{}),services:st.economy.services.filter(s=>id==='heroine'||s.guests[id]).slice(-10)};}
 export function serviceActions(st,id,now,input){
  if(!st.economy.config.enabled)return [];const out=v2ServiceActions(st,id,now,input,seated),e=st.economy,mode=st.hostessMode||'dance';
  if(input.serviceVersion!==2&&id==='heroine'&&mode==='drinks'&&!st.trayDelivery&&input.ready&&!e.services.some(active))out.push({id:'money_drinks_offer@all',description:'Предложить всем коллегам напитки с обслуживанием: по 1 USD с каждого. Каждый независимо согласится или откажется; согласившийся сядет на свободную лавку. Затем ты сможешь налить и принести поднос. Оплата только за фактическую доставку.'});
@@ -25,6 +26,11 @@ export function serviceActions(st,id,now,input){
 }
 function release(st,s,id,reason,now){const g=s.guests[id];if(!g||!['accepted','pending','deferred'].includes(g.status))return false;delete st.economy.reservations[`service:${s.id}:${id}`];g.status=reason==='declined'?'declined':'cancelled';g.reason=reason;g.closedAt=now;st.economy.revision++;note(st,s,id,'service_cancelled','Обслуживание завершено без оплаты: '+reason,now);return true;}
 export function cancelService(st,s,reason,now){if(!s||!active(s))return false;for(const id of Object.keys(s.guests))release(st,s,id,reason,now);if(s.ownGlass?.status==='accepted'){delete st.economy.reservations[`service:${s.id}:heroine`];s.ownGlass.status='cancelled';s.ownGlass.reason=reason;}s.status='cancelled';s.reason=reason;s.closedAt=now;const command=st.chars.heroine?.entry?.service;if(command?.id===s.id)command.cancelled=true;st.economy.revision++;return true;}
+export function interruptServiceGuest(st,s,id,reason,now){
+ const g=s?.guests?.[id];if(!s||!active(s)||!g)return false;
+ if(g.status==='paid'){if(g.leftAt!=null)return false;g.leftAt=now;eRevision(st);return true;}
+ const changed=release(st,s,id,reason,now);if(changed)resolveService(s,now);return changed;
+}
 export function chooseService(st,id,action,now,source,input,dispatch){
  if(v2ServiceActions(st,id,now,input,seated).some(a=>a.id===action))return chooseV2Service(st,id,action,now,source,input,dispatch,seated,cancelService);
  if(!['jev','qwen'].includes(source)||!serviceActions(st,id,now,input).some(a=>a.id===action))return false;
@@ -49,7 +55,7 @@ export function chooseService(st,id,action,now,source,input,dispatch){
 }
 export function observeServices(st,cap,now){let changed=false;
  for(const s of st.economy.services.filter(active)){
-  for(const [id,g]of Object.entries(s.guests))if(g.status==='accepted'&&(st.chars[id]?.seq!==g.seq||st.chars[id]?.place!==g.seat||!['rest_lounge','wait'].includes(st.chars[id]?.activity)))changed=release(st,s,id,'guest_left',now)||changed;
+  for(const [id,g]of Object.entries(s.guests))if(g.status==='accepted'&&!g.awaitingSeat&&(st.chars[id]?.seq!==g.seq||st.chars[id]?.place!==g.seat||!['rest_lounge','wait'].includes(st.chars[id]?.activity)))changed=release(st,s,id,'guest_left',now)||changed;
   resolveService(s,now);if(s.status!=='running')continue;
   if(s.expiresAt<=now){changed=cancelService(st,s,'expired',now)||changed;continue;}
   const p=st.chars.heroine,a=cap?.actors?.heroine;
@@ -78,7 +84,7 @@ export function observeServices(st,cap,now){let changed=false;
 }
 const eRevision=st=>st.economy.revision++;
 export function tickServices(st,now){let changed=false;for(const s of st.economy.services.filter(active)){
- if(s.expiresAt<=now){if(s.status==='inviting'&&s.consent&&Object.values(s.guests).some(g=>g.status==='accepted')){for(const id of Object.keys(s.guests))if(['pending','deferred'].includes(s.guests[id].status))release(st,s,id,'invitation_expired',now);s.status='reserved';s.expiresAt=now+180000;eRevision(st);changed=true;}else changed=cancelService(st,s,'expired',now)||changed;}
+ if(s.status==='inviting'&&s.expiresAt<=now){if(s.status==='inviting'&&s.consent&&Object.values(s.guests).some(g=>g.status==='accepted')){for(const id of Object.keys(s.guests))if(['pending','deferred'].includes(s.guests[id].status))release(st,s,id,'invitation_expired',now);s.status='reserved';s.expiresAt=now+180000;eRevision(st);changed=true;}else changed=cancelService(st,s,'expired',now)||changed;}
  else if(s.version!==2&&st.hostessMode!=='drinks'&&s.status!=='running')changed=cancelService(st,s,'mode_changed',now)||changed;
  }return changed;}
 
@@ -91,7 +97,7 @@ function resolveService(s,now){
 export function serviceCommandChanged(st,id,action,now){
  for(const s of st.economy.services.filter(active)){
   const g=s.guests[id],p=st.chars[id];
-  if(!['accepted','paid'].includes(g?.status))continue;
+  if(!['accepted','paid'].includes(g?.status)||g.awaitingSeat)continue;
   if(action==='continue'&&g.seq+1===p.seq&&p.place===g.seat&&['rest_lounge','wait'].includes(p.activity)){g.seq=p.seq;continue;}
   if(g.status==='paid'){g.leftAt=now;eRevision(st);}else {release(st,s,id,'guest_left',now);resolveService(s,now);}
  }
@@ -107,4 +113,17 @@ export function clearDeliveredService(st,cap,places,now){
  const s=st.economy.services.find(s=>s.id===d.id);if(s)s.clearedAt=now;
  remember(st,'heroine',{id:d.id+':cleared',event:'service_cleared',summary:'После ухода всех гостей поднос и бокалы автоматически убраны со стола. Это не подтверждает, что напитки были выпиты.'},now);
  st.trayDelivery=null;st.economy.revision++;return true;
+}
+
+// A previously model-authorized guest approaches only when its order becomes first.
+export function advanceQueuedServices(st,now,input,dispatch){
+ const head=orderHead(st);if(head?.type!=='service'||head.contract.status==='running'||!input.ready)return false;
+ const s=head.contract;let changed=false;
+ for(const[id,g]of Object.entries(s.guests))if(g.status==='accepted'&&g.awaitingSeat&&!st.chars[id]?.ownerPhoneSession&&!st.chars[id]?.pendingOwnerCall&&st.chars[id]?.activity!=='phone'&&input.guestReady?.[id]&&input.benches?.[id]?.includes(g.seat)){
+  if(dispatch(id,'rest_lounge@'+g.seat)===false)continue;const p=st.chars[id];if(p.activity!=='rest_lounge'||p.place!==g.seat)continue;
+  Object.assign(g,{awaitingSeat:false,seq:p.seq,originSeq:p.seq});st.economy.revision++;changed=true;
+  note(st,s,id,'service_seating_started','Очередь дошла до заказа; начат подход к месту за общим столом. Подача и оплата ещё не подтверждены.',now);
+  // Recompute passage/occupancy on the next poll before moving another guest.
+  return true;
+ }return changed;
 }

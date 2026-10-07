@@ -1,0 +1,26 @@
+{
+  "phase": "director_verified",
+  "at": "2026-10-07T14:18:51.968142+00:00",
+  "providerRestarted": false,
+  "relayRestarted": true,
+  "ownerTabsReloaded": false,
+  "stateRestored": false,
+  "ledgerPrefixRetained": true,
+  "accountsContinuity": true,
+  "memoryTailRetained": {
+    "columnist": true,
+    "reporter": true,
+    "newspaper_editor": true,
+    "heroine": true
+  },
+  "pinnedRulesRetained": true,
+  "canonicalPhoneContentRetained": true,
+  "stateEncrypted": true,
+  "files": {
+    "director/director.mjs": "53d2f2960db87eef8e81991522a37389084fb46a283789c5294e5918a5e0113f",
+    "director/drink-service-v2.mjs": "81027c588f08aa3629af4ebdf98f0699a601a67f631598a878c635c32d1f4e7c",
+    "director/drink-service.mjs": "cb96ade2cd39c8d47e00a1fea8faa85298b18139a30e934725a3306522c6f5a2",
+    "director/paid-performance.mjs": "0d60dfb8e336c835f4ed7438588e22b6a402393a8b7f93e4505eb8dd548eb27c",
+    "director/heroine-order-queue.mjs": "a30018b202bc492c79a86bb4d6e9d4f793ada76896855f8a6be8078d29dfbd30"
+  }
+}

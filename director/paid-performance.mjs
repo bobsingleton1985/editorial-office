@@ -1,3 +1,4 @@
+import {acceptedOrder,isOrderHead,orderPosition,orderQueueContext} from './heroine-order-queue.mjs';
 import {satisfyFlirtPerformance} from './flirt-need.mjs';
 import {observePerformanceCompleted} from './relationship-core.mjs';
 import {available,settlePerformance} from './economy.mjs';
@@ -14,32 +15,32 @@ export function ensurePerformances(st){st.economy.performances??=[];st.economy.p
 // Existing departed audiences keep their actual command; a seated customer watches
 // until authoritative completion/cancellation. Forced sleep retains its own exit.
 export function committedPerformance(st,id){return st.economy.performances.find(c=>
- c.status==='reserved'&&involved(c,id)||c.status==='running'&&(c.performer===id||c.payer===id&&c.audienceLeftAt==null&&st.chars[id]?.place===c.seat&&['rest_lounge','wait'].includes(st.chars[id]?.activity)));}
-export function performancePlaces(st,id){return st.economy.performances.filter(c=>['reserved','running'].includes(c.status)).flatMap(c=>[...(id!==c.payer&&committedPerformance(st,c.payer)?.id===c.id?['benchS']:[]),...(id!==c.performer?[c.place||'tv3']:[])]);}
+ c.status==='reserved'&&isOrderHead(st,c)&&involved(c,id)||c.status==='running'&&(c.performer===id||c.payer===id&&c.audienceLeftAt==null&&st.chars[id]?.place===c.seat&&['rest_lounge','wait'].includes(st.chars[id]?.activity)));}
+export function performancePlaces(st,id){return st.economy.performances.filter(c=>['reserved','running'].includes(c.status)&&isOrderHead(st,c)).flatMap(c=>[...(id!==c.payer&&committedPerformance(st,c.payer)?.id===c.id?['benchS']:[]),...(id!==c.performer?[c.place||'tv3']:[])]);}
 function playable(c,input){return input?.mode!=='drinks'&&input?.ready===true&&input.music===true&&input.places?.includes(c.place||'tv3')&&(input.benches?.[c.payer]?.includes('benchS'))&&c.sequence.every(x=>Number.isFinite(input.durations?.[x.activity])&&Math.abs(input.durations[x.activity]-x.duration)<.001);}
 const enoughMusic=(c,input)=>input.music===true&&(input.musicMs??Infinity)>=(c.duration*1000+(input.musicLeadMs??90000));
 export function performanceReplyDue(st,id,now){return st.economy.performances.find(c=>c.status==='offered'&&c.to===id&&c.expiresAt>now&&c.consideredAt==null);}
 export function consideredPerformanceReply(st,id,now){let changed=false;for(const c of st.economy.performances)if(c.status==='offered'&&c.to===id&&c.expiresAt>now&&c.consideredAt==null){c.consideredAt=now;changed=true;}return changed;}
 function seated(st,c,caps,now){const p=st.chars[c.payer],a=caps?.actors?.[c.payer];return fresh(caps,now)&&p?.place===c.seat&&['rest_lounge','wait'].includes(p.activity)&&a?.loaded&&(a.seq===p.seq||p.entry?.action==='continue'&&Number.isInteger(a.seq)&&a.seq<p.seq)&&a.mode==='seated'&&a.seat===c.seat;}
 function note(st,c,event,summary,now){for(const id of [c.payer,c.performer])remember(st,id,{id:`${c.id}:${event}:${id}`,event,partner:id===c.payer?c.performer:c.payer,summary},now);}
-function danceBubble(st,id,to,mark,now){const p=st.chars[id];p.entry={...(p.entry||{}),talk:{at:now,to,icon:'dance',mark}};}
-export function performanceContext(st,id){return {performanceTerms:st.economy.performanceTerms,performances:st.economy.performances.filter(c=>involved(c,id)).slice(-20)};}
+function danceBubble(st,id,to,mark,now){const p=st.chars[id];const c=st.economy.performances.find(c=>['reserved','running'].includes(c.status)&&involved(c,id)&&involved(c,to));p.entry={...(p.entry||{}),talk:{at:now,...(c?{until:now+10000,orderQueue:{type:'performance',position:orderPosition(st,c)}}:{}),to,icon:'dance',mark}};}
+export function performanceContext(st,id){return {...orderQueueContext(st,id),performanceTerms:st.economy.performanceTerms,performances:st.economy.performances.filter(c=>involved(c,id)).slice(-20)};}
 export function performanceActions(st,id,pair,now,input){
  const e=st.economy;if(!e.config.enabled)return [];const out=[],partner=freshPair(pair,id,now)?pair.members.find(x=>x!==id):null;
  const contacts=[...new Set([...(partner?[partner]:[]),...(input?.contacts?.[id]||[])])];
  for(const other of contacts){
- if(other&&(id==='heroine'||other==='heroine')&&!e.performances.some(c=>ACTIVE.has(c.status)&&(involved(c,id)||involved(c,other)))&&input?.mode!=='drinks'&&input?.ready&&input.places?.includes('tv')){
+ if(other&&(id==='heroine'||other==='heroine')&&!e.performances.some(c=>ACTIVE.has(c.status)&&c.payer===(id==='heroine'?other:id))&&input?.mode!=='drinks'&&input?.ready&&(input.plannedPlaces||input.places)?.includes('tv')){
   const payer=id==='heroine'?other:id;
-  for(const first of PERFORMANCE_TERMS.activities)if(input.benches?.[payer]?.includes('benchS')&&sequence(first).every(x=>Number.isFinite(input.durations?.[x])&&input.durations[x]>0)&&canPayForPerformance(st,payer))out.push({id:`money_performance_offer@${other}:${first}`,description:`${id==='heroine'?'Предложить '+other+' купить твоё целое выступление':'Обратиться к героине и заказать её целое выступление'} за 3 USD, порядок ${first.endsWith('1')?1:2}: два танца, игривая поза и жест любви. Другой участник решит самостоятельно; предварительный разговор и романтическая взаимность не требуются. Музыка включится автоматически; зритель садится на лавку; героиня выступает перед телевизором лицом к нему. После начала заказчик досматривает всю программу с лавки, не переключаясь на курение или другие занятия: 3 USD выплачиваются один раз за полное исполнение независимо от его дальнейшего присутствия. До начала можно отменить с возвратом резерва. Обычные танцы бесплатны. Полный просмотр снижает потребность зрителя во флирте на 35, недавние повторы слабее; деньги, дела, отказы и недавний просмотр учитывай самостоятельно.`});
+  for(const first of PERFORMANCE_TERMS.activities)if((input.plannedBenches?.[payer]||input.benches?.[payer])?.includes('benchS')&&sequence(first).every(x=>Number.isFinite(input.durations?.[x])&&input.durations[x]>0)&&canPayForPerformance(st,payer))out.push({id:`money_performance_offer@${other}:${first}`,description:`${id==='heroine'?'Предложить '+other+' купить твоё целое выступление':'Обратиться к героине и заказать её целое выступление'} за 3 USD, порядок ${first.endsWith('1')?1:2}: два танца, игривая поза и жест любви. Другой участник решит самостоятельно; предварительный разговор и романтическая взаимность не требуются. Музыка включится автоматически; зритель садится на лавку; героиня выступает перед телевизором лицом к нему. После начала заказчик досматривает всю программу с лавки, не переключаясь на курение или другие занятия: 3 USD выплачиваются один раз за полное исполнение независимо от его дальнейшего присутствия. До начала можно отменить с возвратом резерва. Обычные танцы бесплатны. Полный просмотр снижает потребность зрителя во флирте на 35, недавние повторы слабее; деньги, дела, отказы и недавний просмотр учитывай самостоятельно.`});
  }
  }
  for(const c of e.performances.filter(c=>involved(c,id)&&ACTIVE.has(c.status))){
   if(c.status!=='running'||id===c.performer)out.push({id:`money_performance_cancel@${c.id}`,description:c.status==='running'?'Прервать собственное выступление без оплаты за незавершённую программу.':'Отменить выступление до начала; 3 USD из резерва вернутся зрителю.'});
   if(c.status==='offered'&&c.to===id&&c.expiresAt>now){
    out.push({id:`money_performance_reply@${c.id}:decline`,description:'Отказаться от выступления за 3 USD.'});
-   if(input?.mode!=='drinks'&&available(st,c.payer)>=c.cents)out.push({id:`money_performance_reply@${c.id}:accept`,description:`Согласиться ${id===c.payer?'оплатить целое выступление и смотреть его с лавки':'исполнить целое выступление для сидящего на лавке зрителя'} за 3 USD. Сумма резервируется до завершения. После начала зритель остаётся на лавке до завершения всей программы; отменить заказ с возвратом можно только до начала. Исполнитель дождётся свободного места; музыка включится автоматически. Полностью просмотренное выступление удовлетворит интерес к флирту; решение учитывает твои чувства, бюджет и другие потребности.`});
+   if(input?.mode!=='drinks'&&available(st,c.payer)>=c.cents)out.push({id:`money_performance_reply@${c.id}:accept`,description:`Согласиться ${id===c.payer?'оплатить целое выступление и смотреть его с лавки':'исполнить целое выступление для сидящего на лавке зрителя'} за 3 USD. Сумма резервируется до завершения. Заказ занимает очередь по времени взаимного согласия; ожидание в очереди не отменяет заказ, подготовка начинается только когда он первый. После начала зритель остаётся на лавке до завершения всей программы; отменить заказ с возвратом можно только до начала. Исполнитель дождётся свободного места; музыка включится автоматически. Полностью просмотренное выступление удовлетворит интерес к флирту; решение учитывает твои чувства, бюджет и другие потребности.`});
   }
-  if(c.status==='reserved'&&c.expiresAt>now&&playable(c,input)&&input.arrived?.[id]===true){
+  if(c.status==='reserved'&&isOrderHead(st,c)&&![c.payer,c.performer].some(k=>st.chars[k]?.ownerPhoneSession||st.chars[k]?.pendingOwnerCall||st.chars[k]?.activity==='phone')&&playable(c,input)&&input.arrived?.[id]===true){
    if(id===c.payer&&!seated(st,c,input.capabilities,now))for(const seat of input.benches?.[id]||[])out.push({id:`money_performance_watch@${c.id}:${seat}`,description:`Сесть на ${seat} и смотреть согласованное выступление героини. До начала ты можешь отменить договорённость; после начала досматриваешь всю программу с лавки, затем снова выбираешь занятие.`});
    if(id===c.performer&&seated(st,c,input.capabilities,now))for(const place of input.places.filter(place=>place===(c.place||'tv3')))out.push({id:`money_performance_start@${c.id}:${place}`,description:`Начать выступление перед телевизором лицом к ${c.payer}, который уже сидит на ${c.seat}. 3 USD за все части вместе после полного исполнения.`});
   }
@@ -68,7 +69,7 @@ export function choosePerformance(st,id,action,pair,now,source,input){
  if(verb==='money_performance_cancel')return cancelPerformance(st,c,'participant_cancelled',now);
  if(verb==='money_performance_reply'){
   if(value==='decline'){const cancelled=cancelPerformance(st,c,'declined',now);if(cancelled)danceBubble(st,id,c.from,'no',now);return cancelled;}if(available(st,c.payer)<c.cents)return false;
-  e.reservations['performance:'+c.id]={payer:c.payer,actor:c.payer,cents:300,credit:true,performance:c.id};c.consent[id]={at:now,source};c.status='reserved';c.seat='benchS';c.place='tv';c.acceptedAt=now;c.expiresAt=now+180000;e.revision++;
+  e.reservations['performance:'+c.id]={payer:c.payer,actor:c.payer,cents:300,credit:true,performance:c.id};c.consent[id]={at:now,source};c.status='reserved';c.seat='benchS';c.place='tv';c.acceptedAt=now;acceptedOrder(st,c,now);c.expiresAt=now+180000;e.revision++;
   danceBubble(st,id,c.from,'yes',now);note(st,c,'performance_agreed','Оба согласились на целое выступление за 3 USD. Зритель ещё должен сесть на лавку.',now);return true;
  }return false;
 }
@@ -121,17 +122,18 @@ export function observePerformances(st,caps,now){let changed=false;for(const c o
  }
  if(settlePerformance(st,c,now)){c.status='paid';c.closedAt=now;if(audienceSeated&&!c.audienceObservationIncomplete){satisfyFlirtPerformance(st,c,now);observePerformanceCompleted(st,c,now);}changed=true;note(st,c,'performance_paid','Выступление исполнено целиком. Зритель оплатил 3 USD героине.',now);}else changed=cancelPerformance(st,c,'reservation_unavailable',now)||changed;
  }return changed;}
-export function tickPerformances(st,now){let changed=false;for(const c of st.economy.performances)if(['offered','reserved'].includes(c.status)&&(c.expiresAt<=now||st.hostessMode==='drinks'))changed=cancelPerformance(st,c,c.expiresAt<=now?'expired':'mode_changed',now)||changed;return changed;}
+export function tickPerformances(st,now){let changed=false;for(const c of st.economy.performances)if(c.status==='offered'&&(c.expiresAt<=now||st.hostessMode==='drinks'))changed=cancelPerformance(st,c,c.expiresAt<=now?'expired':'mode_changed',now)||changed;return changed;}
 
 // Mutual consent authorizes navigation and playback; renderer feedback gates the dance.
 export function advancePerformances(st,now,input,dispatch,prepareMusic=()=>false){
  let changed=false;
  for(const c of st.economy.performances.filter(c=>c.status==='reserved')){
-  if(c.expiresAt<=now)continue;
+  if(!isOrderHead(st,c))continue;
   if(!c.consent?.[c.payer]||!c.consent?.[c.performer])continue;
   if([c.payer,c.performer].some(id=>!st.chars[id]||st.chars[id].sleep||st.chars[id].sleepPending)){
    changed=cancelPerformance(st,c,'participant_sleep',now)||changed;continue;
   }
+  if([c.payer,c.performer].some(id=>st.chars[id].ownerPhoneSession||st.chars[id].pendingOwnerCall||st.chars[id].activity==='phone'))continue;
   const payer=st.chars[c.payer];
  if(c.audienceDispatchedAt!=null&&payer.seq!==c.audienceSeq){changed=cancelPerformance(st,c,'audience_command_changed',now)||changed;continue;}
   if(!fresh(input.capabilities,now)||!input.ready)continue;

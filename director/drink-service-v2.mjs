@@ -1,3 +1,4 @@
+import {acceptedOrder,isOrderHead,orderPosition} from './heroine-order-queue.mjs';
 import {available} from './economy.mjs';
 import {remember} from './economy-events.mjs';
 
@@ -17,7 +18,7 @@ function say(st,s,id,targets,kind,mark,now,input) {
   const p=st.chars[id],to=[...new Set(targets)].filter(k=>k!==id&&st.chars[k]);
   if(!to.length)return;
   p.entry={...(p.entry||{}),talk:{at:now,until:now+10000,to:to[0],targets:to,icon:'whisky',mark,
-    service:{version:2,kind,count:kind==='reply'?1:Object.values(s.guests).filter(g=>!['declined','cancelled'].includes(g.status)).length,
+    service:{version:2,kind,queuePosition:orderPosition(st,s)||null,count:kind==='reply'?1:Object.values(s.guests).filter(g=>!['declined','cancelled'].includes(g.status)).length,
       guestNames:Object.keys(s.guests).map(k=>name(input,k)),ownDrink:s.ownDrink===true,payment:s.payment,payer:s.payment==='treat'?s.initiator:null,speaker:id,payerName:s.payment==='treat'?name(input,s.initiator):null}}};
 }
 export function serviceReplyDue(st,id,now) {
@@ -36,18 +37,18 @@ function subsets(ids) {
   return Array.from({length:(1<<ids.length)-1},(_,n)=>ids.filter((_,i)=>(n+1)&(1<<i))).filter(a=>a.length<=3);
 }
 export function v2ServiceActions(st,id,now,input,seated) {
-  const out=[],e=st.economy,enabled=input.serviceVersion===2&&input.ready;
+  const out=[],e=st.economy,enabled=input.serviceVersion===2&&input.ready,canAgree=input.serviceVersion===2;
   if(!e.config.enabled)return out;
   for(const s of e.services.filter(s=>s.version===2&&live(s))) {
     const g=s.guests[id];
     if(id!=='heroine'&&id!==s.initiator&&!g)continue;
     if(id==='heroine'||id===s.initiator||['pending','deferred','accepted'].includes(g?.status))out.push({id:`money_drinks_cancel@${s.id}`,description:id==='heroine'||id===s.initiator?'Отменить заказ обслуживания. Все неоплаченные резервы освобождаются.':'Отказаться от своего бокала; неоплаченный резерв освобождается у его плательщика.'});
-    if(s.expiresAt<=now)continue;
+    if(s.status==='inviting'&&s.expiresAt<=now)continue;
     if(!s.consent&&id==='heroine') {
       const text=`${name(input,s.initiator)} заказывает обслуживание для ${Object.keys(s.guests).map(k=>name(input,k)).join(', ')}. По 2 USD за бокал: 1.50 USD редакции, 0.50 USD тебе. `;
       out.push({id:`money_drinks_performer@${s.id}:decline`,description:text+'Отклонить заказ.'});
       if(!s.performerDeferred)out.push({id:`money_drinks_performer@${s.id}:defer`,description:text+'Отложить заказ; наливание и оплата не начинаются.'});
-      if(enabled)out.push({id:`money_drinks_performer@${s.id}:accept`,description:text+'Принять заказ; каждый гость самостоятельно согласится и сядет за стол.'});
+      if(canAgree)out.push({id:`money_drinks_performer@${s.id}:accept`,description:text+'Принять заказ; каждый гость самостоятельно согласится и сядет за стол.'});
     }
     if(s.consent&&['pending','deferred'].includes(g?.status)&&s.status==='inviting') {
       const payer=s.payment==='treat'?s.initiator:id;
@@ -55,16 +56,16 @@ export function v2ServiceActions(st,id,now,input,seated) {
       out.push({id:`money_drinks_reply@${s.id}:decline`,description:text+'Отказаться.'});
       if(g.status==='pending')out.push({id:`money_drinks_reply@${s.id}:defer`,description:text+'Ответить «позже», пока действует заказ; наливание ещё не начинается.'});
       const r=e.reservations[key(s,id)];
-      if(input.serviceVersion===2&&input.guestReady?.[id]&&(r||available(st,payer)>=200))for(const seat of input.benches?.[id]||[])
-        out.push({id:`money_drinks_reply@${s.id}:accept:${seat}`,description:text+`Согласиться и сесть на ${seat}. Деньги резервируются до подтверждённой доставки; можно уйти.`});
+      if(canAgree&&(r||available(st,payer)>=200))for(const seat of input.serviceSeats?.[id]||input.benches?.[id]||[])
+        out.push({id:`money_drinks_reply@${s.id}:accept:${seat}`,description:text+`Согласиться на напиток и место ${seat}. Если перед тобой есть принятые заказы, продолжать текущее занятие; подход и посадка начнутся только в свою очередь. Деньги резервируются до подтверждённой доставки; можно уйти.`});
     }
     const accepted=Object.entries(s.guests).filter(([,g])=>g.status==='accepted');
-    if(id==='heroine'&&enabled&&s.status==='reserved'&&input.stationFree&&accepted.length&&accepted.every(([k,g])=>seated(st,k,g,input.capabilities,now))){
+    if(id==='heroine'&&enabled&&isOrderHead(st,s)&&s.status==='reserved'&&input.stationFree&&accepted.length&&accepted.every(([k,g])=>seated(st,k,g,input.capabilities,now))){
       out.push({id:`money_drinks_start@${s.id}:serve_only`,description:'Обслужить согласившихся гостей: налить по бокалу виски, принести напитки и поставить на стол. По 2 USD за доставленный бокал: 1.50 USD редакции, 0.50 USD героине. Доставка не подтверждает питьё.'});
       if(available(st,'heroine')>=200)out.push({id:`money_drinks_start@${s.id}:own`,description:'Обслужить гостей и по собственному желанию выпить свой четвертый бокал за свой счет: резерв 2 USD, 1.50 USD редакции и 0.50 USD комиссии остаются тебе. Если не хочешь пить, выбери обслуживание без своего бокала.'});
     }
   }
-  if(!enabled||st.trayDelivery||e.services.some(live))return out;
+  if(!canAgree||e.services.some(s=>live(s)&&s.initiator===id))return out;
   const colleagues=Object.keys(st.chars).filter(k=>k!=='heroine');
   for(const guests of subsets(colleagues)) {
     if(id==='heroine') {
@@ -73,7 +74,7 @@ export function v2ServiceActions(st,id,now,input,seated) {
         if(payment==='treat'&&available(st,id)<200*guests.length)continue;
         out.push({id:`money_drinks_offer@${guests.join(',')}:${payment}`,description:`Предложить обслуживание ${guests.map(k=>name(input,k)).join(', ')}: ${payment==='treat'?`«я угощаю», ты оплачиваешь ${guests.length*2} USD за всех`:'по бокалу виски за 2 USD, каждый платит за себя'}. По 1.50 USD редакции и 0.50 USD тебе за доставленный бокал; каждый отвечает независимо, оплата после доставки.`});
       }
-    } else if(guests.includes(id)&&input.guestReady?.[id])for(const payment of guests.length===1?['each']:['each','treat']) {
+    } else if(guests.includes(id))for(const payment of guests.length===1?['each']:['each','treat']) {
       const cents=200*(payment==='treat'?guests.length:1);
       if(available(st,id)<cents)continue;
       out.push({id:`money_drinks_order@${guests.join(',')}:${payment}`,description:`Заказать у героини обслуживание для ${guests.map(k=>name(input,k)).join(', ')}: ${payment==='treat'?`ты угощаешь всех за свой счёт, всего ${cents/100} USD`:'каждый платит за себя по 2 USD'}. По 1.50 USD редакции и 0.50 USD героине за бокал. Героиня и коллеги независимо решат, участвовать ли; резерв сейчас, оплата только после доставки.`});
@@ -110,12 +111,15 @@ export function chooseV2Service(st,id,action,now,source,input,dispatch,seated,ca
     // A sponsor's explicit promise remains reserved until rejection or expiry.
     g.status='deferred';note(st,s,'service_guest_deferred:'+id,`${name(input,id)} отложил решение об обслуживании; доставки ещё нет.`,now);
   } else if(answer==='accept') {
-    if(dispatch('rest_lounge@'+seat)===false)return false;
-    const p=st.chars[id];if(p.activity!=='rest_lounge'||p.place!==seat)return false;
     if(!e.reservations[key(s,id)])reserve(st,s,id);
-    Object.assign(g,{status:'accepted',seat,consent:{at:now,source},seq:p.seq,originSeq:p.seq});
+    Object.assign(g,{status:'accepted',seat,consent:{at:now,source},awaitingSeat:true,seq:null,originSeq:null});
+    acceptedOrder(st,s,now);
+    // Mutual consent holds a queue place, not a physical command. Prepare only the head.
+    if(isOrderHead(st,s)&&input.ready&&input.guestReady?.[id]&&input.benches?.[id]?.includes(seat)){
+      if(dispatch('rest_lounge@'+seat)!==false){const p=st.chars[id];if(p.activity==='rest_lounge'&&p.place===seat)Object.assign(g,{awaitingSeat:false,seq:p.seq,originSeq:p.seq});}
+    }
     say(st,s,id,['heroine',s.initiator],'reply','yes',now,input);
-    note(st,s,'service_guest_agreed:'+id,`${name(input,id)} согласился на бокал и идёт садиться. Плательщик: ${name(input,g.payer)}. Доставки и списания ещё нет.`,now);
+    note(st,s,'service_guest_agreed:'+id,`${name(input,id)} согласился на бокал. Заказ в очереди; начало подхода подтверждается отдельной командой. Плательщик: ${name(input,g.payer)}. Доставки и списания ещё нет.`,now);
   } else if(verb==='money_drinks_start') {
     if(dispatch('heroine_serve@bar')===false)return false;
     const p=st.chars.heroine;if(p.activity!=='heroine_serve'||p.place!=='bar')return false;

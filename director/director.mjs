@@ -1,3 +1,4 @@
+import {ensureOrderQueue,orderHead,isOrderHead,orderQueueContext} from './heroine-order-queue.mjs';
 import {ownerReplyOption} from './owner-dialogue-context.mjs';
 import {ownerObligationProjection} from './owner-obligation-context.mjs';
 import {migrateChronicleFile} from './chronicle-privacy.mjs';
@@ -23,7 +24,7 @@ import {FLIRT,flirtGrowth,advanceFlirtNeed,flirtContext,financialFlirtPressure} 
 import {nextReflection,reflectionActions,applyReflection,courtshipStatus,flirtPermitted} from './relationship-development.mjs';
 import {livelihoodContext,explainEarningActions,isEarningStep} from './livelihood.mjs';
 import {usesConsumption,consumptionReady,acceptConsumption,resetConsumption,CONSUMPTION} from './consumption.mjs';
-import {cancelService,clearDeliveredService,serviceCommandChanged,ensureServices,serviceReplyDue,serviceActions,serviceContext,chooseService,observeServices,tickServices} from './drink-service.mjs';
+import {interruptServiceGuest,cancelService,clearDeliveredService,serviceCommandChanged,ensureServices,advanceQueuedServices,serviceReplyDue,serviceActions,serviceContext,chooseService,observeServices,tickServices} from './drink-service.mjs';
 import {advancePerformances,committedPerformance,performancePlaces,ensurePerformances,performanceActions,performanceContext,choosePerformance,startPerformance,observePerformances,tickPerformances,cancelPerformance,performanceReplyDue,consideredPerformanceReply} from './paid-performance.mjs';
 import {expandMealActions,resolveMealAction} from './meal-repertoire.mjs';
 import {HER_SOCIAL_CATALOG} from './heroine-social-catalog.mjs';
@@ -256,7 +257,7 @@ for (const id of IDS) if (!st.chars[id]) {                           // a new pe
 for (const [id, p] of Object.entries(st.chars)) { p.activityUntil ??= p.busyUntil; p.needs ??= {}; initializeSleep(p); if(!p.pendingOwnerCall&&!p.ownerPhoneSession)requireSleep(p,now0); p.lastNeeds=now0; for (const [k, v0] of Object.entries(PEOPLE[id]?.start || {})) p.needs[k] ??= v0; }
 initializeSocial(st);
 const economyConfig=JSON.parse(fs.readFileSync(process.env.ECONOMY_CONFIG_FILE||new URL('./economy-config.json',import.meta.url),'utf8'));
-ensureEconomy(st,economyConfig,now0);ensurePerformances(st);ensureServices(st);ensureSharedDrinks(st);
+ensureEconomy(st,economyConfig,now0);ensurePerformances(st);ensureServices(st);ensureSharedDrinks(st);ensureOrderQueue(st);
 st.lastWire=now0; // Restarted/unwatched wall time is not active simulation time.
 const recoveredRequests=recoverInterruptedRequests(st,now0);
 let teletypeDirty=recoveredRequests||st.fatigueRulesVersion!==2||st.economy.config.enabled&&!st.world?.chars?.columnist?.finances?.enabled;st.fatigueRulesVersion=2;
@@ -627,7 +628,7 @@ const takenBy = (id) => new Set([...sharedDrinkPlaces(st,id),...performancePlace
   ...(st.steps || []).filter((x) => x.id !== id).map((x) => x.place),...Object.entries(st.sleepDeskLeases).filter(([,l])=>l.owner!==id).map(([desk])=>desk),...(st.diningChairLease&&st.diningChairLease.owner!==id?['diningChair']:[])]);   // a place someone was told to go to after an invitation is his   // at the phone: desk A is his too
 function serviceInput(now){
  const a=executionCapabilities?.actors?.heroine,taken=takenBy('heroine');
- return {serviceVersion:a?.serviceVersion,names:Object.fromEntries(Object.entries(PEOPLE).map(([id,p])=>[id,p.name])),guestReady:Object.fromEntries(IDS.map(id=>[id,socialReady(id,now)&&executionCapabilities.at<=now&&!busyWith(st.chars[id])&&!st.chars[id].sleep&&!st.chars[id].sleepPending&&!committedPerformance(st,id)&&arrivedForAbort(st.chars[id],executionCapabilities?.actors?.[id])])),durations:a?.serviceDurations,capabilities:executionCapabilities,stationFree:!taken.has('bar')&&!taken.has('tv5')&&!taken.has('tv2')&&!taken.has('trayTable'),ready:socialReady('heroine',now)&&executionCapabilities.at<=now&&!busyWith(st.chars.heroine)&&!committedPerformance(st,'heroine')&&arrivedForAbort(st.chars.heroine,a)&&a?.serviceReady===true,
+ return {serviceVersion:a?.serviceVersion,names:Object.fromEntries(Object.entries(PEOPLE).map(([id,p])=>[id,p.name])),guestReady:Object.fromEntries(IDS.map(id=>[id,socialReady(id,now)&&executionCapabilities.at<=now&&!busyWith(st.chars[id])&&!st.chars[id].sleep&&!st.chars[id].sleepPending&&!st.chars[id].ownerPhoneSession&&!st.chars[id].pendingOwnerCall&&st.chars[id].activity!=='phone'&&!committedPerformance(st,id)&&arrivedForAbort(st.chars[id],executionCapabilities?.actors?.[id])])),serviceSeats:Object.fromEntries(IDS.map(id=>[id,[({newspaper_editor:'benchN',columnist:'benchM',reporter:'benchS'})[id]].filter(Boolean)])),durations:a?.serviceDurations,capabilities:executionCapabilities,stationFree:!taken.has('bar')&&!taken.has('tv5')&&!taken.has('tv2')&&!taken.has('trayTable'),ready:socialReady('heroine',now)&&executionCapabilities.at<=now&&!st.chars.heroine.ownerPhoneSession&&!st.chars.heroine.pendingOwnerCall&&!busyWith(st.chars.heroine)&&!committedPerformance(st,'heroine')&&arrivedForAbort(st.chars.heroine,a)&&a?.serviceReady===true,
   benches:Object.fromEntries(IDS.map(id=>{
    const busy=[...takenBy(id)],middle=IDS.find(k=>k!==id&&st.chars[k].place==='benchM'),m=middle&&executionCapabilities?.actors?.[middle];
    const middleEntering=middle&&!(socialReady(middle,now)&&m.mode==='seated'&&m.seat==='benchM');
@@ -635,7 +636,7 @@ function serviceInput(now){
   }))};
 }
 function sharedDrinkInput(now){
- const ready=Object.fromEntries(IDS.map(id=>[id,socialReady(id,now)&&executionCapabilities.at<=now&&executionCapabilities.actors[id].moneyWitness===1&&!busyWith(st.chars[id])&&!st.chars[id].sleep&&!st.chars[id].sleepPending&&!committedPerformance(st,id)&&!Object.values(st.sleepDeskLeases).some(l=>l.owner===id)&&!(st.diningChairLease?.owner===id&&st.diningChairLease.phase==='departing')&&arrivedForAbort(st.chars[id],executionCapabilities?.actors?.[id])&&!st.invite]));
+ const ready=Object.fromEntries(IDS.map(id=>[id,socialReady(id,now)&&executionCapabilities.at<=now&&executionCapabilities.actors[id].moneyWitness===1&&!busyWith(st.chars[id])&&!st.chars[id].sleep&&!st.chars[id].sleepPending&&!st.chars[id].ownerPhoneSession&&!st.chars[id].pendingOwnerCall&&st.chars[id].activity!=='phone'&&!committedPerformance(st,id)&&!Object.values(st.sleepDeskLeases).some(l=>l.owner===id)&&!(st.diningChairLease?.owner===id&&st.diningChairLease.phase==='departing')&&arrivedForAbort(st.chars[id],executionCapabilities?.actors?.[id])&&!st.invite]));
  const destinations=Object.fromEntries(IDS.map(id=>{
   const taken=takenBy(id),desks=DESK_IDS.filter(place=>!taken.has(place)),make=(verb,place)=>({place,action:verb+'@'+place,x:PLACES[place].x,z:PLACES[place].z});
   return [id,{coffee:desks.filter(place=>consumptionReady(id,id==='heroine'?'heroine_coffee':'coffee',place,executionCapabilities,now)).map(place=>make(id==='heroine'?'heroine_coffee':'coffee',place)),
@@ -645,13 +646,18 @@ function sharedDrinkInput(now){
 }
 function performanceInput(now){const a=executionCapabilities?.actors?.heroine;
  const contactReady=id=>socialReady(id,now)&&!st.chars[id].sleep&&!st.chars[id].sleepPending&&!busyWith(st.chars[id])&&arrivedForAbort(st.chars[id],executionCapabilities.actors[id])&&!Object.values(st.sleepDeskLeases).some(l=>l.owner===id)&&!(st.diningChairLease?.owner===id&&st.diningChairLease.phase==='departing');
- const contacts=Object.fromEntries(IDS.map(id=>[id,!st.invite&&contactReady(id)?IDS.filter(other=>other!==id&&(id==='heroine'||other==='heroine')&&contactReady(other)):[]]));
- return {contacts,mode:st.hostessMode||'dance',capabilities:executionCapabilities,arrived:Object.fromEntries(IDS.map(id=>[id,socialReady(id,now)&&executionCapabilities.at<=now&&arrivedForAbort(st.chars[id],executionCapabilities.actors[id])])),benches:Object.fromEntries(IDS.map(id=>[id,['benchS'].filter(b=>!takenBy(id).has(b))])),ready:socialReady('heroine',now)&&a?.moneyWitness===1&&executionCapabilities.at<=now,music:musicOn(now),musicMs:musicLeftMs(now),durations:a?.performanceDurations||{},places:['tv','tv3'].filter(p=>!takenBy('heroine').has(p))};}
-function serviceResponseDue(id,now){const p=st.chars[id];return serviceReplyDue(st,id,now)&&p.activity!=='phone'&&!p.ownerPhoneSession&&!p.pendingOwnerCall&&!p.sleep&&!p.sleepPending&&!committedPerformance(st,id);}
+ const contacts=Object.fromEntries(IDS.map(id=>[id,!st.invite&&contactReady(id)?IDS.filter(other=>other!==id&&(id==='heroine'||other==='heroine')&&(other==='heroine'?socialReady(other,now)&&!busyWith(st.chars[other])&&!st.chars[other].pendingOwnerCall:contactReady(other))):[]]));
+ return {plannedPlaces:['tv'],plannedBenches:Object.fromEntries(IDS.map(id=>[id,['benchS']])),contacts,mode:st.hostessMode||'dance',capabilities:executionCapabilities,arrived:Object.fromEntries(IDS.map(id=>[id,socialReady(id,now)&&!st.chars[id].ownerPhoneSession&&!st.chars[id].pendingOwnerCall&&st.chars[id].activity!=='phone'&&executionCapabilities.at<=now&&arrivedForAbort(st.chars[id],executionCapabilities.actors[id])])),benches:Object.fromEntries(IDS.map(id=>[id,['benchS'].filter(b=>!takenBy(id).has(b))])),ready:socialReady('heroine',now)&&a?.moneyWitness===1&&executionCapabilities.at<=now&&!busyWith(st.chars.heroine)&&!st.chars.heroine.ownerPhoneSession&&!st.chars.heroine.pendingOwnerCall,music:musicOn(now),musicMs:musicLeftMs(now),durations:a?.performanceDurations||{},places:['tv','tv3'].filter(p=>!takenBy('heroine').has(p))};}
+function serviceResponseDue(id,now){const p=st.chars[id];return serviceReplyDue(st,id,now)&&p.activity!=='phone'&&!p.ownerPhoneSession&&!p.pendingOwnerCall&&!p.sleep&&!p.sleepPending;}
+const queueEconomic=a=>/^money_(drinks_(offer|order|reply|performer|cancel)|performance_(offer|reply|cancel))@/.test(a.id);
+function queueChoices(id,now){return [...serviceActions(st,id,now,serviceInput(now)),...performanceActions(st,id,pairOf(st,id),now,performanceInput(now))].filter(queueEconomic);}
+function queuedServiceTurn(id,now){const p=st.chars[id],h=orderHead(st);return id==='heroine'&&h?.type==='service'&&h.contract.status==='reserved'&&!p.sleep&&!p.sleepPending&&p.activity!=='phone'&&!p.ownerPhoneSession&&!p.pendingOwnerCall&&now-(h.contract.lastQueueDecisionAt||0)>=15000&&serviceActions(st,id,now,serviceInput(now)).some(a=>a.id.startsWith('money_drinks_start@'));}
 function actions(id) { return [...physicalActions(id),...(id==='heroine'?wardrobeActions(st.chars[id],{ready:wardrobeReady&&socialReady(id,Date.now()),awake:!st.chars[id].sleep&&!st.chars[id].sleepPending}):[])]; }
 function physicalActions(id) {
   const p = st.chars[id], here = p.place, P = PLACES[here], out = [], taken = takenBy(id), home = PEOPLE[id].home;
-  if(serviceResponseDue(id,Date.now()))return serviceActions(st,id,Date.now(),serviceInput(Date.now())).filter(a=>a.id.startsWith('money_drinks_reply@')||a.id.startsWith('money_drinks_performer@'));
+  if(serviceResponseDue(id,Date.now()))return [...serviceActions(st,id,Date.now(),serviceInput(Date.now())).filter(a=>a.id.startsWith('money_drinks_reply@')||a.id.startsWith('money_drinks_performer@')),...queueChoices(id,Date.now()).filter(a=>a.id.startsWith('money_performance_reply@'))];
+  const headOrder=orderHead(st),preparedGuest=headOrder?.type==='service'&&headOrder.contract.guests[id]?.status==='accepted'&&!headOrder.contract.guests[id].awaitingSeat;
+  if(!p.sleep&&!p.sleepPending&&(id==='heroine'&&headOrder?.type==='service'||preparedGuest))return [...(id==='heroine'&&headOrder.contract.status==='running'?[]:[{id:'continue',description:'Ожидать исполнения первого принятого заказа; очередь сохраняется. Можно независимо отменить заказ.'}]),...serviceActions(st,id,Date.now(),serviceInput(Date.now())),...queueChoices(id,Date.now())].filter((a,i,list)=>list.findIndex(x=>x.id===a.id)===i);
   if(performanceReplyDue(st,id,Date.now())&&p.busyUntil>Date.now()&&(p.activity!=='conversation'||pairOf(st,id)?.phase!=='active'))return [{id:'continue',description:'Продолжить уже выполняемое занятие; предложение выступления остаётся без ответа.'},...performanceActions(st,id,pairOf(st,id),Date.now(),performanceInput(Date.now())).filter(a=>a.id.startsWith('money_performance_reply@')||a.id.startsWith('money_performance_cancel@'))];
   if(Object.values(st.sleepDeskLeases).some(l=>l.owner===id))return [{id:'continue',description:'Завершить освобождение места для сна: оно удерживается до фактического выхода.'}];
   if(st.diningChairLease?.owner===id&&st.diningChairLease.phase==='departing')return [{id:'continue',description:'Продолжить выход со стула; место удерживается до фактического освобождения.'}];
@@ -661,6 +667,7 @@ function physicalActions(id) {
   if(p.sleepPending)return [{id:'continue',description:'При усталости 95 назначен обязательный сон. Исполнитель завершает безопасный выход и ждёт совместимого свободного места для сна.'}];
   if(id==='heroine'&&p.activity==='heroine_serve')return serviceActions(st,id,Date.now(),serviceInput(Date.now())).filter(a=>a.id.startsWith('money_drinks_cancel@'));
   const performance=committedPerformance(st,id);if(performance)return [
+    ...queueChoices(id,Date.now()),
     {id:'continue',description:performance.status==='running'&&performance.payer===id?'Досмотреть согласованное выступление с лавки до подтверждённого завершения всей программы; затем снова выбрать занятие.':'Продолжить согласованное выступление: исполнитель автоматически организует посадку зрителя и танец; повторного согласия не требуется.'},
     ...(performance.status!=='running'||performance.performer===id?[{id:`money_performance_cancel@${performance.id}`,description:'Отменить согласованное выступление без оплаты.'}]:[])];
   loadRegistry();                                                   // picks up registry edits without a restart
@@ -920,6 +927,7 @@ function releaseSleepDesks(now){
 function cancelSleepCommitments(id,now){
  const p=st.chars[id];let changed=false;
  for(const c of st.economy.performances)if(c.performer===id||c.payer===id&&c.status!=='running')changed=cancelPerformance(st,c,'fatigue_sleep',now)||changed;
+ for(const s of st.economy.services)if(['inviting','reserved','running'].includes(s.status))changed=(id==='heroine'?cancelService(st,s,'fatigue_sleep',now):interruptServiceGuest(st,s,id,'fatigue_sleep',now))||changed;
  const v=st.invite;
  if(v&&(v.from===id||v.to===id)){
   st.invite=null;
@@ -995,6 +1003,7 @@ function interruptForOwnerPhone(id,now){
   if(performance.performer===id||performance.status==='reserved')cancelPerformance(st,performance,'owner_call',now);
   else {performance.audienceLeftAt=now;performance.audienceLeftReason='owner_call';st.economy.revision++;}
  }
+ for(const c of st.economy.performances)if(c.status==='reserved'&&(c.performer===id||c.payer===id))cancelPerformance(st,c,'owner_call',now);
  if(id==='heroine')for(const s of st.economy.services)if(['inviting','reserved','running'].includes(s.status))cancelService(st,s,'owner_call',now);
  if(p.sleep){const s=p.sleep;p.memory.push({event:'sleep_finished',kind:s.kind,place:p.place,startedAt:s.startedAt,endedAt:now,participatingSeconds:s.confirmedMs/1000,fatigueBefore:s.fatigueBefore,fatigueAfter:p.fatigue,drunkBefore:s.drunkBefore,drunkAfter:p.needs?.drunk??0,reason:'owner_call',source:'owner_call'});p.memory=p.memory.slice(-12);}
  delete p.sleep;delete p.sleepPending;
@@ -1021,7 +1030,7 @@ function applyDecision(id, action, source, confidence, expected=null, performanc
   if(action==='continue'&&sharedDrinkFor(st,id)){consideredSharedDrink(st,id);p.busyUntil=Math.max(p.busyUntil,now+30000/FAST);persist();return true;}
   if(action==='continue'&&performanceReplyDue(st,id,now)&&p.busyUntil>now){persist();return true;} // Considering a quote must not replay an in-flight command.
   if(action==='continue'&&committedPerformance(st,id)){p.busyUntil=Math.max(p.busyUntil,now+15000);persist();return true;}
-  if(!ownerPhone&&!performanceDispatch&&!systemSleepDispatch&&committedPerformance(st,id)&&!action.startsWith('money_performance_cancel@'))return false;
+  if(!ownerPhone&&!performanceDispatch&&!systemSleepDispatch&&committedPerformance(st,id)&&!queueEconomic({id:action}))return false;
   const forcedSleep=systemSleepDispatch&&verb==='sleep_desk'&&!!p.sleepPending;
   const sleepWait=systemSleepDispatch&&verb==='wait'&&PLACES[variant]&&['fatigue_wait','fatigue_yield','fatigue_interrupt'].includes(source);
   if(p.sleepPending&&!forcedSleep&&!sleepWait)return false;
@@ -1404,6 +1413,7 @@ async function pollParticipation(now,status,performanceOnly=false) {
     const before=JSON.stringify(st.social);for(const report of r.items||[]){executionSeq=Math.max(executionSeq,report.seq);for(const id of Object.keys(report.actors||{}))if(st.chars[id])updatePersonNeeds(id,now);applyParticipation(st,report,now,FAST);}
     for(const [id,p]of Object.entries(st.chars)){const was=p.sleep;if(was&&executionCapabilities&&now-executionCapabilities.at<3500&&acceptSleepSample(p,executionCapabilities.actors?.[id],now,FAST,executionCapabilities.at)){gateChanged=true;if(!p.sleep){p.activity=PLACES[p.place].kind==='chair'?'rest_lounge':'rest_desk';p.since=now;p.busyUntil=now;p.arriveAt=now;delete p.executionGate;p.seq++;p.entry={from:target(p.place),cmd:null,at:now,label:(id==='heroine'?'проснулась ':'проснулся ')+sleepPlaceText(p.place),activity:p.activity,source:'sleep_executor',fatigue:p.fatigue};}}}
     gateChanged=mandatorySleep(now)||gateChanged;
+    gateChanged=advanceQueuedServices(st,now,serviceInput(now),(id,a)=>applyDecision(id,a,'service_executor',null,null,false,false,true))||gateChanged;
     gateChanged=advancePerformances(st,now,performanceInput(now),(id,a)=>applyDecision(id,a,'performance_executor',null,null,true),ms=>ensureDanceMusic(Date.now(),ms))||gateChanged;
     for(const [id,command]of traceCommands){
       const actor=executionCapabilities?.actors?.[id];
@@ -1466,7 +1476,7 @@ async function tick() {
     if (st.invite && (now - st.invite.answerAt > INV_PATIENCE || now - st.invite.at > 60000)) { closeInvite(st.invite, 'no_answer', now); await relay('/director/world', st.world); }   // never stuck
     // one decision per tick, the people in turn; they may walk at the same time — the page walks them together (crowd, keep right; owner 30.09)
     const ids = Object.keys(st.chars).filter((k) => PEOPLE[k] && !(st.invite && (k === st.invite.from || k === st.invite.to)) && !st.steps.some((x) => x.id === k));
-    let id = null, nextTurn = turn; for (let k = 0; k < ids.length; k++) { const c = ids[(turn + k) % ids.length]; if (requestAllowed(st,c,'physical',now)&&ownerPhoneExitReady(c,now)&&!st.chars[c].sleep&&!st.chars[c].sleepPending&&!Object.values(st.sleepDeskLeases).some(l=>l.owner===c)&&!(st.diningChairLease?.owner===c&&st.diningChairLease.phase==='departing')&&(now >= st.chars[c].busyUntil||performanceReplyDue(st,c,now)||sharedDrinkReplyDue(st,c,now)||serviceResponseDue(c,now))) { id = c; nextTurn = (turn + k + 1) % ids.length; break; } }
+    let id = null, nextTurn = turn; for (let k = 0; k < ids.length; k++) { const c = ids[(turn + k) % ids.length]; if (requestAllowed(st,c,'physical',now)&&ownerPhoneExitReady(c,now)&&!st.chars[c].sleep&&!st.chars[c].sleepPending&&!Object.values(st.sleepDeskLeases).some(l=>l.owner===c)&&!(st.diningChairLease?.owner===c&&st.diningChairLease.phase==='departing')&&(now >= st.chars[c].busyUntil||performanceReplyDue(st,c,now)||sharedDrinkReplyDue(st,c,now)||serviceResponseDue(c,now)||queuedServiceTurn(c,now))) { id = c; nextTurn = (turn + k + 1) % ids.length; break; } }
     if((!id||!st.reflection?.yieldPhysical)&&await reflectRelationships(now)){st.reflection.yieldPhysical=true;save();await relay('/director/world',st.world);return;}
     if (!id) return;
     turn=nextTurn;
@@ -1486,6 +1496,7 @@ async function tick() {
     consideredSharedDrink(st,id);
     const applied=applyDecision(id, d.action, source, d.confidence ?? null, expectedDecision);
     if(['jev','qwen'].includes(source)&&applied!==false&&st.seq!==beforeSeq&&recordOwnerRequestChoice(st,id,d.action,Date.now())){st.world=composeWorld(Date.now());if(!save(true)){dialogueSavePending=true;return;}}
+    if(id==='heroine'&&applied!==false&&['jev','qwen','venice','deepseek_v4_flash'].includes(source)){const h=orderHead(st);if(h?.type==='service'&&h.contract.status==='reserved'){h.contract.lastQueueDecisionAt=Date.now();save();}}
     const effectiveExpected=d.action.startsWith('money_')&&!d.action.startsWith('money_performance_reply@')?expectedDecision:{...expectedDecision,economyRevision:beforeApply.economyRevision};
     const stale=applied===false&&JSON.stringify(effectiveExpected)!==JSON.stringify(beforeApply);
     trace(diagnosticId,'application',{actorId:id,action:d.action,source,confidence:d.confidence??null,

@@ -167,7 +167,7 @@ export function createTalk({ scene, addDynamic, chars, people, now, show = () =>
     const T = now();
     for (const [id, p] of Object.entries(people())) {
       const t = talkOf(id), s = bubbleOf(id), ed = p.ed;
-      const u = t ? (T - t.at) / 1000 : -1, duration=t?.service?.version===2&&Number.isFinite(t.until)?Math.max(SHOW,Math.min(15,(t.until-t.at)/1000)):SHOW;
+      const u = t ? (T - t.at) / 1000 : -1, duration=(t?.service?.version===2||t?.orderQueue)&&Number.isFinite(t.until)?Math.max(SHOW,Math.min(15,(t.until-t.at)/1000)):SHOW;
       if (!t || !ed || u < 0 || u > duration || !show()) { s.visible = false; continue; }   // the menu can switch the bubbles off (the heads still answer)
       const h = headPos(ed); if (!h) { s.visible = false; continue; }
       const map=texture(t);s.material.map !== map && (s.material.map = map, s.material.needsUpdate = true);

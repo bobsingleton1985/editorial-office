@@ -1,0 +1,7 @@
+# Heroine order queue — 2026-10-07
+
+Mutually agreed drink service and paid dance orders share a durable FIFO queue. First mutual agreement reserves the position; later guests do not move it. Running work finishes before later work. No second money/status store: ordering is projected from canonical contracts with acceptedOrderAt/acceptedOrderSeq. Unanswered offers retain deadlines; agreed waiting work does not expire after three minutes. Cancellation and phone/sleep interruptions remain available; a departing guest releases only their own unpaid share.
+
+Only the head prepares physical movement, with fresh witnessed arrival, free assigned seats and passage checks. Waiting guests continue current activities. Preparation dispatches one guest per poll so subsequent passage occupancy is recalculated. No promotion without visible viewers. Queue numbers appear in agreement bubbles for ten seconds. Payment still requires witnessed delivery/completed work, exactly once. Existing animation v46, runtime, money, memory, models, rules pin and private phone archive are preserved.
+
+Verification: 51 targeted synthetic checks of queue, payment, mechanics and performance witnesses; real browser canvas on production helper; independent review. Synthetic choices establish mechanics, not reliability of natural live model behavior. Preserved broader legacy test diagnostics contain outdated expectations/extraction and are not passing gates.
