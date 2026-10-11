@@ -47,12 +47,15 @@ import {dirname} from 'node:path';
 import { SOCIAL, initializeSocial, pairOf, beginConversation, publicConversation, finishConversation, applyParticipation, pauseParticipation, expireParticipation } from './social-core.mjs';
 import { DESKS, DINING_CHAIR, BENCH, SPOTS, CHAIR_REST, CHAIR_TUCKED } from './layout-v79.mjs';
 
-const HERE = new URL('..', import.meta.url).pathname;                 // editorial-live/: .director-token and relay-url.txt live here
+const HERE = decodeURIComponent(new URL('..', import.meta.url).pathname);                 // editorial-live/: .director-token and relay-url.txt live here
 const fromFile = (f) => { try { return fs.readFileSync(HERE + f, 'utf8').trim(); } catch { return ''; } };
 const RELAY = (process.env.RELAY_URL || fromFile('relay-url.txt') || 'http://127.0.0.1:8790').replace(/\/$/, '');
 const TOKEN = process.env.DIRECTOR_TOKEN || fromFile('.director-token');
 const JEV = (process.env.JEV_URL || 'http://127.0.0.1:8765').replace(/\/$/, '');
-const STATE = process.env.STATE_FILE || new URL('./director-state.json', import.meta.url).pathname;
+// A peer that stops answering without closing the socket used to hold the tick (busy) for ~5 minutes.
+const JEV_TIMEOUT_MS = +(process.env.JEV_TIMEOUT_MS || 120000);
+const within = (ms) => globalThis.AbortSignal?.timeout?.(ms);
+const STATE = process.env.STATE_FILE || decodeURIComponent(new URL('./director-state.json', import.meta.url).pathname);
 const DAILY = +(process.env.DAILY_LIMIT || 10000);          // Jev decisions per day at most (all people together); beyond that a simple rule decides
 const FAST = +(process.env.FAST || 1);                     // test speed-up of dwell times (1 = real)
 const CLIENT = 'editorial-director-01';
@@ -302,12 +305,14 @@ function startCall(now, text = null, recipient = null, callId = null, command = 
   save();return true;
 }
 // the owner's message is a fact of the whole newsroom for half an hour (emergence decisions 28.09 §8): everybody's snapshot has it
+const ownNudgeTarget=id=>typeof id==='string'&&Object.hasOwn(PEOPLE,id)&&Object.hasOwn(st.chars,id);
 const ownerNote = (now) => (st.ownerMsg && st.ownerMsg.confidential===false && now - st.ownerMsg.at < 30 * 60000 ? { owner_message: `В ${st.ownerMsg.time} звонил владелец газеты, трубку взял ${st.ownerMsg.by}. Владелец сказал: «${st.ownerMsg.text}»` } : {});
 const CALLS = HERE + 'calls/';                                       // the owner's calls: ring.sh (Archie) drops {text} files here, one call per file
+const unreadableCalls=new Map();                                    // file → last failure (ms): retried after a minute, never blocks newer calls
 function ownerCalls(now) {
-  let f; try { f = fs.readdirSync(CALLS).filter((n) => n.endsWith('.json')).sort()[0]; } catch { return; }
+  let f; try { f = fs.readdirSync(CALLS).filter((n) => n.endsWith('.json')&&!(now-(unreadableCalls.get(n)||-Infinity)<60000)).sort()[0]; } catch { return; }
   if (!f) return;
-  let decoded;try{decoded=privateParse(fs.readFileSync(CALLS+f,'utf8'));}catch{log('phone: encrypted queue unavailable; retained for retry');return;}
+  let decoded;try{decoded=privateParse(fs.readFileSync(CALLS+f,'utf8'));unreadableCalls.delete(f);}catch{if(!unreadableCalls.has(f))log('phone: encrypted queue unavailable; retained for retry');unreadableCalls.set(f,now);return;}
   let call;try{call=parseOwnerCall(decoded);}catch{log('phone: rejected invalid call');}
   if(Object.values(st.chars).some(p=>p.pendingOwnerCall?.queueFile===f))return;
   if (call && !startCall(now, call.text, call.target, f.replace(/\.json$/, ''),call.command??null,call.instructionEligible!==false,call.confidential!==false)) return;       // wait for the phone and the selected recipient
@@ -548,7 +553,9 @@ async function deliverChronicle(){
 }
 const save = (durable=false) => { captureChronicle();try {
   fs.writeFileSync(STATE + '.tmp', privateStringify(st),{mode:0o600});
-  if(durable){const fd=fs.openSync(STATE+'.tmp','r');try{fs.fsyncSync(fd);}finally{fs.closeSync(fd);}}
+  // Always flush before the rename: an unflushed rename can survive a crash as an empty file,
+  // and the director then refuses to start (private_state_unreadable).
+  {const fd=fs.openSync(STATE+'.tmp','r');try{fs.fsyncSync(fd);}finally{fs.closeSync(fd);}}
   fs.renameSync(STATE + '.tmp', STATE);
   if(durable){const fd=fs.openSync(dirname(STATE),'r');try{fs.fsyncSync(fd);}finally{fs.closeSync(fd);}}
   return true;
@@ -720,7 +727,7 @@ function deferredInvite(id, now) {
 let rules = st.characterRulesPin || null;
 async function characterRules() {
   if (rules) return rules;
-  try { const r = await fetch(JEV + '/api/character-rules'); if (r.ok) { const j = await r.json(); if (typeof j.version === 'string' && j.version && typeof j.text === 'string' && j.text) { rules = { version: j.version, text: j.text }; st.characterRulesPin = structuredClone(rules); } } } catch { /* optional */ }
+  try { const r = await fetch(JEV + '/api/character-rules',{signal:within(10000)}); if (r.ok) { const j = await r.json(); if (typeof j.version === 'string' && j.version && typeof j.text === 'string' && j.text) { rules = { version: j.version, text: j.text }; st.characterRulesPin = structuredClone(rules); } } } catch { /* optional */ }
   return rules;
 }
 async function pinCharacterRules(startedSession) {
@@ -770,7 +777,7 @@ async function snapshot(id, avail) {
 // ---------- Jev through the local pilot server (the key stays in the server; we never see it)
 let sid = null;
 async function jevPost(path, body) {
-  const r = await fetch(JEV + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const r = await fetch(JEV + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: within(JEV_TIMEOUT_MS) });
   const j = await r.json().catch(() => ({})); if (!r.ok) { const e = new Error(j.error || 'http_' + r.status); e.status = r.status; throw e; } return j;
 }
 async function session(action) { return jevPost('/api/behavior-session', { action, session_id: sid, client_id: CLIENT }); }
@@ -851,7 +858,7 @@ async function askJev(id, avail, reflection = null, diagnosticId=newTraceId(), o
         // verified server measure its final compact body before any model call.
         let status=null;
         try {
-          const response=await fetch(JEV+'/api/status');
+          const response=await fetch(JEV+'/api/status',{signal:within(10000)});
           if(response.ok)status=await response.json();
         } catch { /* No verified final guard: retain the original context block. */ }
         projected=fitRelationshipRequest(context,65000,status);
@@ -1158,9 +1165,10 @@ async function pollNudges(now, status) {
       if(ok){st.seq++;moved.add('heroine');}continue;
     }
     if(n.kind==='model_retry'){if(retryModelRequest(st,n.person,n.requestKind,n.requestId,now))moved.add(n.person);continue;}
-    const p = st.chars[n.person]; if (!p || !PEOPLE[n.person] || typeof n.value !== 'number') continue;
+    if (!ownNudgeTarget(n.person) || typeof n.value !== 'number') continue;   // own keys only: 'constructor' used to reach Object
+    const p = st.chars[n.person];
     const v = Math.max(0, Math.min(100, n.value));
-    if (n.need === 'fatigue') {p.fatigue=v;requireSleep(p,now);} else if (n.need in PEOPLE[n.person].grow) p.needs[n.need] = v; else continue;
+    if (n.need === 'fatigue') {p.fatigue=v;requireSleep(p,now);} else if (Object.hasOwn(PEOPLE[n.person].grow, n.need)) p.needs[n.need] = v; else continue;
     p.busyUntil = Math.min(p.busyUntil, Math.max(now, (p.arriveAt || 0) + 500, (p.since || 0) + 8000));
     log(`nudge: ${PEOPLE[n.person].name} · ${n.need} → ${v}`); moved.add(n.person);
   }
@@ -1188,6 +1196,9 @@ async function pollOwnerDialogue(now){
  }
  if(changed)await relay('/director/world',st.world);
 }
+// The owner can hang up while a model request is in flight; a cancelled or closed turn must not
+// gain money, a task or a request afterwards.
+const ownerTurnEnded=turn=>turn.status==='cancelled'||turn.status==='closed';
 async function interpretOwnerTurn(id,turn,now){
  if(turn.command||turn.intentResolved)return true;
  if(turn.instructionEligible===false){turn.intent={kind:'chat',explanation:'Пересланный/цитируемый материал не является распоряжением владельца.'};turn.intentResolved=true;return true;}
@@ -1195,6 +1206,7 @@ async function interpretOwnerTurn(id,turn,now){
  if(!turn.intent){
   const context=ownerIntentContext(p,turn,roster,now,id),traceId=newTraceId();
   const d=await askJev(id,ownerIntentActions(context),null,traceId,null,context,turn);st.jevToday++;
+  if(ownerTurnEnded(turn))return false;
   turn.intent=parseOwnerIntent(d,context);
   if(privateTurn(turn)&&['action','task'].includes(turn.intent.kind)&&turn.intent.target!==id)turn.intent={kind:'clarify',question:'Чтобы сохранить содержание в тайне, позвоните нужному персонажу напрямую или повторите поручение в открытом режиме.',explanation:'Private instructions are not forwarded to a different character.'};
   trace(traceId,'owner_intent_interpreted',{actorId:id,dialogueId:turn.id,intent:turn.intent});
@@ -1205,6 +1217,7 @@ async function interpretOwnerTurn(id,turn,now){
   if(st.jevToday>=DAILY)throw Error('daily_limit');
   const options=actions(intent.target),traceId=newTraceId();
   const d=await askJev(intent.target,[...options,ownerActionRefusal],null,traceId,null,ownerActionContext(turn,intent),turn);st.jevToday++;
+  if(ownerTurnEnded(turn))return false;
   intent.resolved=true;intent.actionRequestId=d.requestId;intent.actionTraceId=traceId;intent.actorSeq=st.chars[intent.target].seq;intent.disposition=d.action===ownerActionRefusal.id?'refused':'requested';intent.choiceReason=d.reason;
   if(intent.disposition==='requested')intent.command={type:'request',action:d.action};
   trace(traceId,'owner_action_resolved',{actorId:intent.target,dialogueId:turn.id,intent});
@@ -1260,6 +1273,7 @@ async function respondOwnerDialogue(now,phoneOnly=false){
   const context=dialogueContext(p,turn);
   const d=await askJev(id,[ownerReplyOption(context)],null,traceId,context,null,turn);
   st.jevToday++;
+  if(ownerTurnEnded(turn))return true;
   const ok=answerDialogue(p,turn.id,d,Date.now());turn.replyActorSeq=p.seq;
   if(!ok)throw Error('invalid_dialogue_reply');
   if(turn.source==='phone'&&p.ownerPhoneSession)p.busyUntil=p.activityUntil=p.ownerPhoneSession.until=Date.now()+OWNER_PHONE_IDLE_MS;
@@ -1273,7 +1287,7 @@ let worldSend=Promise.resolve();
 async function relay(path, body) {
   if(path==='/director/world'&&dialogueSavePending)return {ok:false,deferred:'dialogue_reply_not_saved'};
   const payload=body?JSON.stringify(path==='/director/world'?projectWorld(body):body):undefined;
-  const request=async()=>{const r=await fetch(RELAY+path,{method:body?'POST':'GET',headers:{Authorization:'Bearer '+TOKEN,...(body?{'Content-Type':'application/json'}:{})},body:payload});
+  const request=async()=>{const r=await fetch(RELAY+path,{method:body?'POST':'GET',headers:{Authorization:'Bearer '+TOKEN,...(body?{'Content-Type':'application/json'}:{})},body:payload,signal:within(20000)});
     const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'relay_http_'+r.status);return j;};
   if(path==='/director/world'){worldSend=worldSend.catch(()=>{}).then(request);return worldSend;}
   return request();
@@ -1383,6 +1397,10 @@ function rebindExecutionGate(p,now){
  return true;
 }
 const traceCommands=new Map();
+// These loops run every second; a silent catch hid programming errors while characters stood still.
+// Log each distinct failure at most once a minute.
+const participationErrors=new Map();
+function participationFailed(where,e){const key=where+':'+(e?.message||e),now=Date.now();if(now-(participationErrors.get(key)||0)<60000)return;participationErrors.set(key,now);log('execution feedback ('+where+') failed:',e?.stack?.split('\n').slice(0,2).join(' ')||e?.message||e);}
 async function pollParticipation(now,status,performanceOnly=false) {
   if(!status.execution){resetConsumption(st);resetWorkWitness(st);executionCapabilities=null;teletypeDirty=true;return;}
   if(['dance','drinks'].includes(status.hostessMode)&&st.hostessMode!==status.hostessMode){st.hostessMode=status.hostessMode;st.seq++;teletypeDirty=true;}
@@ -1424,7 +1442,7 @@ async function pollParticipation(now,status,performanceOnly=false) {
     }
     expireParticipation(st,now);
     if(gateChanged||before!==JSON.stringify(st.social)){st.seq++;st.world=composeWorld(now);save();await relay('/director/world',st.world);}
-  }catch{resetConsumption(st);executionCapabilities=null;teletypeDirty=true;}
+  }catch(e){participationFailed('poll',e);resetConsumption(st);executionCapabilities=null;teletypeDirty=true;}
 }
 
 let collecting=false;
@@ -1432,7 +1450,7 @@ async function collectParticipation(status=null) {
   if(dialogueSavePending)return;
   if(collecting)return;collecting=true;
   try {status??=await relay('/director/status');if(!status.viewers){resetConsumption(st);resetWorkWitness(st);pauseParticipation(st,Date.now());if(st.economy.performances.some(c=>c.status==='running'))await pollParticipation(Date.now(),status,true);return;}await pollParticipation(Date.now(),status);}
-  catch {resetConsumption(st);executionCapabilities=null;}finally{collecting=false;}
+  catch(e){participationFailed('collect',e);resetConsumption(st);executionCapabilities=null;}finally{collecting=false;}
 }
 let busy = false, lastViewers = -1, warned = {}, turn = 0;
 async function tick() {

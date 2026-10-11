@@ -9,5 +9,5 @@ while(['--to','--id','--command','--untrusted'].includes(args[0])){
 if(args[0]==='--')args.shift();
 try {
   const value={text:args.join(' '),...(target!==undefined?{target}:{}),...(command?{command}:{}),...(instructionEligible===false?{instructionEligible:false}:{})};
-  console.log(JSON.stringify(enqueueOwnerCall(new URL('./calls/',import.meta.url).pathname,value,commandId)));
+  console.log(JSON.stringify(enqueueOwnerCall(decodeURIComponent(new URL('./calls/',import.meta.url).pathname),value,commandId)));
 } catch(error) {console.error(error.message);process.exitCode=1;}
