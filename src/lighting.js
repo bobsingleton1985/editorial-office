@@ -115,12 +115,13 @@ export function createLighting(sc, r) {
     needs = true;
   }
 
-  // TV spill follows the screen flicker; shadows at ~5 Hz, every frame while someone moves.
+  // TV spill follows the screen flicker; shadows at ~5 Hz, ~30 Hz while someone moves.
   // frozen (cached room on weak devices): shadows are drawn only when the lights or the blinds change, together with the room picture
   function update(dt, moving, frozen) {
     if (tvMat) tv.intensity = TV_I * tvMat.emissiveIntensity;
     tAcc += dt;
-    if (needs || (!frozen && (moving || tAcc > 0.2))) { r.shadowMap.needsUpdate = true; tAcc = 0; needs = false; }
+    // While someone moves, ~30 Hz is enough for the lamp shadows (every pass redraws the whole room once per light).
+    if (needs || (!frozen && (moving ? tAcc >= 1 / 30 : tAcc > 0.2))) { r.shadowMap.needsUpdate = true; tAcc = 0; needs = false; }
   }
   return { attach, apply, update, touch: () => { needs = true; }, sun };
 }
