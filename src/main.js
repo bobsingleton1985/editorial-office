@@ -122,6 +122,8 @@ const outside = () => (FORCE ? { sky: FORCE } : wx ? { sky: wx.sky, fall: wx.fal
 let ownerToken = null;                                     // later, when testing ends: only the owner (opened the site with #owner=…) may change it
 try { const m = location.hash.match(/owner=([\w-]{24,})/); if (m) { ownerToken = m[1]; history.replaceState(null, '', location.pathname + location.search); localStorage.setItem('editorial.owner', m[1]); }
   ownerToken = ownerToken || localStorage.getItem('editorial.owner'); } catch (e) { /* private mode: key lives until the tab closes */ }
+// ?relay= is part of a shareable link: never send the owner key to a relay other than ours or this page's own origin.
+if (RELAY !== RELAY_URL && RELAY !== '/') ownerToken = null;
 function applyWeather(w) {
   if (w) wx = w;
   const o = outside();
@@ -260,14 +262,15 @@ async function fetchGLB(url) {
     if (performance.now() - last > 12000)
       status.textContent = `Загрузка остановилась на ${Math.round(got / 1024)} КБ. Похоже, сеть обрывает соединение.`;
   }, 2000);
-  for (;;) {
-    const { done, value } = await rd.read(); if (done) break;
-    chunks.push(value); got += value.length; last = performance.now();
-    const s = (last - T0) / 1000;
-    status.textContent = `Загрузка офиса: ${mb(got)} из ${mb(total)} МБ · ${mb(got / s)} МБ/с`;
-    bar.style.width = Math.min(100, 100 * got / total).toFixed(1) + '%';
-  }
-  clearInterval(dog);
+  try {                                                  // stop the watchdog on failure too, or it overwrites the error message
+    for (;;) {
+      const { done, value } = await rd.read(); if (done) break;
+      chunks.push(value); got += value.length; last = performance.now();
+      const s = (last - T0) / 1000;
+      status.textContent = `Загрузка офиса: ${mb(got)} из ${mb(total)} МБ · ${mb(got / s)} МБ/с`;
+      bar.style.width = Math.min(100, 100 * got / total).toFixed(1) + '%';
+    }
+  } finally { clearInterval(dog); }
   const buf = new Uint8Array(got); let o = 0; for (const c of chunks) { buf.set(c, o); o += c.length; }
   return { buffer: buf.buffer, got };
 }
@@ -395,20 +398,25 @@ async function loadPerson(id, e) {
   try {
     let ed;
     if(id==='heroine') {
+      // Start every heroine add-on download together with the body instead of one after another;
+      // a failure still surfaces at its await below (the no-op catch only silences the early rejection).
+      const drinkBase=CHAR_BASE+'assets/heroine-consumption-20261004-v01/';const trayBase=CHAR_BASE+'assets/tray-service-v01/';const phoneBase=CHAR_BASE+'assets/heroine-phone-20261004-v01/';
+      const drinkP=Promise.all([get(drinkBase+'coffee.glb').then(b=>ld().parseAsync(b,'')),get(drinkBase+'coffee.json').then(b=>JSON.parse(new TextDecoder().decode(b))),get(drinkBase+'bar.glb').then(b=>ld().parseAsync(b,'')),get(drinkBase+'bar.json').then(b=>JSON.parse(new TextDecoder().decode(b))),get(CHAR_BASE+'assets/editor2A-coffee-web-v01.glb').then(b=>ld().parseAsync(b,''))]);drinkP.catch(()=>{});
+      const trayP=Promise.all(['pick.glb','put.glb','props-pick.glb','props-put.glb'].map(n=>get(trayBase+n).then(b=>ld().parseAsync(b,''))));trayP.catch(()=>{});
+      const smokeP=Promise.all([get(CHAR_BASE+'assets/heroine-smoking-20261004-v01/heroine-smoking-v01.glb').then(b=>ld().parseAsync(b,'')),get(SMOKE).then(b=>ld().parseAsync(b,''))]);smokeP.catch(()=>{});
+      const phoneP=Promise.all([get(phoneBase+'heroine-phone-v01.glb').then(b=>ld().parseAsync(b,'')),get(phoneBase+'phone-profile.json').then(b=>JSON.parse(new TextDecoder().decode(b)))]);phoneP.catch(()=>{});
+      const tvP=get(CHAR_BASE+'assets/heroine-tv-20261004-v01/heroine-tv-v01.glb').then(b=>ld().parseAsync(b,''));tvP.catch(()=>{});
       const her=await prepareHeroine(path=>get(path).then(b=>ld().parseAsync(b,'')),shared,id,CHAR_BASE+'assets/heroine-v77/',{sitIdle:CHAR_BASE+'assets/heroine-seat-clearance-v80/clip-sit_idle-hands-v02.glb',repertoireBank:CHAR_BASE+'assets/heroine-repertoire-20261003-v01/heroine-repertoire-v01.glb',sleepBank:CHAR_BASE+'assets/heroine-chair-sleep-20261003-v01/heroine-chair-sleep-v01.glb'});
-      const drinkBase=CHAR_BASE+'assets/heroine-consumption-20261004-v01/';
-      const [coffeeClip,coffeeCfg,barClip,barCfg,coffeeMesh]=await Promise.all([get(drinkBase+'coffee.glb').then(b=>ld().parseAsync(b,'')),get(drinkBase+'coffee.json').then(b=>JSON.parse(new TextDecoder().decode(b))),get(drinkBase+'bar.glb').then(b=>ld().parseAsync(b,'')),get(drinkBase+'bar.json').then(b=>JSON.parse(new TextDecoder().decode(b))),get(CHAR_BASE+'assets/editor2A-coffee-web-v01.glb').then(b=>ld().parseAsync(b,''))]);
+      const [coffeeClip,coffeeCfg,barClip,barCfg,coffeeMesh]=await drinkP;
       attachHeroineCoffee(her.extra,{clip:coffeeClip.animations[0],mug:coffeeMesh.scene.getObjectByName('SM_Prop_MugCoffee'),config:{...coffeeCfg,seatKinds:['bench','desk','chair']}});
       attachAcceptedHeroineWhisky(her.extra,{clip:barClip.animations[0],record:shared.whiskyRec,props:shared.whisky,contacts:barCfg});
-      const trayBase=CHAR_BASE+'assets/tray-service-v01/';
-      const [pick,put,propsPick,propsPut]=await Promise.all(['pick.glb','put.glb','props-pick.glb','props-put.glb'].map(n=>get(trayBase+n).then(b=>ld().parseAsync(b,''))));
+      const [pick,put,propsPick,propsPut]=await trayP;
       attachTrayService(her.extra,{pick,put,propsPick,propsPut,accepted:sharedAcceptedService});
-      const [smokeBank,smokeProps]=await Promise.all([get(CHAR_BASE+'assets/heroine-smoking-20261004-v01/heroine-smoking-v01.glb').then(b=>ld().parseAsync(b,'')),get(SMOKE).then(b=>ld().parseAsync(b,''))]);
+      const [smokeBank,smokeProps]=await smokeP;
       attachHeroineSmoking(her.extra,smokeBank,smokeProps);
-      const phoneBase=CHAR_BASE+'assets/heroine-phone-20261004-v01/';
-      const [herPhone,herPhoneProfile]=await Promise.all([get(phoneBase+'heroine-phone-v01.glb').then(b=>ld().parseAsync(b,'')),get(phoneBase+'phone-profile.json').then(b=>JSON.parse(new TextDecoder().decode(b)))]);
+      const [herPhone,herPhoneProfile]=await phoneP;
       attachHeroinePhone(her.extra,herPhone,herPhoneProfile);
-      her.extra.tvswitch=await get(CHAR_BASE+'assets/heroine-tv-20261004-v01/heroine-tv-v01.glb').then(b=>ld().parseAsync(b,''));
+      her.extra.tvswitch=await tvP;
       const km=new THREE.AnimationMixer(her.gltf.scene),kc=(await get(CHAR_BASE+'assets/heroine-v77/heroine/clip-HER-STIR-owner-v02.glb').then(b=>ld().parseAsync(b,''))).animations[0],ka=km.clipAction(kc).play();ka.time=kc.duration*.5;km.update(0);her.extra.knobGrip={};her.gltf.scene.traverse(o=>{if(/^(thumb|index|middle|ring|pinky)_0[123]_r$/.test(o.name))her.extra.knobGrip[o.name]=o.quaternion.toArray();});km.stopAllAction();
       her.extra.acceptedService=sharedAcceptedService;her.extra.serviceWorld=()=>charsOf(latest);
       her.extra.camera=cam;her.extra.renderer=r;
@@ -621,7 +629,7 @@ function cityTime() {                                           // time of the c
 }
 function tick(now) {
   const raw = (now - prev) / 1000, dt = Math.min(0.1, raw); prev = now;
-  if (QL.tick(raw, window.__ready)) applyQuality();
+  if (QL.tick(raw, window.__ready && !loadingPeople)) applyQuality();   // parsing the characters must not count as a slow device
   if (!window.__pause) step(dt); else animationAudio.begin(false);
   requestAnimationFrame(tick);
 }

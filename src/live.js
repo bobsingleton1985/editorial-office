@@ -27,7 +27,8 @@ export function connectLive(url, onWorld, onStatus, on = {}) {        // on: {we
   }
   document.addEventListener('visibilitychange',()=>presence());
   window.addEventListener('pagehide',()=>presence(false));
-  setInterval(()=>presence(),2000);
+  // A hidden tab already reported visible:false on visibilitychange and expires on the relay; only visible tabs need the heartbeat.
+  setInterval(()=>{if(document.visibilityState==='visible')presence();},2000);
   open();
   return { now, url, execution, presentation };
 }
