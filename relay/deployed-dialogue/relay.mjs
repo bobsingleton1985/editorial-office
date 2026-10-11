@@ -78,7 +78,7 @@ if (!LOOKS[settings.look]) settings.look = 'real';
 const unit = (v, d) => (Number.isFinite(+v) ? Math.round(Math.min(1, Math.max(0, +v)) * 100) / 100 : d);
 settings.blinds = { down: unit(settings.blinds?.down, 0.63), tilt: unit(settings.blinds?.tilt, 0) };
 if(!['dance','drinks'].includes(settings.hostessMode))settings.hostessMode='dance';
-const saveSettings = () => { if (SETTINGS_FILE) try { fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings)); } catch (e) { console.error('settings:', e.message); } };
+const saveSettings = () => { if (SETTINGS_FILE) try { fs.writeFileSync(SETTINGS_FILE + '.tmp', JSON.stringify(settings)); fs.renameSync(SETTINGS_FILE + '.tmp', SETTINGS_FILE); } catch (e) { console.error('settings:', e.message); } };
 const real = {};                                      // city → last real weather (asked at most every 10 min per city)
 let weather = null;                                   // what everyone sees: {choice, city, name, day, sky, fall, ground, desc, temp, utc, manual}
 function describe(code) {                             // WMO weather code → what the page shows, in words and in the window
@@ -141,13 +141,20 @@ function remember(w) {
 setInterval(() => { if (!journalDirty || !JOURNAL_FILE) return; journalDirty = false;
   try { fs.writeFileSync(JOURNAL_FILE + '.tmp', JSON.stringify(journal)); fs.renameSync(JOURNAL_FILE + '.tmp', JOURNAL_FILE); } catch (e) { console.error('journal:', e.message); } }, 30000);
 const lastChange = new Map();                         // ip → ms: one change per 2 s per viewer
+// Forget only expired entries; clearing the whole map let a flood of fake addresses reset every limit.
+setInterval(() => { const old = Date.now() - 10000; for (const [k, t] of lastChange) if (t < old) lastChange.delete(k); }, 10000).unref();
 
 let world = null;                                    // last world from the director: {seq, editor, chairs, ...}
 let directorSeen = 0;                                // last time the director talked to us (ms)
 const viewers = new Set(), perIp = new Map();
 
 const same = (a, b) => { const x = Buffer.from(a), y = Buffer.from(b); return x.length === y.length && crypto.timingSafeEqual(x, y); };
-const ipOf = (req) => (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || '?';
+// X-Forwarded-For is client-controlled. Honour it only from a local reverse proxy, and take the
+// address the proxy itself appended (the last one), not the first one a client can forge.
+const LOCAL_PROXY = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
+const ipOf = (req) => { const peer = req.socket.remoteAddress || '?';
+  if (!LOCAL_PROXY.has(peer)) return peer;
+  return String(req.headers['x-forwarded-for'] || '').split(',').map((s) => s.trim()).filter(Boolean).pop() || peer; };
 function cors(req, res) {
   const o = req.headers.origin;
   if (ORIGINS.includes('*')) res.setHeader('Access-Control-Allow-Origin', '*');
@@ -158,10 +165,17 @@ const frame = (event, data) => `event: ${event}\ndata: ${JSON.stringify(data)}\n
 const worldMsg = () => ({ ...world, now: Date.now(), viewers: viewerPresence.count(), connectedViewers:viewers.size, director: Date.now() - directorSeen < 90000 });
 function broadcast(event,data){poseHub.broadcast(event,data);}
 
+const BODY_IDLE_MS = 15000;                            // a body that stops arriving is dropped (slow-request protection)
 function readBody(req, limit = 65536) {
   return new Promise((ok, fail) => { let n = 0; const parts = [];
-    req.on('data', (c) => { n += c.length; if (n > limit) { fail(new Error('too_large')); req.destroy(); } else parts.push(c); });
-    req.on('end', () => { try { ok(JSON.parse(Buffer.concat(parts).toString('utf8') || '{}')); } catch (e) { fail(new Error('bad_json')); } }); req.on('error', fail); });
+    const idle = () => { fail(new Error('body_timeout')); req.destroy(); };
+    let timer = setTimeout(idle, BODY_IDLE_MS);
+    const done = (f) => (v) => { clearTimeout(timer); f(v); };
+    req.on('data', (c) => { clearTimeout(timer); timer = setTimeout(idle, BODY_IDLE_MS); n += c.length; if (n > limit) { done(fail)(new Error('too_large')); req.destroy(); } else parts.push(c); });
+    // Every route reads fields of the body, so only a JSON object is a valid body (null used to crash the process).
+    req.on('end', done((_) => { let b; try { b = JSON.parse(Buffer.concat(parts).toString('utf8') || '{}'); } catch (e) { return fail(new Error('bad_json')); }
+      if (!b || typeof b !== 'object' || Array.isArray(b)) return fail(new Error('bad_json')); ok(b); }));
+    req.on('error', done(fail)); });
 }
 const MAX_WORLD_BYTES=1024*1024; // Authenticated world snapshots include all four actors and their context.
 function validWorld(w) {
@@ -175,7 +189,14 @@ const ownerDialogueInbox=new OwnerDialogueInbox(STATE?path.join(STATE,'owner-dia
 const nudges = []; let nudgeSeq = 0;
 const PERSON_ID = /^[a-z][a-z0-9_-]{0,31}$/, NEED_ID = /^[a-z][a-z_]{1,23}$/;
 
-const server = http.createServer(async (req, res) => {
+// Any unexpected error (a malformed URL, bad percent-encoding, a handler bug) answers this request
+// instead of escaping as an unhandled rejection, which used to terminate the relay.
+const server = http.createServer((req, res) => handle(req, res).catch((e) => {
+  const client = e instanceof URIError || e?.code === 'ERR_INVALID_URL';
+  if (!client) console.error('request failed:', e?.message || e);
+  if (!res.headersSent) json(res, client ? 400 : 500, { error: client ? 'bad_request' : 'internal_error' }); else res.destroy();
+}));
+async function handle(req, res) {
   const url = new URL(req.url, 'http://x');
   cors(req, res);
   if (req.method === 'OPTIONS') { res.setHeader('Access-Control-Allow-Methods', 'GET, POST'); res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
@@ -238,7 +259,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'POST') {
       if (!OPEN && !owner) return json(res, 403, { error: 'owner_only' });
       const ip = ipOf(req); if (Date.now() - (lastChange.get(ip) || 0) < 2000) return json(res, 429, { error: 'too_often' });
-      lastChange.set(ip, Date.now()); if (lastChange.size > 5000) lastChange.clear();
+      lastChange.set(ip, Date.now());
       let b; try { b = await readBody(req, 1024); } catch (e) { return json(res, 400, { error: e.message }); }
       if (CITIES[b.choice]) { settings.city = b.choice; settings.look = 'real'; }
       else if (LOOKS[b.choice]) settings.look = b.choice;
@@ -255,7 +276,7 @@ const server = http.createServer(async (req, res) => {
       const ip=ipOf(req)+'|h';if(Date.now()-(lastChange.get(ip)||0)<2000)return json(res,429,{error:'too_often'});
       let b;try{b=await readBody(req,512);}catch(e){return json(res,400,{error:e.message});}
       if(!['dance','drinks'].includes(b?.mode))return json(res,400,{error:'unknown_mode'});
-      lastChange.set(ip,Date.now());if(lastChange.size>5000)lastChange.clear();
+      lastChange.set(ip,Date.now());
       const before=settings.hostessMode;settings.hostessMode=b.mode;
       try{if(SETTINGS_FILE){fs.writeFileSync(SETTINGS_FILE+'.tmp',JSON.stringify(settings));fs.renameSync(SETTINGS_FILE+'.tmp',SETTINGS_FILE);}}catch{settings.hostessMode=before;return json(res,500,{error:'settings_not_saved'});}
       broadcast('hostess',{mode:settings.hostessMode});
@@ -268,6 +289,8 @@ const server = http.createServer(async (req, res) => {
     if(!OPEN&&!owner)return json(res,403,{error:'owner_only'});
     const ip=ipOf(req)+'|dialogue';if(Date.now()-(lastChange.get(ip)||0)<1000)return json(res,429,{error:'too_often'});
     let b;try{b=await readBody(req,4096);}catch{return json(res,400,{error:'invalid_owner_dialogue'});}
+    // Structured money, task and request commands move the economy: the owner credential is required even in an open newsroom.
+    if(!owner&&b.command!=null)return json(res,403,{error:'owner_only_command'});
     try{const receipt=ownerDialogueInbox.enqueue(b,Date.now());lastChange.set(ip,Date.now());return json(res,202,receipt);}
     catch(e){const code=['invalid_owner_dialogue','invalid_dialogue_command','dialogue_id_conflict','dialogue_queue_full'].includes(e.message)?e.message:'dialogue_storage_unavailable';return json(res,['invalid_owner_dialogue','invalid_dialogue_command'].includes(code)?400:code==='dialogue_id_conflict'?409:503,{error:code});}
   }
@@ -280,7 +303,7 @@ const server = http.createServer(async (req, res) => {
     if(!b||typeof b.person!=='string'||!PERSON_ID.test(b.person)||!['physical','reflection','dialogue'].includes(b.requestKind)||typeof b.requestId!=='string'||! /^[A-Za-z0-9_-]{1,100}$/.test(b.requestId))return json(res,400,{error:'bad_model_retry'});
     const current=world?.modelRequests?.current?.[b.person+':'+b.requestKind];
     if(!current||current.id!==b.requestId||current.status!=='error')return json(res,409,{error:'model_error_changed'});
-    lastChange.set(ip,Date.now());if(lastChange.size>5000)lastChange.clear();
+    lastChange.set(ip,Date.now());
     const n={seq:++nudgeSeq,at:Date.now(),kind:'model_retry',person:b.person,requestKind:b.requestKind,requestId:b.requestId};nudges.push(n);if(nudges.length>50)nudges.shift();
     return json(res,202,{ok:true,status:'queued',seq:n.seq});
   }
@@ -289,7 +312,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'POST') {
       if (!OPEN && !owner) return json(res, 403, { error: 'owner_only' });
       const ip = ipOf(req) + '|n'; if (Date.now() - (lastChange.get(ip) || 0) < 300) return json(res, 429, { error: 'too_often' });
-      lastChange.set(ip, Date.now()); if (lastChange.size > 5000) lastChange.clear();
+      lastChange.set(ip, Date.now());
       let b; try { b = await readBody(req, 512); } catch (e) { return json(res, 400, { error: e.message }); }
       if (typeof b.person !== 'string' || !PERSON_ID.test(b.person) || typeof b.need !== 'string' || !NEED_ID.test(b.need) || typeof b.value !== 'number' || !Number.isFinite(b.value)) return json(res, 400, { error: 'bad_nudge' });
       const n = { seq: ++nudgeSeq, at: Date.now(), person: b.person, need: b.need, value: Math.round(Math.min(100, Math.max(0, b.value))) };
@@ -319,9 +342,11 @@ const server = http.createServer(async (req, res) => {
     }
   }
   json(res, 404, { error: 'not_found' });
-});
+}
 setInterval(() => broadcast('viewers',{now:Date.now(),viewers:viewerPresence.count(),connectedViewers:viewers.size}),15000);   // keeps proxies from closing idle streams
-server.headersTimeout = 10000; server.requestTimeout = 0;
+// requestTimeout bounds receiving a request, not the SSE response stream; a 4 MB chronicle batch fits easily.
+server.headersTimeout = 10000; server.requestTimeout = 60000;
+process.on('unhandledRejection', (e) => console.error('unhandled rejection:', e?.message || e));
 server.listen(PORT, HOST, () => console.log('relay on http://'+HOST+':'+server.address().port));
 
 // Preserve the latest public journal/settings during a supervised version switch.

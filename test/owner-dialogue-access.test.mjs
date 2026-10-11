@@ -46,3 +46,11 @@ test('open access retains recipient and message validation',async()=>{
  const {result,saved}=await exercise({open:true,body:{...valid,person:'missing'}});
  assert.equal(result.status,400);assert.equal(saved.length,0);
 });
+test('open newsroom refuses an anonymous money command before writing the inbox',async()=>{
+ const {result,saved}=await exercise({open:true,body:{...valid,command:{type:'money',cents:500}}});
+ assert.equal(result.status,403);assert.equal(result.data.error,'owner_only_command');assert.equal(saved.length,0);
+});
+test('owner may still attach a money command in an open newsroom',async()=>{
+ const {result,saved}=await exercise({open:true,authorization:'Bearer '+owner,body:{...valid,command:{type:'money',cents:500}}});
+ assert.equal(result.status,202);assert.equal(saved.length,1);assert.deepEqual(saved[0].command,{type:'money',cents:500});
+});
