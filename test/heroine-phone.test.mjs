@@ -32,8 +32,10 @@ test('ordinary calls exclude heroine even when she is nearest to the phone',()=>
  const h=phoneHarness();h.run("st.chars.heroine.place='deskA';st.chars.columnist.place='deskC';st.chars.reporter.place='benchN';st.chars.newspaper_editor.place='deskB'");
  h.run("startCall(Date.now(),'Текст')");assert.notEqual(h.state().chars.heroine.activity,'phone');
 });
-test('missing/stale readiness, sleep, tray service and paid commitment keep addressed call waiting',()=>{
- for(const condition of ["executionCapabilities=null","executionCapabilities.at-=3500","executionCapabilities.actors.heroine.seq--","executionCapabilities.actors.heroine.phone.ready=false","st.chars.heroine.sleep={}","st.chars.heroine.sleepPending={}","st.chars.heroine.activity='heroine_serve'","committedPerformance=()=>true"]){
+// Sleep, tray service and paid commitments no longer hold an addressed call: interruptForOwnerPhone
+// (director/director.mjs) ends them with reason 'owner_call'. Only physical readiness keeps it waiting.
+test('missing or stale phone readiness keeps addressed call waiting',()=>{
+ for(const condition of ["executionCapabilities=null","executionCapabilities.at-=3500","executionCapabilities.actors.heroine.seq--","executionCapabilities.actors.heroine.phone.ready=false"]){
   const h=phoneHarness();h.run(condition);assert.equal(h.run("startCall(Date.now(),'Текст','heroine')"),false,condition);
   assert.equal(h.state().chars.heroine.pendingOwnerCall,undefined);assert.equal(h.state().ownerMsg,undefined);
  }
@@ -53,7 +55,8 @@ test('handset lease survives a command change and missing/stale occupancy report
  assert.equal(h.state().phoneLease.actor,'reporter');
 });
 test('only fresh matching physical receipt records message once and holds the owner conversation for two minutes of inactivity',()=>{
- const h=phoneHarness();h.run("startCall(Date.now(),'Текст','heroine')");
+ // Calls are confidential by default; only an explicitly open call becomes a newsroom fact (st.ownerMsg).
+ const h=phoneHarness();h.run("startCall(Date.now(),'Текст','heroine',null,null,true,false)");
  const receipt="executionCapabilities={at:Date.now(),actors:{heroine:{loaded:true,seq:st.chars.heroine.seq,activity:'phone',phone:{seq:st.chars.heroine.seq,ready:true,occupied:true,phase:'talk',receiving:true}}}}";
  for(const bad of ["executionCapabilities.at-=3500","executionCapabilities.actors.heroine.seq--","executionCapabilities.actors.heroine.phone.seq--","executionCapabilities.actors.heroine.phone.receiving=false","executionCapabilities.actors.heroine.activity='wait'"]){
   h.run(receipt);h.run(bad);assert.equal(h.run('receiveOwnerCall(Date.now())'),false);assert.equal(h.state().chars.heroine.memory.filter(e=>e.event==='phone_call').length,0);

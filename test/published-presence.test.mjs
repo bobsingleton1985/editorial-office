@@ -6,7 +6,7 @@ import vm from 'node:vm';
 // Exercise the connection code actually shipped in app.js. A source-only test
 // misses a stale bundle that silently removes the visible-viewer handshake.
 function bundleConnection(app) {
-  const at=app.indexOf('/events?runtime=office-tray-service-v1');
+  const at=app.indexOf('/events?runtime=office-service-v46-20261006');
   assert(at>=0,'published runtime connection missing');
   const offset=Math.max(0,at-12000),prefix=app.slice(offset,at),matches=[...prefix.matchAll(/function ([\w$]+)\([^)]*\)\{/g)];
   const blocks=[];
@@ -20,7 +20,7 @@ function bundleConnection(app) {
       else if(char==='{')depth++;else if(char==='}')depth--;
     }
     const code=app.slice(start,end);
-    if(code.includes('/events?runtime=office-tray-service-v1')&&code.includes('/execution')&&code.includes('/presentation'))blocks.push({code,name:match[1]});
+    if(code.includes('/events?runtime=office-service-v46-20261006')&&code.includes('/execution')&&code.includes('/presentation'))blocks.push({code,name:match[1]});
   }
   const selected=blocks.sort((a,b)=>a.code.length-b.code.length)[0];
   assert(selected,'published connection block missing');

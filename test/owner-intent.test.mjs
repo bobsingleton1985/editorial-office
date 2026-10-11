@@ -69,13 +69,13 @@ test('director runs recognition before payment and spoken reply, with canonical 
  st.chars.reporter.ownerDialogue[0].status='waiting';const restarted=harness(source,st,config);restarted.setAnswer(reply);await restarted.run('respondOwnerDialogue(Date.now())');assert.equal(restarted.state().economy.accounts.reporter,1500);assert.equal(restarted.requests.filter(r=>r.url.endsWith('/api/behavior-decide')).length,1);
 });
 test('failed interpretation persistence suspends effects and queries until saved, then resumes exactly once',async()=>{
- const h=harness(source,null,config);h.run("receiveDialogue(st.chars.reporter,{id:'turn',text:'Передай репортёру пять долларов'},Date.now());var writer=fs.writeFileSync;fs.writeFileSync=(p,s)=>{if(JSON.parse(s).chars?.reporter?.ownerDialogue?.[0]?.intent)throw Error('disk');return writer(p,s);}");handlerFor(h,'money',money);
+ const h=harness(source,null,config);h.run("receiveDialogue(st.chars.reporter,{id:'turn',text:'Передай репортёру пять долларов'},Date.now());var writer=fs.writeFileSync;fs.writeFileSync=(p,s)=>{if(privateParse(s).chars?.reporter?.ownerDialogue?.[0]?.intent)throw Error('disk');return writer(p,s);}");handlerFor(h,'money',money);
  await h.run('respondOwnerDialogue(Date.now())');assert.equal(h.state().economy.accounts.reporter,1000);const n=h.requests.filter(r=>r.url.endsWith('/api/behavior-decide')).length;
  await h.run('tick()');assert.equal(h.requests.filter(r=>r.url.endsWith('/api/behavior-decide')).length,n);
  h.run('fs.writeFileSync=writer');await h.run('tick()');await h.run('tick()');assert.equal(h.state().economy.accounts.reporter,1500);assert.equal(h.state().chars.reporter.ownerDialogue[0].status,'answered');
 });
 test('failed effect save never duplicates an award and does not publish uncommitted reply',async()=>{
- const h=harness(source,null,config);h.run("receiveDialogue(st.chars.reporter,{id:'turn',text:'Передай репортёру пять долларов'},Date.now());var writer=fs.writeFileSync;fs.writeFileSync=(p,s)=>{if(JSON.parse(s).chars?.reporter?.ownerDialogue?.[0]?.effect)throw Error('disk');return writer(p,s);}");handlerFor(h,'money',money);
+ const h=harness(source,null,config);h.run("receiveDialogue(st.chars.reporter,{id:'turn',text:'Передай репортёру пять долларов'},Date.now());var writer=fs.writeFileSync;fs.writeFileSync=(p,s)=>{if(privateParse(s).chars?.reporter?.ownerDialogue?.[0]?.effect)throw Error('disk');return writer(p,s);}");handlerFor(h,'money',money);
  await h.run('respondOwnerDialogue(Date.now())');assert.equal(h.state().economy.accounts.reporter,1500);assert.equal(h.state().chars.reporter.ownerDialogue[0].status,'waiting');
  await h.run('tick()');h.run('fs.writeFileSync=writer');await h.run('tick()');await h.run('tick()');assert.equal(h.state().economy.accounts.reporter,1500);assert.equal(h.state().economy.ledger.filter(t=>t.kind==='bonus').length,1);assert.equal(h.state().chars.reporter.ownerDialogue[0].status,'answered');
 });
@@ -143,7 +143,7 @@ test('crash after own phone hangup preserves exact dispatch sequence and retains
  assert.throws(()=>h.run('finishOwnerIntentCalls(Date.now())'),/crash after hangup save/);
  const durable=h.writes.filter(x=>x.path==='/state.json.tmp').at(-1).data,t=durable.chars.reporter.ownerDialogue[0];
  assert.equal(durable.chars.reporter.entry.source,'owner_hangup');assert.equal(t.afterReplyHangup,'done');assert.equal(t.intent.dispatchActorSeq,durable.chars.reporter.seq);assert.equal(durable.phoneLease.actor,'reporter');assert.equal(durable.ownerDialogueEffects['crash-turn'].status,'requested');
- const r=harness(source,durable,config);r.run('st.chars.reporter.busyUntil=Date.now()-1;settledForSleep=()=>true;executionCapabilities={at:Date.now(),actors:{reporter:{phone:{seq:st.chars.reporter.seq,occupied:false}}}};actions=()=>[{id:"wait@window",description:"Отдых у окна"}]');r.run('finishOwnerIntentCalls(Date.now())');await r.run('dispatchOwnerIntentActions(Date.now())');assert.equal(r.state().ownerDialogueEffects['crash-turn'].status,'chosen');
+ const r=harness(source,durable,config);r.run('st.chars.reporter.busyUntil=Date.now()-1;settledForSleep=()=>true;executionCapabilities={at:Date.now(),actors:{reporter:{loaded:true,seq:st.chars.reporter.seq,phone:{seq:st.chars.reporter.seq,occupied:false}}}};actions=()=>[{id:"wait@window",description:"Отдых у окна"}]');r.run('finishOwnerIntentCalls(Date.now())');await r.run('dispatchOwnerIntentActions(Date.now())');assert.equal(r.state().ownerDialogueEffects['crash-turn'].status,'chosen');
 });
 test('foreign phone sequence is not hung up or rebound to an earlier agreement',async()=>{
  const h=agreedDispatchFixture();h.run("var t=st.chars.reporter.ownerDialogue[0],p=st.chars.reporter;t.replyActorSeq=p.seq;t.afterReplyHangup='pending';p.activity='phone';p.ownerPhoneSession={until:Date.now()+120000};p.seq+=7;var applications=0;applyDecision=()=>{applications++;return true;};finishOwnerIntentCalls(Date.now())");
@@ -155,15 +155,16 @@ test('foreign phone sequence is not hung up or rebound to an earlier agreement',
 test('agreed activity skips only its own hangup dwell after a safe physical exit',async()=>{
  for(const variant of ['own','noWitness','occupied','stalePhoneSeq','missingPhone','foreignWait','foreignSource','newMessage','sleep']){
   const h=agreedDispatchFixture();h.run("var t=st.chars.reporter.ownerDialogue[0],p=st.chars.reporter;p.activity='phone';p.ownerPhoneSession={until:Date.now()+120000};t.source='phone';t.replyActorSeq=p.seq;t.afterReplyHangup='pending';finishOwnerIntentCalls(Date.now())");
-  assert(h.state().chars.reporter.busyUntil>h.now()+25000,'ordinary wait dwell is still retained');
+  // endOwnerPhone: closing the call is a physical transition, not a new 30–60 s dwell.
+  assert(h.state().chars.reporter.busyUntil<=h.now(),'hangup adds no decision dwell');
   h.run("settledForSleep=originalSettledForSleep;executionCapabilities={at:Date.now(),actors:{reporter:{loaded:true,seq:p.seq,activity:p.activity,mode:PLACES[p.place].kind==='spot'?'idle':'seated',seat:p.place,x:PLACES[p.place].x,z:PLACES[p.place].z,phone:{seq:p.seq,occupied:false}}}}");
   assert.equal(h.run("settledForSleep('reporter',Date.now())"),true);
   if(variant==='noWitness')h.run('executionCapabilities.at=Date.now()-10000');
   if(variant==='occupied')h.run("executionCapabilities.actors.reporter.phone.occupied=true;executionCapabilities.actors.reporter.phone.phase='return'");
   if(variant==='stalePhoneSeq')h.run('executionCapabilities.actors.reporter.phone.seq--');
   if(variant==='missingPhone')h.run('delete executionCapabilities.actors.reporter.phone');
-  if(variant==='foreignWait')h.run('delete st.chars.reporter.ownerDialogue[0].intent.dispatchActorSeq;st.chars.reporter.ownerDialogue[0].intent.actorSeq=st.chars.reporter.seq');
-  if(variant==='foreignSource')h.run("st.chars.reporter.entry.source='qwen'");
+  if(variant==='foreignWait')h.run('st.chars.reporter.busyUntil=Date.now()+30000;delete st.chars.reporter.ownerDialogue[0].intent.dispatchActorSeq;st.chars.reporter.ownerDialogue[0].intent.actorSeq=st.chars.reporter.seq');
+  if(variant==='foreignSource')h.run("st.chars.reporter.busyUntil=Date.now()+30000;st.chars.reporter.entry.source='qwen'");
   if(variant==='newMessage')h.run("receiveDialogue(st.chars.reporter,{id:'next',text:'Подожди'},Date.now())");
   if(variant==='sleep')h.run("st.chars.reporter.sleepPending={id:'sleep-request'}");
   const seq=h.state().chars.reporter.seq;await h.run('dispatchOwnerIntentActions(Date.now())');
@@ -207,7 +208,7 @@ test('reconciliation does not spend reserved funds or change an unrelated gift',
  assert.throws(()=>applyOwnerMoneySplit(st,turn,{...intent,command:{type:'money',cents:1100}},1002,{reconcile:true}),/missing_funded_gift/);
 });
 test('director applies full split gift before spoken reply and preserves effects through failed save',async()=>{
- const h=harness(source,null,config);h.run(`receiveDialogue(st.chars.heroine,{id:'turn',text:${JSON.stringify(splitText)}},Date.now());var writer=fs.writeFileSync;fs.writeFileSync=(p,s)=>{if(JSON.parse(s).chars?.heroine?.ownerDialogue?.[0]?.effect)throw Error('disk');return writer(p,s);}`);handlerFor(h,'money_split',splitParams);
+ const h=harness(source,null,config);h.run(`receiveDialogue(st.chars.heroine,{id:'turn',text:${JSON.stringify(splitText)}},Date.now());var writer=fs.writeFileSync;fs.writeFileSync=(p,s)=>{if(privateParse(s).chars?.heroine?.ownerDialogue?.[0]?.effect)throw Error('disk');return writer(p,s);}`);handlerFor(h,'money_split',splitParams);
  await h.run('respondOwnerDialogue(Date.now())');assert.equal(h.state().economy.accounts.heroine,1700);assert.equal(h.state().economy.accounts.reporter,1300);assert.equal(h.state().chars.heroine.ownerDialogue[0].status,'waiting');
  h.run('fs.writeFileSync=writer');await h.run('tick()');await h.run('tick()');assert.equal(h.state().economy.ledger.filter(t=>t.kind==='bonus').length,1);assert.equal(h.state().economy.ledger.filter(t=>t.kind==='gift').length,1);assert.equal(h.state().chars.heroine.ownerDialogue[0].status,'answered');
 });

@@ -1,118 +1,81 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {harness} from './director-harness.mjs';
-import {ensureEconomy,confirmPurchases,available} from '../director/economy.mjs';
+import {ensureEconomy,available} from '../director/economy.mjs';
 import * as drinks from '../director/shared-drinks.mjs';
 
+// Separate-table joint drinking is retired (README "Accepted service v46": "Separate-table joint
+// drinking is retired"; director/shared-drinks.mjs:43 "Owner 2026-10-06: joint drinks use heroine
+// service at the common table"). New invitations are no longer offered or accepted; only cleanup of
+// invitations saved by an older director remains.
 const source=new URL('../director/director.mjs',import.meta.url).pathname;
 const config={enabled:true,currency:'USD',startingCents:1000,workRewardCents:300,prices:{whisky:100,coffee:100},offerAmounts:[],loanDays:3};
-function fixture(){
-  const st={chars:{a:{seq:1,place:'deskA',activity:'wait',memory:[]},b:{seq:1,place:'deskB',activity:'wait',memory:[]}}};
-  ensureEconomy(st,config,1000);drinks.ensureSharedDrinks(st);
-  const input={ready:{a:true,b:true},destinations:{a:{whisky:[{place:'deskA',action:'whisky@deskA'}]},b:{whisky:[{place:'deskB',action:'whisky@deskB'}]}},names:{a:'А',b:'Б'}};
-  const dispatch=(id,action)=>{const p=st.chars[id];p.seq++;[p.activity,p.place]=action.split('@');if(p.activity==='whisky'){
-    // Production reservation function is exercised through the director tests below.
-  }return true;};
-  const choose=(id,action,now=1000)=>drinks.chooseSharedDrink(st,id,action,now,'qwen',input,dispatch);
-  const caps=(at=1000,executing=false)=>({at,actors:Object.fromEntries(Object.entries(st.chars).map(([id,p])=>[id,{loaded:true,seq:p.seq,activity:p.activity,mode:'seated',seat:p.place,executing,moneyWitness:1}]))});
-  return {st,input,dispatch,choose,caps};
-}
 function director(){
   const h=harness(source,null,config,1,100000);
-  h.run(`st.invite=null;for(const [id,p]of Object.entries(st.chars)){p.activity='wait';p.place=PEOPLE[id].home;p.arriveAt=Date.now()-1000;p.busyUntil=Date.now()+180000;p.sleep=null;p.sleepPending=null;delete p.executionGate;}st.chars.heroine.place='bar';`);
-  refresh(h);return h;
+  h.run(`st.invite=null;for(const [id,p]of Object.entries(st.chars)){p.activity='wait';p.place=PEOPLE[id].home;p.arriveAt=Date.now()-1000;p.busyUntil=Date.now()-1;p.sleep=null;p.sleepPending=null;delete p.executionGate;}st.chars.heroine.place='bar';`);
+  h.run(`executionCapabilities={at:Date.now(),actors:Object.fromEntries(Object.entries(st.chars).map(([id,p])=>[id,{loaded:true,seq:p.seq,activity:p.activity,moneyWitness:1,mode:p.place.startsWith('desk')?'seated':'idle',seat:p.place.startsWith('desk')?p.place:null,x:PLACES[p.place].x,z:PLACES[p.place].z,executing:false,consumptionAvailable:id==='heroine'?['whisky','heroine_coffee']:[]}]))};`);
+  return h;
 }
-function refresh(h,executing=false){h.run(`executionCapabilities={at:Date.now(),actors:Object.fromEntries(Object.entries(st.chars).map(([id,p])=>[id,{loaded:true,seq:p.seq,activity:p.activity,moneyWitness:1,mode:p.place.startsWith('desk')?'seated':'idle',seat:p.place.startsWith('desk')?p.place:null,x:PLACES[p.place].x,z:PLACES[p.place].z,executing:${executing},consumptionAvailable:id==='heroine'?['whisky','heroine_coffee']:[]}]))};`);}
-const options=(h,id)=>JSON.parse(h.run(`JSON.stringify(actions('${id}'))`));
-const apply=(h,id,action)=>h.run(`applyDecision('${id}','${action}','qwen',.8)`);
+// A gathering invitation as persisted by the retired implementation: both drinks reserved,
+// sponsor's treat credit held, actors dispatched under the invitation.
+function legacy(status='gathering'){
+  const st={chars:{a:{seq:2,place:'deskA',activity:'wait',memory:[],entry:{sharedDrinkId:'drink-1'}},b:{seq:2,place:'deskB',activity:'wait',memory:[],entry:{sharedDrinkId:'drink-1'}},c:{seq:1,place:'deskC',activity:'wait',memory:[]}}};
+  ensureEconomy(st,config,1000);drinks.ensureSharedDrinks(st);const e=st.economy;
+  const v={id:'drink-1',from:'a',to:'b',kind:'whisky',payment:'treat',sponsor:'a',status,at:1000,expiresAt:181000,consent:{a:{at:1000,source:'qwen',seq:1},b:{at:1100,source:'qwen',seq:1}},observedTogetherMs:0,
+    plan:{a:{place:'deskA',action:'whisky@deskA',seq:2},b:{place:'deskB',action:'whisky@deskB',seq:2}},charges:{a:{payer:'a',cents:100},b:{payer:'a',cents:100}}};
+  e.drinkInvitations.push(v);
+  for(const actor of ['a','b'])e.reservations[`joint:${v.id}:${actor}`]={actor,payer:'a',cents:100,credit:true};
+  e.treats.push({id:'drink-1:treat',from:'a',to:'b',activity:'whisky',status:'available',expiresAt:181000});e.reservations['credit:drink-1:treat']={actor:'a',payer:'a',cents:100};
+  e.reservations.unrelated={actor:'c',payer:'c',cents:100};
+  return {st,v};
+}
 
-test('invitation does not move or debit; reply may independently refuse or defer',()=>{
-  for(const answer of ['decline','defer']){
-    const f=fixture(),before=structuredClone(f.st.economy.accounts);assert(f.choose('a','drink_invite@b:whisky:treat'));
-    assert.equal(f.st.chars.a.seq,1);assert.equal(f.st.chars.b.seq,1);assert.deepEqual(f.st.economy.accounts,before);
-    const v=f.st.economy.drinkInvitations[0];assert(f.choose('b',`drink_reply@${v.id}:${answer}`));
-    assert.equal(v.status,answer==='decline'?'cancelled':'deferred');assert.deepEqual(f.st.economy.accounts,before);assert.deepEqual(f.st.economy.reservations,{});
+test('retired joint drinking is never offered and a drink_invite decision is rejected without effects',()=>{
+  const h=director();
+  for(const id of ['columnist','reporter','newspaper_editor','heroine']){
+    const ids=JSON.parse(h.run(`JSON.stringify(actions('${id}').map(a=>a.id))`));
+    assert(!ids.some(a=>a.startsWith('drink_')),id+' still sees a joint-drink option');
   }
-});
-test('private recipient balance never hides the original invitation; self-paid acceptance needs own funds',()=>{
-  const f=fixture();f.st.economy.accounts.b=0;
-  assert(drinks.sharedDrinkActions(f.st,'a',1000,f.input).some(a=>a.id==='drink_invite@b:whisky:each'));
-  assert(f.choose('a','drink_invite@b:whisky:each'));const v=f.st.economy.drinkInvitations[0];
-  assert(!drinks.sharedDrinkActions(f.st,'b',1000,f.input).some(a=>a.id.endsWith(':accept')));
-});
-test('accepted treat reserves both drinks without debt or payment, expires without loss',()=>{
-  const f=fixture();f.st.economy.accounts.b=0;assert(f.choose('a','drink_invite@b:whisky:treat'));
-  const v=f.st.economy.drinkInvitations[0];assert(f.choose('b',`drink_reply@${v.id}:accept`));
-  assert.equal(v.status,'gathering');assert.equal(available(f.st,'a'),800);assert.equal(f.st.economy.accounts.a,1000);assert.equal(f.st.economy.debts.length,0);
-  drinks.observeSharedDrinks(f.st,null,v.expiresAt+1,f.dispatch);assert.equal(v.status,'cancelled');assert.equal(available(f.st,'a'),1000);
-});
-test('deferred treat asks original inviter again, keeping original sponsor',()=>{
-  const f=fixture();f.st.economy.accounts.b=0;assert(f.choose('a','drink_invite@b:whisky:treat'));
-  const v=f.st.economy.drinkInvitations[0];assert(f.choose('b',`drink_reply@${v.id}:defer`));assert(f.choose('b',`drink_join@${v.id}`));
-  assert.equal(v.to,'a');assert.equal(v.sponsor,'a');assert(f.choose('a',`drink_reply@${v.id}:accept`));
-  assert.equal(v.charges.a.payer,'a');assert.equal(v.charges.b.payer,'a');
-});
-test('gathering rejects stale/future/mismatched/unarrived reports and does not start one person early',()=>{
-  for(const change of [c=>c.at=-4000,c=>c.at=2000,c=>c.actors.a.seq--,c=>c.actors.b.mode='walk',c=>c.actors.b.seat='deskC']){
-    const f=fixture();f.choose('a','drink_invite@b:whisky:treat');const v=f.st.economy.drinkInvitations[0];f.choose('b',`drink_reply@${v.id}:accept`);
-    const cap=f.caps(1000);change(cap);drinks.observeSharedDrinks(f.st,cap,1000,f.dispatch);assert.equal(v.status,'gathering');assert.equal(f.st.chars.a.activity,'wait');assert.equal(f.st.chars.b.activity,'wait');
-  }
-});
-test('director exposes targeted choices to all four actors and hides them without fresh payment support',()=>{
-  const h=director();for(const id of ['columnist','reporter','newspaper_editor','heroine'])assert(options(h,id).some(a=>a.id.startsWith('drink_invite@')));
-  h.run('executionCapabilities.at=Date.now()+1');assert(!options(h,'reporter').some(a=>a.id.startsWith('drink_invite@')));
-  refresh(h);h.run('executionCapabilities.actors.reporter.moneyWitness=0');assert(!options(h,'reporter').some(a=>a.id.startsWith('drink_invite@')));
-});
-test('full director treat path: consent -> approach -> receipts -> one debit per actually executing drink',async()=>{
-  const h=director();h.run('st.economy.accounts.reporter=0');assert.notEqual(apply(h,'columnist','drink_invite@reporter:whisky:treat'),false);
-  let v=h.state().economy.drinkInvitations[0];assert.notEqual(apply(h,'reporter',`drink_reply@${v.id}:accept`),false);
-  v=h.state().economy.drinkInvitations[0];assert.equal(v.status,'gathering');assert.equal(h.state().economy.accounts.columnist,1000);
-  refresh(h);h.run("observeSharedDrinks(st,executionCapabilities,Date.now(),(id,a)=>applyDecision(id,a,'shared_drink_executor',null,null,false,false,false,true))");
-  v=h.state().economy.drinkInvitations[0];assert.equal(v.status,'drinking');assert.equal(h.state().chars.reporter.activity,'whisky');
-  refresh(h,false);h.run('confirmPurchases(st,executionCapabilities,Date.now())');assert.equal(h.state().economy.accounts.columnist,1000);
-  refresh(h,true);h.run('confirmPurchases(st,executionCapabilities,Date.now());observeSharedDrinks(st,executionCapabilities,Date.now(),()=>false)');
-  assert.equal(h.state().economy.accounts.columnist,800);assert.equal(h.state().economy.accounts.reporter,0);assert.equal(h.state().economy.debts.length,0);
-  h.advance(1000);refresh(h,true);h.run('observeSharedDrinks(st,executionCapabilities,Date.now(),()=>false)');
-  refresh(h,false);h.run('confirmPurchases(st,executionCapabilities,Date.now());observeSharedDrinks(st,executionCapabilities,Date.now(),()=>false)');
-  v=h.state().economy.drinkInvitations[0];assert.equal(v.status,'completed');assert.equal(v.observedTogetherMs,1000);assert.equal(h.state().economy.accounts.columnist,800);
-  const request=JSON.stringify(await h.run("snapshot('reporter',actions('reporter'))"));assert(request.includes('shared_drink_finished'));
-});
-test('heroine completion may advance her sequence while companion finishes; replayed observations cannot add time',()=>{
-  const f=fixture();f.choose('a','drink_invite@b:whisky:each');const v=f.st.economy.drinkInvitations[0];f.choose('b',`drink_reply@${v.id}:accept`);
-  drinks.observeSharedDrinks(f.st,f.caps(),1000,f.dispatch);
-  let c=f.caps(1500,true);drinks.observeSharedDrinks(f.st,c,1500,f.dispatch);drinks.observeSharedDrinks(f.st,c,1500,f.dispatch);assert.equal(v.observedTogetherMs,0);
-  f.st.economy.receipts[`purchase:a:${v.plan.a.seq}`]={};c=f.caps(2000,true);c.actors.a.executing=false;drinks.observeSharedDrinks(f.st,c,2000,f.dispatch);assert(v.plan.a.done);
-  f.st.chars.a.seq++;f.st.chars.a.activity='wait';f.st.economy.receipts[`purchase:b:${v.plan.b.seq}`]={};c=f.caps(2500,false);drinks.observeSharedDrinks(f.st,c,2500,f.dispatch);assert.equal(v.status,'completed');
-});
-test('continue during a pending invitation does not replay work and bounds next model request',()=>{
-  const h=director();apply(h,'columnist','drink_invite@reporter:whisky:each');h.run('st.chars.reporter.busyUntil=Date.now()-1');const seq=h.state().chars.reporter.seq;
-  apply(h,'reporter','continue');assert.equal(h.state().chars.reporter.seq,seq);assert(h.state().chars.reporter.busyUntil>h.now());assert.equal(h.state().economy.drinkInvitations[0].considered,true);
-});
-test('cancel while approaching releases reserves and changes cancelling actor to a safe wait',()=>{
-  const h=director();apply(h,'columnist','drink_invite@reporter:whisky:treat');const v=h.state().economy.drinkInvitations[0];apply(h,'reporter',`drink_reply@${v.id}:accept`);
-  apply(h,'reporter',`drink_cancel@${v.id}`);assert.equal(h.state().economy.drinkInvitations[0].status,'cancelled');assert.deepEqual(h.state().economy.reservations,{});assert.equal(h.state().economy.accounts.columnist,1000);
+  assert.deepEqual(drinks.sharedDrinkActions(h.state(),'reporter',Date.now(),{ready:{reporter:true,columnist:true}}),[]);
+  const before=h.state(),seq=before.chars.reporter.seq;
+  assert.equal(h.run(`applyDecision('reporter','drink_invite@columnist:whisky:treat','qwen',.8)`),false);
+  const after=h.state();
+  assert.deepEqual(after.economy.drinkInvitations,[]);assert.deepEqual(after.economy.reservations,before.economy.reservations);assert.deepEqual(after.economy.accounts,before.economy.accounts);
+  assert.equal(after.chars.reporter.seq,seq);assert.equal(after.chars.columnist.seq,before.chars.columnist.seq);
 });
 
-test('joint payer is explicit even with an older third-party treat and exact sponsor balance',()=>{
-  const h=director();h.run(`st.economy.accounts.columnist=200;st.economy.treats.push({id:'older',from:'newspaper_editor',to:'reporter',activity:'whisky',cents:100,status:'available',expiresAt:Date.now()+86400000});st.economy.reservations['credit:older']={actor:'newspaper_editor',payer:'newspaper_editor',cents:100,credit:true};`);
-  apply(h,'columnist','drink_invite@reporter:whisky:treat');const v=h.state().economy.drinkInvitations[0];assert(v);apply(h,'reporter',`drink_reply@${v.id}:accept`);
-  refresh(h);h.run("observeSharedDrinks(st,executionCapabilities,Date.now(),(id,a)=>applyDecision(id,a,'shared_drink_executor',null,null,false,false,false,true))");
-  assert.equal(h.state().economy.drinkInvitations[0].status,'drinking');
-  for(const r of Object.values(h.state().economy.reservations).filter(r=>r.jointId))assert.equal(r.payer,'columnist');
-  refresh(h,true);h.run('confirmPurchases(st,executionCapabilities,Date.now())');assert.equal(h.state().economy.accounts.columnist,0);assert.equal(h.state().economy.accounts.newspaper_editor,1000);assert.equal(h.state().economy.treats[0].status,'available');
+test('cancelling a legacy invitation releases its joint and treat-credit reservations exactly once',()=>{
+  const {st,v}=legacy(),aBefore=available(st,'a'),ledger=st.economy.ledger.length;
+  assert.equal(drinks.cancelSharedDrink(st,v,'self_cancelled:b',2000),true);
+  assert.equal(v.status,'cancelled');assert.equal(v.reason,'self_cancelled:b');assert.equal(v.closedAt,2000);
+  assert.deepEqual(Object.keys(st.economy.reservations),['unrelated']);assert.equal(available(st,'a'),aBefore+300);
+  assert.equal(st.economy.treats[0].status,'cancelled');assert.equal(st.economy.ledger.length,ledger);
+  for(const id of ['a','b'])assert.equal(st.chars[id].memory.filter(m=>m.event==='shared_drink_cancelled').length,1);
+  assert.equal(drinks.sharedDrinkFor(st,'a'),undefined);
+  assert.equal(drinks.cancelSharedDrink(st,v,'again',3000),false);assert.equal(v.reason,'self_cancelled:b');
+  assert.equal(st.chars.a.memory.filter(m=>m.event==='shared_drink_cancelled').length,1);
 });
-test('nested agreed dispatch never saves an intermediate mismatched plan',()=>{
-  const h=director();apply(h,'columnist','drink_invite@reporter:whisky:each');const v=h.state().economy.drinkInvitations[0];apply(h,'reporter',`drink_reply@${v.id}:accept`);
-  for(const w of h.writes){const v=w.data.economy?.drinkInvitations?.[0];if(v?.status==='gathering')for(const id of [v.from,v.to])assert.equal(v.plan[id].seq,w.data.chars[id].seq);}
+
+test('observation cancels every live legacy invitation and returns only its own dispatched actors to a safe wait',()=>{
+  for(const status of ['pending','deferred','gathering','drinking']){
+    const {st,v}=legacy(status),ledger=st.economy.ledger.length,done={...structuredClone(v),id:'drink-0',status:'cancelled'};st.economy.drinkInvitations.unshift(done);
+    if(status==='pending'||status==='deferred')delete st.chars.b.entry.sharedDrinkId;
+    const dispatched=[];
+    assert.equal(drinks.observeSharedDrinks(st,null,2000,(id,action)=>{dispatched.push([id,action]);return true;}),true,status);
+    assert.equal(v.status,'cancelled');assert.equal(v.reason,'separate_tables_removed_by_owner');assert.equal(done.status,'cancelled');
+    assert.deepEqual(dispatched,status==='pending'||status==='deferred'?[['a','wait@deskA']]:[['a','wait@deskA'],['b','wait@deskB']]);
+    assert.deepEqual(Object.keys(st.economy.reservations),['unrelated']);assert.equal(st.economy.ledger.length,ledger);
+    assert.equal(drinks.observeSharedDrinks(st,null,3000,()=>assert.fail('replayed cleanup')),false);
+  }
 });
-test('cancelling an unobserved drink stops only the cancelling command; partner keeps agreed payment',()=>{
-  const h=director();apply(h,'columnist','drink_invite@reporter:whisky:treat');const v=h.state().economy.drinkInvitations[0];apply(h,'reporter',`drink_reply@${v.id}:accept`);refresh(h);
-  h.run("observeSharedDrinks(st,executionCapabilities,Date.now(),(id,a)=>applyDecision(id,a,'shared_drink_executor',null,null,false,false,false,true))");
-  apply(h,'reporter',`drink_cancel@${v.id}`);assert.equal(h.state().chars.reporter.activity,'wait');assert.equal(h.state().chars.columnist.activity,'whisky');
-  assert.equal(Object.values(h.state().economy.reservations).filter(r=>r.jointId).length,1);refresh(h,true);h.run('confirmPurchases(st,executionCapabilities,Date.now())');assert.equal(h.state().economy.accounts.columnist,900);
-});
-test('lost heroine drinking capability cancels before either paid drink starts',()=>{
-  const h=director();apply(h,'columnist','drink_invite@heroine:whisky:treat');const v=h.state().economy.drinkInvitations[0];apply(h,'heroine',`drink_reply@${v.id}:accept`);refresh(h);
-  h.run(`executionCapabilities.actors.heroine.consumptionAvailable=[];observeSharedDrinks(st,executionCapabilities,Date.now(),(id,a)=>applyDecision(id,a,'shared_drink_executor',null,null,false,false,false,true),sharedDrinkInput(Date.now()))`);
-  assert.equal(h.state().economy.drinkInvitations[0].status,'cancelled');assert.equal(h.state().chars.columnist.activity,'wait');assert.equal(h.state().chars.heroine.activity,'wait');assert.equal(h.state().economy.accounts.columnist,1000);assert.deepEqual(h.state().economy.reservations,{});
+
+test('director startup with a saved legacy invitation cleans it up on observation and never debits',async()=>{
+  const h=director();
+  h.run(`st.chars.reporter.entry={...st.chars.reporter.entry,sharedDrinkId:'drink-9'};st.economy.drinkInvitations.push({id:'drink-9',from:'reporter',to:'columnist',kind:'whisky',payment:'each',sponsor:'reporter',status:'gathering',at:Date.now(),expiresAt:Date.now()+180000,consent:{},observedTogetherMs:0,plan:{reporter:{place:st.chars.reporter.place},columnist:{place:st.chars.columnist.place}},charges:{reporter:{payer:'reporter',cents:100},columnist:{payer:'columnist',cents:100}}});st.economy.reservations['joint:drink-9:reporter']={actor:'reporter',payer:'reporter',cents:100,credit:true};st.economy.reservations['joint:drink-9:columnist']={actor:'columnist',payer:'columnist',cents:100,credit:true};`);
+  const accounts=h.state().economy.accounts,seq=h.state().chars.reporter.seq;
+  h.run(`observeSharedDrinks(st,executionCapabilities,Date.now(),(id,a)=>applyDecision(id,a,'shared_drink_executor',null,null,false,false,false,true))`);
+  const s=h.state(),v=s.economy.drinkInvitations.find(v=>v.id==='drink-9');
+  assert.equal(v.status,'cancelled');assert.equal(v.reason,'separate_tables_removed_by_owner');
+  assert(!Object.keys(s.economy.reservations).some(k=>k.startsWith('joint:drink-9')));assert.deepEqual(s.economy.accounts,accounts);
+  assert.equal(s.chars.reporter.activity,'wait');assert.equal(s.chars.reporter.seq,seq+1);assert.equal(s.chars.columnist.activity,'wait');
 });
