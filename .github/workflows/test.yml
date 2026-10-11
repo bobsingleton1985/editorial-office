@@ -1,0 +1,29 @@
+name: test
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  node:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: sudo apt-get update && sudo apt-get install -y zsh
+      - run: npm ci
+      - run: npm test
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: sudo apt-get update && sudo apt-get install -y zsh
+      - run: python -m unittest test_phone_bridge test_telegram_bot test_telegram_dialogue
+        working-directory: test
+        env:
+          PYTHONPATH: ..

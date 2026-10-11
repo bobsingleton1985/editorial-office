@@ -4,6 +4,7 @@ import unittest
 import json
 import os
 import shutil
+import subprocess
 import tempfile
 from unittest.mock import patch
 
@@ -59,16 +60,20 @@ class PhoneTests(unittest.TestCase):
         base=Path(__file__).resolve().parents[1]
         with tempfile.TemporaryDirectory(prefix='tg-phone-test-') as tmp:
             root=Path(tmp);(root/'director').mkdir();(root/'relay').mkdir();shutil.copy2(base/'relay/owner-dialogue-contract.mjs',root/'relay/owner-dialogue-contract.mjs')
-            for name in ['ring.sh','call.mjs','director/owner-calls.mjs']: shutil.copy2(base/name,root/name)
+            for name in ['ring.sh','call.mjs','privacy-vault.mjs','director/owner-calls.mjs']: shutil.copy2(base/name,root/name)
             offsets=[]
             def failed_offset(value): raise OSError('isolated cursor failure')
             def queue(*args): return bridge.queue_call(root,*args)
             params=dict(enqueue_bonus=lambda *a:None,enqueue_call=queue,report=lambda *a:None)
-            with patch.dict(os.environ,{'PATH':'/usr/bin:/bin:/usr/sbin:/sbin'}):
+            # Queue files are sealed by privacy-vault.mjs; use its isolated test key.
+            node=shutil.which('node');self.assertIsNotNone(node,'node is required');self.assertIsNotNone(shutil.which('zsh'),'zsh is required by ring.sh')
+            env={'PATH':os.path.dirname(node)+':/usr/bin:/bin:/usr/sbin:/sbin','NODE_ENV':'test','PHONE_PRIVACY_TEST_KEY':'0'*64}
+            def unseal(path): return json.loads(subprocess.run([node,str(root/'privacy-vault.mjs')],input=path.read_text(),capture_output=True,text=True,check=True,env=env).stdout)
+            with patch.dict(os.environ,env):
                 with self.assertRaises(OSError):
                     bridge.process_update(self.update('Позвони репортёру: Текст'),'-1',100,save_offset=failed_offset,**params)
                 files=list((root/'calls').glob('*.json'));self.assertEqual(len(files),1)
-                saved=json.loads(files[0].read_text());self.assertEqual(saved['target'],'reporter');self.assertEqual(saved['text'],'Текст')
+                saved=unseal(files[0]);self.assertEqual(saved['target'],'reporter');self.assertEqual(saved['text'],'Текст')
                 bridge.process_update(self.update('Позвони репортёру: Текст'),'-1',100,save_offset=offsets.append,**params)
                 self.assertEqual(len(list((root/'calls').glob('*.json'))),1)
                 (root/'calls/done').mkdir();files[0].rename(root/'calls/done'/files[0].name)

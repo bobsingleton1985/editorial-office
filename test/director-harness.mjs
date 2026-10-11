@@ -24,6 +24,7 @@ import * as work from '../director/work-witness.mjs';
 import * as sleep from '../director/sleep-core.mjs';
 import * as places from '../director/conversation-places.mjs';
 import fs from 'node:fs';
+import {unseal} from '../privacy-vault.mjs';
 import {dirname} from 'node:path';
 import vm from 'node:vm';
 import * as heroine from '../director/heroine-profile.mjs';
@@ -34,6 +35,17 @@ import * as social from '../director/social-core.mjs';
 import * as relationship from '../director/relationship-core.mjs';
 import * as policy from '../director/conversation-policy.mjs';
 import { DESKS, DINING_CHAIR, BENCH, SPOTS, CHAIR_REST, CHAIR_TUCKED } from '../director/layout-v79.mjs';
+// The director's own imports are stripped below, so bind every name it imports from
+// its modules. Explicit stubs in the context (fs, fetch, Date, ...) still take priority.
+process.env.NODE_ENV??='test';
+process.env.PHONE_PRIVACY_TEST_KEY??='0'.repeat(64);
+const directorSource=new URL('../director/director.mjs',import.meta.url);
+const directorImports={};
+for(const [,names,spec] of fs.readFileSync(directorSource,'utf8').matchAll(/^import\s*\{([^}]*)\}\s*from\s*'([^']+)';/gm)){
+ if(spec.startsWith('node:'))continue;
+ const module=await import(new URL(spec,directorSource));
+ for(const part of names.split(',').map(x=>x.trim()).filter(Boolean)){const [name,alias=name]=part.split(/\s+as\s+/);directorImports[alias]=module[name];}
+}
 const registry=fs.readFileSync(new URL('../registry/chains-v01.json',import.meta.url),'utf8');
 const repertoire=fs.readFileSync(new URL('../director/social-repertoire.json',import.meta.url),'utf8');
 export function harness(source, initialState=null, config= economy.UNCONFIGURED_ECONOMY, speed=1,clockStart=Date.now()) {
@@ -41,13 +53,13 @@ export function harness(source, initialState=null, config= economy.UNCONFIGURED_
   let clock = clockStart, answer = { action: 'lunch@benchS', confidence: 0.8 };
   const logs = [], requests = [], writes = [], calls=new Map(), archived=[],timers=[];let handler=null,archiveFailure=false;
   class TestDate extends Date { constructor(...args) { super(...(args.length ? args : [clock])); } static now() { return clock; } }
-  const context = vm.createContext({ DESKS, DINING_CHAIR, BENCH, SPOTS, CHAIR_REST, CHAIR_TUCKED,
+  const context = vm.createContext({ ...directorImports, DESKS, DINING_CHAIR, BENCH, SPOTS, CHAIR_REST, CHAIR_TUCKED,
     ...ownerIntent,...sharedDrinks,...dialogueCommands,...television,...ownerDialogue,dirname,TextEncoder,TV_PROGRAM,onAir,processBonusQueue,parseOwnerCall,compactSnapshot,...requestsHealth,...service,...chronicle,ChronicleStore,processOwnerGiftRepairs,...flirt,...transport,...diagnostic,...projection,...development,...livelihood,...consumption,...performance,HER_SOCIAL_CATALOG,...meals,...economy,...work,...social,...relationship,...policy,...places,...heroine,...sleep, Date: TestDate, URL, Math: Object.assign(Object.create(Math), { random: () => 0 }),
     setTimeout:(fn,delay)=>{timers.push({fn,delay});return timers.length;},
     process: { env: { HOME: '/isolated', FAST:String(speed), REGISTRY_FILE: '/registry.json', STATE_FILE: '/state.json', DIRECTOR_TOKEN: 'test-only', RELAY_URL: 'http://test-relay', JEV_URL: 'http://test-jev' } },
     console: { log: (...a) => logs.push(a.join(' ')), error: (...a) => logs.push(a.join(' ')) },
-    fs: { readFileSync: (p) => { if(calls.has(String(p)))return calls.get(String(p)); if(String(p).endsWith('/economy-config.json'))return JSON.stringify(config);if(p==='/state.json'&&initialState)return JSON.stringify(initialState);if (p === '/registry.json') return registry;if(String(p).endsWith('/social-repertoire.json'))return repertoire; throw Error('isolated read refused'); },
-      statSync: () => ({ mtimeMs: 1 }), writeFileSync: (p, s) => writes.push({ path: p, data: JSON.parse(s) }), openSync:()=>1,closeSync:()=>{},fsyncSync:()=>{},mkdirSync:()=>{}, existsSync:p=>calls.has(String(p)),renameSync: (a,b) => {if(calls.has(String(a))){if(archiveFailure)throw Error('isolated archive failure');archived.push(String(b));calls.delete(String(a));}}, readdirSync: p => [...calls.keys()].filter(k=>k.startsWith(String(p))).map(k=>k.slice(String(p).length)) },
+    fs: { readFileSync: (p) => { if(calls.has(String(p)))return calls.get(String(p)); if(String(p).endsWith('/economy-config.json'))return JSON.stringify(config);if(p==='/state.json'&&initialState)return JSON.stringify(initialState);if (p === '/registry.json') return registry;if(String(p).endsWith('/social-repertoire.json'))return repertoire; throw Object.assign(Error('isolated read refused'),{code:'ENOENT'}); },
+      statSync: () => ({ mtimeMs: 1 }), writeFileSync: (p, s) => writes.push({ path: p, data: unseal(JSON.parse(s)) }), openSync:()=>1,closeSync:()=>{},fsyncSync:()=>{},mkdirSync:()=>{}, existsSync:p=>calls.has(String(p)),renameSync: (a,b) => {if(calls.has(String(a))){if(archiveFailure)throw Error('isolated archive failure');archived.push(String(b));calls.delete(String(a));}}, readdirSync: p => [...calls.keys()].filter(k=>k.startsWith(String(p))).map(k=>k.slice(String(p).length)) },
     fetch: async (url, opts = {}) => {
       const body = opts.body ? JSON.parse(opts.body) : null; requests.push({ url, body });
       let result;

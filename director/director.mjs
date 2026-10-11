@@ -1246,7 +1246,7 @@ async function dispatchOwnerIntentActions(now,phoneOnly=false){
   const intent=t.intent,receipt=st.ownerDialogueEffects?.[t.id]??t.effect,id=intent?.target,p=st.chars[id];
   if(t.status!=='answered'||intent?.kind!=='action'||intent.disposition!=='requested'||receipt?.status!=='requested'||!p)continue;t.effect=receipt;
   if(p.seq!==(intent.dispatchActorSeq??intent.actorSeq)){Object.assign(receipt,{status:'superseded',closedAt:now,summary:'После согласования персонаж выбрал другое действие. Прежняя просьба не исполнена.'});st.seq++;st.world=composeWorld(now);if(!save(true)){dialogueSavePending=true;return true;}await relay('/director/world',st.world);return true;}
-  // Hanging up inserted an ordinary 30–60 s wait. The already-agreed
+  // Hanging up adds no decision dwell (endOwnerPhone). The already-agreed
   // activity needs only the real handset exit witness, not that decision dwell.
   const phone=executionCapabilities?.actors?.[id]?.phone,ownHangup=intent.dispatchActorSeq===p.seq&&p.activity==='wait'&&p.entry?.source==='owner_hangup'&&p.entry?.action==='wait@'+p.place;
   if(ownHangup&&!ownerPhoneExitReady(id,now)||p.ownerPhoneSession||p.pendingOwnerCall||nextDialogue(p)||p.sleep||p.sleepPending||(now<p.busyUntil&&!ownHangup)||st.steps.some(x=>x.id===id)||st.invite&&(st.invite.from===id||st.invite.to===id)||!settledForSleep(id,now))continue;

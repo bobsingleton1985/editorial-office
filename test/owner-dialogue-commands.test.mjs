@@ -95,7 +95,8 @@ test('unavailable request is rejected without execution and public options match
  assert.equal(applyDialogueCommand(st,'reporter',t,3,{physicalOptions:[]}).error,'requested_action_unavailable');
  assert.equal(ownerRequestContext(st,'reporter').length,0);
  const h=harness(source,null,config);const result=h.run('composeWorld(Date.now())');
- for(const id of Object.keys(result.chars))assert.deepEqual(result.chars[id].ownerActions,h.run(`actions('${id}')`));
+ // composeWorld's public copy is cloned in the host realm; compare values, not realm prototypes.
+ for(const id of Object.keys(result.chars))assert.deepEqual(JSON.parse(JSON.stringify(result.chars[id].ownerActions)),JSON.parse(h.run(`JSON.stringify(actions('${id}'))`)));
 });
 test('completion persistence failure blocks new decisions and publishing until real premium is durable',async()=>{
  const h=harness(source,null,config);

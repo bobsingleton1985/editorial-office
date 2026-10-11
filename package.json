@@ -7,7 +7,8 @@
     "node": ">=22"
   },
   "scripts": {
-    "director": "./run-director.sh"
+    "director": "./run-director.sh",
+    "test": "node --test test/*.test.mjs"
   },
   "devDependencies": {
     "@recast-navigation/core": "0.43.1",
