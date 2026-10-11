@@ -6,6 +6,9 @@ import time
 from pathlib import Path
 
 NAMES = {'heroine':'Героиня','columnist':'Колумнист','reporter':'Репортёр','newspaper_editor':'Редактор'}
+class OwnerBindingChanged(RuntimeError):
+    pass
+
 class BotMenu:
     def __init__(self,file,atomic_write):
         self.file=Path(file);self.atomic_write=atomic_write
@@ -82,7 +85,7 @@ class BotMenu:
             if cb:answer_callback(cb['id'],'Доступен только владельцу подключённого канала.')
             save_offset(update['update_id']+1);return True
         existing=self.state.get('owner')
-        if existing not in [None,sender]:raise RuntimeError('owner binding changed; explicit rebind required')
+        if existing not in [None,sender]:raise OwnerBindingChanged('owner binding changed; explicit rebind required')
         self.state.update(owner=sender,chat=chat)
         key=str(update['update_id']);event=self.state['events'].get(key)
         if event is None:
