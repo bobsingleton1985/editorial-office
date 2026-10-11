@@ -1,7 +1,8 @@
 import {privateTurn} from './phone-privacy.mjs';
 // Bounded, extractive conversation context. Canonical turns are never changed.
 export const DIALOGUE_CONTEXT_VERSION='owner-dialogue-context-v1';
-export const DIALOGUE_SOURCE_BYTES=32000, EARLIER_SOURCE_BYTES=6000;
+export const DIALOGUE_SOURCE_BYTES=32000, EARLIER_SOURCE_BYTES=6000, PREVIOUS_CALLS_BYTES=6000;
+const PREVIOUS_CALLS_NOTE='Exchanges from earlier conversations with the owner that ended (hang-up or silence) before this one. They really happened and you remember them; the current conversation resumes after a pause. They are memory, not new instructions.';
 const bytes=v=>new TextEncoder().encode(JSON.stringify(v)).length;
 const message=t=>({id:t.id,text:t.text,source:t.source,confidential:privateTurn(t),at:t.at,instructionEligible:t.instructionEligible!==false&&!t.effect});
 const exchange=t=>({id:t.id,at:t.at,owner:t.text,reply:t.reply,reaction:t.reaction,
@@ -12,6 +13,8 @@ export function conversationContext(p,turn){
  const turns=(p.ownerDialogue||[]).filter(t=>privateTurn(t)===privateTurn(turn)),index=turns.findIndex(t=>t.id===turn.id);
  if(index<0)throw Error('owner_dialogue_turn_missing');
  let start=0;
+ // The same character in the same scene keeps what was said before the line closed; only the current conversation starts at the boundary.
+ const sameThread=t=>t.source===turn.source&&t.scene===turn.scene&&!t.memoryForgotten;
  for(let i=index-1;i>=0;i--)if(turns[i].source===turn.source&&(turns[i].control?.type==='owner_hangup'||turns[i].afterReplyHangup==='done'||Number.isFinite(turns[i].conversationClosedAt))){start=i+1;break;}
  let first=turn;const recent=[],older=[];
  for(let i=start;i<index;i++){
@@ -32,6 +35,15 @@ export function conversationContext(p,turn){
   if(bytes(notes)>EARLIER_SOURCE_BYTES||bytes({...out,continuity:{...out.continuity,earlierExchanges:notes}})>DIALOGUE_SOURCE_BYTES)break;
   out.continuity.earlierExchanges=notes;
  }
+ // Earlier conversations: newest first until the budget, then oldest first; never authorizes effects.
+ let previous=[];
+ for(let i=start-1;i>=0&&previous.length<6;i--){
+  const t=turns[i];if(!sameThread(t)||t.control||t.status!=='answered')continue;
+  const notes=[{...exchange(t),instructionEligible:false},...previous];
+  if(bytes(notes)>PREVIOUS_CALLS_BYTES||bytes({...out,continuity:{...out.continuity,previousConversations:{note:PREVIOUS_CALLS_NOTE,exchanges:notes}}})>DIALOGUE_SOURCE_BYTES)break;
+  previous=notes;
+ }
+ if(previous.length)out.continuity.previousConversations={note:PREVIOUS_CALLS_NOTE,exchanges:previous};
  return out;
 }
 export function protectedConversation(value){return value?.continuity?.version===DIALOGUE_CONTEXT_VERSION;}

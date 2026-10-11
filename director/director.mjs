@@ -238,6 +238,8 @@ function freshPerson(id, now, place) {
 }
 let st; try { const restored=privateParse(fs.readFileSync(STATE, 'utf8'));if(!restored||typeof restored!=='object'||!Number.isInteger(restored.seq)||!restored.chars||typeof restored.chars!=='object')throw Error('private_state_unreadable');st=migratePhonePrivacy(restored); } catch(e) { if(e.code!=='ENOENT')throw Error('private_state_unreadable'); st = null; }
 for(const [id,p]of Object.entries(st?.chars||{}))if(p.privateContext)markPrivateActor(id);
+// One-way: decision rows saved in memory by older versions move to decisionLog, so restored episodes are not pushed out again.
+{const decision=m=>typeof m?.action==='string'&&Object.hasOwn(m,'fatigue_before');for(const p of Object.values(st?.chars||{}))if(Array.isArray(p.memory)&&p.memory.some(decision)){p.decisionLog=[...(p.decisionLog||[]),...p.memory.filter(decision)].slice(-12);p.memory=p.memory.filter(m=>!decision(m));}}
 const now0 = Date.now();
 if (!st) st = { seq: 1, chairs: { A: CHAIR_REST, B: CHAIR_REST, C: CHAIR_REST, D:CHAIR_REST }, day: new Date().toDateString(), jevToday: 0, request: 0, tasks: [], taskSeq: 0, nextTask: 0, chars: {} };
 st.chairs ??= {}; st.chairs.D ??= CHAIR_REST; st.sleepDeskLeases ??= {};
@@ -1114,8 +1116,9 @@ function applyDecision(id, action, source, confidence, expected=null, performanc
   const move = place !== from, travel = travelSeconds(from, place), dwell = (usesConsumption(id,activity)?CONSUMPTION[activity].duration:['smoke','smoke_coffee'].includes(activity)?60:activity==='lunch'&&resolved.meal&&executionCapabilities?.actors?.[id]?.mealDurations?.[resolved.meal]||rnd(dwellOf(activity))) * (REG[activity]?.once || ['wait','conversation','rest_desk','rest_lounge'].includes(activity) ? 1 : Math.min(4, 1 + p.repeats)) / FAST;   // Rest, waiting and conversation keep their decision interval on repeated continuation; needs keep evolving.
   // Ordinary rest is a reversible choice, not a long commitment; ask again as for wait.
   const decisionDwell = ['rest_desk','rest_lounge'].includes(activity)&&!committedPerformance(st,id)?rnd(DWELL.wait)/FAST:dwell;
-  p.memory.push({ action:selectedAction, at: hhmm(now), fatigue_before: before, source });
-  p.memory = p.memory.slice(-12);
+  // Decision rows have their own log: in memory they pushed out finished conversations and other episodes within minutes.
+  p.decisionLog ??= []; p.decisionLog.push({ action:selectedAction, at: hhmm(now), fatigue_before: before, source });
+  p.decisionLog = p.decisionLog.slice(-12);
   p.chairsAtStart = {}; for (const pl of [from, place]) if (['desk','chair'].includes(PLACES[pl].kind)) {const k=PLACES[pl].desk||PLACES[pl].chair;p.chairsAtStart[k]=st.chairs[k]??CHAIR_REST;};
   if (move) { if (['desk','chair'].includes(PLACES[from].kind)) st.chairs[PLACES[from].desk||PLACES[from].chair] = CHAIR_TUCKED; if (['desk','chair'].includes(PLACES[place].kind)) st.chairs[PLACES[place].desk||PLACES[place].chair] = 0; }
   if (verb !== 'continue') p.since = now;
