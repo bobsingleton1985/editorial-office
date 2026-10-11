@@ -360,6 +360,8 @@ function prefetchBodies(w) {
 }
 const opt = (u) => get(u).catch(() => null);                          // add-ons are optional: without them he just sits
 const ld = () => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
+// wardrobe-ui.js loads outfits through this instead of bundling its own three.js
+window.__editorialLoadGLB = (url) => ld().loadAsync(url);
 async function loadShared(office) {                                   // once: the clips' file, the add-ons, the things on the desks
   showWho();
   prefetchBodies(pending||latest);
