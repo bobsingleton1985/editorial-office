@@ -36,9 +36,17 @@ if (/\b(A4|t4|LV|NV|FV)\b/.test(s.replace(/"[^"\n]*"/g, ''))) {
 }
 
 // 2. shared GLTF loader for wardrobe-ui.js
-const ld = 'var yo=n=>eo(n).catch(()=>null),to=()=>new CC().setMeshoptDecoder(NQ);';
+// `to` is an expression arrow in older bundles and a block arrow (phone parse queue) since 2026-10-11
+const ld = 'var yo=n=>eo(n).catch(()=>null),to=()=>';
 if (count(s, ld) !== 1) fail('gltf loader');
-s = s.replace(ld, ld + 'window.__editorialLoadGLB=n=>to().loadAsync(n);');
+let le = s.indexOf(ld) + ld.length;
+if (s.startsWith('new CC().setMeshoptDecoder(NQ);', le)) le += 'new CC().setMeshoptDecoder(NQ);'.length;
+else if (s[le] === '{') {
+  let d = 0; for (; le < s.length; le++) { if (s[le] === '{') d++; else if (s[le] === '}' && --d === 0) break; }
+  if (s.slice(le, le + 2) !== '};' || !s.slice(s.indexOf(ld), le).includes('new CC().setMeshoptDecoder(NQ)')) fail('gltf loader body');
+  le += 2;
+} else fail('gltf loader shape');
+s = s.slice(0, le) + 'window.__editorialLoadGLB=n=>to().loadAsync(n);' + s.slice(le);
 
 fs.writeFileSync(file + '.grafted', s);
 const out = path.join(path.dirname(file), 'recast-v1.js');
