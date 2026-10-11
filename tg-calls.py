@@ -11,10 +11,11 @@ import re
 import shutil
 import subprocess
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 
-from tg_bot import BotMenu
+from tg_bot import BotMenu, OwnerBindingChanged
 
 HERE = Path(__file__).resolve().parent
 ALIASES = {'всем':'all', 'всем сотрудникам':'all', 'колумнисту':'columnist',
@@ -251,7 +252,7 @@ class DialogueDelivery:
                 if item['status']=='waiting':
                     if self.state.get('target') is None: self.state['target']=actor;changed=True
                     if turn.get('status') in ['answered','closed','cancelled','failed']:
-                        reply=('☎ Звонок завершён по вашей команде.' if turn.get('status')=='closed' else '☎ Ответ на эту реплику отменён: вы завершили звонок.' if turn.get('status')=='cancelled' else '☎ Предыдущую реплику не удалось обработать из-за ошибки модели. Новая фраза продолжает этот же звонок.' if turn.get('status')=='failed' else f"☎ {NAMES.get(actor,actor)}\n{turn['reply']}\n\nРеакция: {turn['reaction']}")
+                        reply=('☎ Звонок завершён по вашей команде.' if turn.get('status')=='closed' else '☎ Ответ на эту реплику отменён: вы завершили звонок.' if turn.get('status')=='cancelled' else '☎ Предыдущую реплику не удалось обработать из-за ошибки модели. Новая фраза продолжает этот же звонок.' if turn.get('status')=='failed' else f"☎ {NAMES.get(actor,actor)}\n{turn.get('reply') or '…'}\n\nРеакция: {turn.get('reaction') or '—'}")
                         if turn.get('effect',{}): reply+='\n\n'+turn['effect'].get('summary','')
                         item.update(status='ready',reply=reply,replyHash=hashlib.sha256(reply.encode()).hexdigest(),actor=actor)
                         changed=True
@@ -263,7 +264,13 @@ class DialogueDelivery:
             item['status']='sending';self.save()
             try: result=send(item['reply'],item['messageId'])
             except DefiniteSendFailure:
-                item['status']='ready';self.save();report('dialogue reply rejected; will retry');break
+                # Telegram refused it, so nothing was sent. Retry, but a reply that is always
+                # refused must not hold every later reply back forever.
+                item['attempts']=item.get('attempts',0)+1
+                item['status']='failed' if item['attempts']>=MAX_SEND_ATTEMPTS else 'ready'
+                self.save();report('dialogue reply rejected; '+('giving up' if item['status']=='failed' else 'will retry'))
+                if item['status']=='failed': continue
+                break
             except Exception:
                 item['status']='uncertain';self.save();report('dialogue reply delivery uncertain; no automatic resend');break
             if not isinstance(result.get('message_id'),int):
@@ -273,7 +280,11 @@ class DialogueDelivery:
             if item.get('ending') and self.state.get('target')==item.get('actor'): self.state['target']=None
             self.save();report('dialogue reply delivered',call_id)
 
-class DefiniteSendFailure(RuntimeError): pass
+class DefiniteSendFailure(RuntimeError):
+    def __init__(self, message, retry_after=None):
+        super().__init__(message); self.retry_after=retry_after
+
+MAX_SEND_ATTEMPTS=8
 
 
 def log(*args): print(time.strftime('%d.%m %H:%M:%S'),*args,flush=True)
@@ -295,9 +306,20 @@ def main():
     if not channel or not token:
         log('existing channel and token required'); return 1
     api = 'https://api.telegram.org/bot' + token + '/'
+    pause_until = 0.0
     def call(method, **params):
         data = urllib.parse.urlencode({k:json.dumps(v) if isinstance(v,(list,dict)) else v for k,v in params.items()}).encode()
-        with urllib.request.urlopen(api+method,data,timeout=70) as response: result = json.load(response)
+        nonlocal pause_until
+        try:
+            with urllib.request.urlopen(api+method,data,timeout=70) as response: result = json.load(response)
+        except urllib.error.HTTPError as error:
+            # Telegram answers refusals (429 flood control, 4xx) with an error status, so urllib
+            # raises before the ok:false check. These are definite: nothing was sent.
+            if not 400 <= error.code < 500: raise
+            try: retry_after=int(json.load(error).get('parameters',{}).get('retry_after') or 0)
+            except Exception: retry_after=0
+            if error.code==429: pause_until=max(pause_until,time.time()+min(max(retry_after,1),300))
+            raise DefiniteSendFailure('Telegram refused '+method,retry_after) from None
         if not result.get('ok'): raise DefiniteSendFailure('Telegram request failed')
         return result
     # Polling must not silently remove a webhook owned by another integration.
@@ -321,8 +343,14 @@ def main():
     dialogue=DialogueDelivery(HERE/'.tg-dialogue-state.json')
     private=DialogueDelivery(HERE/'.tg-bot-dialogue-state.json')
     bot=BotMenu(HERE/'.tg-bot-state.json',atomic_text)
+    owner_checks={}
     def authorized(user):
-        return call('getChatMember',chat_id=channel,user_id=user)['result'].get('status')=='creator'
+        # Cache the creator check for a minute instead of asking Telegram on every loop.
+        cached=owner_checks.get(user)
+        if cached and time.time()-cached[1]<60: return cached[0]
+        result=call('getChatMember',chat_id=channel,user_id=user)['result'].get('status')=='creator'
+        owner_checks[user]=(result,time.time())
+        return result
     def answer_callback(id,text):
         try:call('answerCallbackQuery',callback_query_id=id,text=text)
         except Exception:pass # Expired UI acknowledgements cannot replay a command.
@@ -342,11 +370,17 @@ def main():
     log('bridge ready: existing channel; two-way phone dialogue + private owner bot menu')
     while True:
         try:
+            if time.time()<pause_until: time.sleep(pause_until-time.time())
             replies()
             updates = call('getUpdates',offset=offset,timeout=5,allowed_updates=['channel_post','message','callback_query']).get('result',[])
             for update in updates:
                 if update['update_id'] < offset: continue
-                if bot.process(update,authorized=authorized,send=lambda chat,text,keyboard:call('sendMessage',chat_id=chat,text=text,**({'reply_markup':keyboard} if keyboard else {})),answer_callback=answer_callback,enqueue=lambda *args:queue_call(HERE,*args),track=private.track,world=bot_world,save_offset=save_offset):continue
+                # A refused update (invalid call, changed owner) is reported and skipped; retrying it
+                # forever blocked every later message in both the channel and the private bot.
+                try: handled=bot.process(update,authorized=authorized,send=lambda chat,text,keyboard:call('sendMessage',chat_id=chat,text=text,**({'reply_markup':keyboard} if keyboard else {})),answer_callback=answer_callback,enqueue=lambda *args:queue_call(HERE,*args),track=private.track,world=bot_world,save_offset=save_offset)
+                except (InvalidCall, OwnerBindingChanged) as error:
+                    log('bot update rejected',type(error).__name__); save_offset(update['update_id']+1); continue
+                if handled: continue
                 process_update(update,channel,since,enqueue_bonus=lambda *a:queue_bonus(HERE,*a),
                                enqueue_call=lambda *a:queue_call(HERE,*a),save_offset=save_offset,report=log,
                                track_call=dialogue.track,conversation_target=dialogue.target,is_own_reply=dialogue.is_own_reply,

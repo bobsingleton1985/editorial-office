@@ -43,6 +43,24 @@ class DeliveryTests(unittest.TestCase):
             result=b.process_update(update,'-1',100,enqueue_bonus=lambda *a:events.append(a),enqueue_call=lambda *a:events.append(a),save_offset=lambda *a:None,report=lambda *a:None,is_own_reply=restarted.is_own_reply)
             self.assertEqual(result,'own_reply');self.assertEqual(events,[])
 
+    def test_answer_without_reaction_does_not_stall_bridge(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            d=b.DialogueDelivery(Path(tmp)/'d.json');d.track('call',3,'reporter','Привет')
+            d.collect({'chars':{'reporter':{'ownerDialogue':[{'id':'ph_call','source':'phone','status':'answered','reply':'Да.'}]}}})
+            self.assertEqual(d.state['calls']['call']['status'],'ready');self.assertIn('Да.',d.state['calls']['call']['reply'])
+    def test_refused_reply_is_retried_then_skipped_without_blocking_later_replies(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            d=b.DialogueDelivery(Path(tmp)/'d.json');d.track('bad',1,'reporter','Раз');d.track('good',2,'reporter','Два')
+            d.collect({'chars':{'reporter':{'ownerDialogue':[{'id':'ph_bad','source':'phone','status':'answered','reply':'A','reaction':'B'},{'id':'ph_good','source':'phone','status':'answered','reply':'C','reaction':'D'}]}}})
+            sent=[]
+            def send(text,message):
+                if message==1:raise b.DefiniteSendFailure('Telegram refused sendMessage',5)
+                sent.append(message);return {'message_id':50+message}
+            for attempt in range(b.MAX_SEND_ATTEMPTS-1):
+                d.flush(send,lambda *a:None);self.assertEqual(d.state['calls']['bad']['status'],'ready');self.assertEqual(sent,[])
+            d.flush(send,lambda *a:None)
+            self.assertEqual(d.state['calls']['bad']['status'],'failed');self.assertEqual(sent,[2])
+
     def test_unknown_delivery_and_crash_do_not_resend(self):
         with tempfile.TemporaryDirectory() as tmp:
             d=b.DialogueDelivery(Path(tmp)/'d.json');d.track('call',1,'heroine','Привет')
