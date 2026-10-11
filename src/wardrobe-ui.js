@@ -1,9 +1,8 @@
-import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
-import {MeshoptDecoder} from 'three/addons/libs/meshopt_decoder.module.js';
 import {createWardrobeMesh} from './wardrobe-mesh.mjs';
 import {OUTFITS,wardrobeState} from './wardrobe.mjs';
 const query=new URLSearchParams(location.search),relay=(query.get('relay')||'https://135-106-229-50.sslip.io').replace(/\/$/,''),assetBase=query.get('charbase')||relay+'/';
-const loader=new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
+// Outfits load through app.js (same three.js instance), so this bundle carries no copy of three.
+const loadGLB=url=>window.__editorialLoadGLB?window.__editorialLoadGLB(url):Promise.reject(Error('office not loaded'));
 let world=null,mesh=null,root=null,pending=null,connected=false,commandError=null;
 let section,select,autonomy,message,retry,gallery;let outfitCredits=[];const tiles=new Map();
 function mount(){
@@ -57,7 +56,7 @@ window.addEventListener('editorial-connection',e=>{connected=e.detail;paint();})
 const timer=setInterval(()=>{
  if(!section)mount();
  const r=window.__people?.heroine?.ed?.root;
- if(r&&r!==root){root=r;try{mesh=createWardrobeMesh(root,id=>loader.loadAsync(assetBase+'assets/heroine-wardrobe-all-20261006/'+id+'.glb'));}catch(e){if(message)message.textContent=e.message;}}
+ if(r&&r!==root){root=r;try{mesh=createWardrobeMesh(root,id=>loadGLB(assetBase+'assets/heroine-wardrobe-all-20261006/'+id+'.glb'));}catch(e){if(message)message.textContent=e.message;}}
  const id=wardrobeState(world?.chars?.heroine).selected;
  if(mesh&&mesh.status().wanted!==id)mesh.select(id);
  paint();
