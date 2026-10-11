@@ -2,7 +2,8 @@ import {createWardrobeMesh} from './wardrobe-mesh.mjs';
 import {OUTFITS,wardrobeState} from './wardrobe.mjs';
 const query=new URLSearchParams(location.search),relay=(query.get('relay')||'https://135-106-229-50.sslip.io').replace(/\/$/,''),assetBase=query.get('charbase')||relay+'/';
 // Outfits load through app.js (same three.js instance), so this bundle carries no copy of three.
-const loadGLB=url=>window.__editorialLoadGLB?window.__editorialLoadGLB(url):Promise.reject(Error('office not loaded'));
+// On phones app.js shrinks viewer textures (__prepareViewerGltf); outfits go through the same step.
+const loadGLB=url=>window.__editorialLoadGLB?window.__editorialLoadGLB(url).then(gltf=>window.__prepareViewerGltf?.(gltf)||gltf):Promise.reject(Error('office not loaded'));
 let world=null,mesh=null,root=null,pending=null,connected=false,commandError=null;
 let section,select,autonomy,message,retry,gallery;let outfitCredits=[];const tiles=new Map();
 function mount(){
@@ -10,14 +11,14 @@ function mount(){
  const tabs=host?.querySelector('.ptabs'),card=host?.querySelector('.rep');if(!host||!tabs||!card)return false;
  section=document.createElement('details');section.className='sec person-wardrobe';section.open=true;section.hidden=true;section.dataset.section='wardrobe';
  const title=document.createElement('summary');title.textContent='Платья';section.append(title);
- const label=document.createElement('label');label.textContent='Платье ';select=document.createElement('select');select.setAttribute('aria-label','Платье героини');
+ const label=document.createElement('label');label.textContent='Платье ';select=document.createElement('select');select.setAttribute('aria-label','Платье Марты');
  for(const o of OUTFITS){const option=document.createElement('option');option.value=o.id;option.textContent=o.label;select.append(option);}label.append(select);section.append(label);
- const autoLabel=document.createElement('label');autoLabel.style.cssText='display:block;margin-top:10px';autonomy=document.createElement('input');autonomy.type='checkbox';autonomy.setAttribute('aria-label','Героиня сама выбирает платье по настроению');autoLabel.append(autonomy,' Сама выбирает по настроению');section.append(autoLabel);
+ const autoLabel=document.createElement('label');autoLabel.style.cssText='display:block;margin-top:10px';autonomy=document.createElement('input');autonomy.type='checkbox';autonomy.setAttribute('aria-label','Марта сама выбирает платье по настроению');autoLabel.append(autonomy,' Сама выбирает по настроению');section.append(autoLabel);
  const hint=document.createElement('p');hint.textContent='Выбор общий для всех зрителей. Чтобы оставить выбранное вами платье, выключите самостоятельный выбор.';hint.style.cssText='font-size:12px;opacity:.8';section.append(hint);
  const credits=document.createElement('p');credits.style.cssText='font-size:11px;opacity:.7';credits.dataset.wardrobeCredits='';
  const link=document.createElement('a');link.href=assetBase+'assets/heroine-wardrobe-all-20261006/credits.json';link.textContent='Источники и лицензии';link.target='_blank';link.rel='noopener';credits.append(link);section.append(credits);
  gallery=document.createElement('details');const galleryTitle=document.createElement('summary');galleryTitle.textContent='Все фасоны — миниатюры';gallery.append(galleryTitle);
- const galleryHint=document.createElement('p');galleryHint.textContent='Миниатюры исходных фасонов. Выберите платье, чтобы увидеть его на героине.';galleryHint.style.cssText='font-size:11px;opacity:.7';gallery.append(galleryHint);
+ const galleryHint=document.createElement('p');galleryHint.textContent='Миниатюры исходных фасонов. Выберите платье, чтобы увидеть его на Марте.';galleryHint.style.cssText='font-size:11px;opacity:.7';gallery.append(galleryHint);
  const grid=document.createElement('div');grid.style.cssText='display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin:10px 0';gallery.append(grid);
  for(const o of OUTFITS){const tile=document.createElement('button');tile.type='button';tile.setAttribute('aria-label','Выбрать '+o.label);tile.style.cssText='padding:5px;border-radius:8px;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:11px;';tile.onclick=()=>send({selected:o.id});
   if(o.id!=='red'){const img=document.createElement('img');img.dataset.src=assetBase+'assets/heroine-wardrobe-all-20261006/thumb-'+o.id+'.webp';img.alt=o.label;img.loading='lazy';img.width=80;img.height=100;img.style.cssText='max-width:100%;object-fit:contain;background:#f4f1eb;border-radius:4px';tile.append(img);}
@@ -49,7 +50,7 @@ function paint(updateMessage=true){
  for(const [id,tile]of tiles){tile.disabled=select.disabled;tile.setAttribute('aria-pressed',String(id===select.value));tile.style.borderColor=id===select.value?'var(--accent)':'';}
  const credits=section.querySelector('[data-wardrobe-credits]');if(credits){const row=outfitCredits.find(o=>o.id===w.selected),text=row?row.author+' · '+row.license+'. ':'';if(credits.dataset.creditText!==text){credits.dataset.creditText=text;let node=credits.firstChild;if(node?.nodeType!==3){node=document.createTextNode('');credits.prepend(node);}node.textContent=text;}}
  retry.hidden=!status?.error;
- if(updateMessage)message.textContent=commandError||(!connected?'Нет соединения с редакцией':!p?'Героиня ещё не появилась':pending?'Применяем общий выбор…':status?.error?'Платье не загрузилось: '+status.error:status?.busy?'Загружаем выбранное платье…':status?.selected===w.selected?'На героине: '+OUTFITS.find(o=>o.id===w.selected).label:'Ждём загрузки героини…');
+ if(updateMessage)message.textContent=commandError||(!connected?'Нет соединения с редакцией':!p?'Марта ещё не появилась':pending?'Применяем общий выбор…':status?.error?'Платье не загрузилось: '+status.error:status?.busy?'Загружаем выбранное платье…':status?.selected===w.selected?'На Марте: '+OUTFITS.find(o=>o.id===w.selected).label:'Ждём загрузки Марты…');
 }
 window.addEventListener('editorial-world',e=>{world=e.detail;connected=true;paint();});
 window.addEventListener('editorial-connection',e=>{connected=e.detail;paint();});

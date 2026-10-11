@@ -51,7 +51,8 @@ function graftApp(s) {
   }
   // 4. auto quality waits for the characters
   {
-    const lp = once(s, /Promise\.allSettled\(\w+\.map\(\(\[\w+,\w+\]\)=>\w+\(\w+,\w+\)\)\)\.then\(\(\)=>\{(\w+)=!1/, 'loading flag')[1];
+    // published 2026-10-11 bundles load actors through settleActorLoads() (sequential on phones)
+    const lp = once(s, /(?:Promise\.allSettled\(\w+\.map\(\(\[\w+,\w+\]\)=>\w+\(\w+,\w+\)\)\)|settleActorLoads\(\w+,\w+,\$?\w+\))\.then\(\(\)=>\{(\w+)=!1/, 'loading flag')[1];
     const r = once(s, /\.tick\((\w+),window\.__ready\)/, 'quality tick');
     s = splice(s, r.index, r[0].length, `.tick(${r[1]},window.__ready&&!${lp})`);
     applied.push('quality-after-characters');
@@ -69,7 +70,8 @@ function graftApp(s) {
   }
   // 6. heroine add-ons download together with her body
   {
-    const head = once(s, /if\(\w+==="heroine"\)\{let (\w+)=await /, 'heroine branch');
+    // 2026-10-11 bundles share this branch with the maid: if((n==="heroine"||n==="maid")){
+    const head = once(s, /if\((?:\w+==="heroine"|\(\w+==="heroine"\|\|\w+==="maid"\))\)\{let (\w+)=await /, 'heroine branch');
     const blockStart = head.index + head[0].length - ('let ' + head[1] + '=await ').length;
     const tv = s.indexOf('.extra.tvswitch=await ', blockStart); if (tv < 0) fail('tv switch');
     const tvEnd = s.indexOf(';', tv);
